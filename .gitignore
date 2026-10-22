@@ -1,0 +1,30 @@
+# Python environments and generated caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+
+# Large captures and datasets
+data/
+*.pcap
+*.pcapng
+
+# Temporary document rendering and experiment output
+tmp/
+logs/
+results/
+
+# Local documents for group sharing
+output/documents/
+
+# Editor and operating system files
+.idea/
+.vscode/
+Thumbs.db
+.DS_Store
