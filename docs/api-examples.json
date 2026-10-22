@@ -1,0 +1,65 @@
+{
+  "health": {
+    "schema_version": "1",
+    "updated_at": "2026-10-22T19:00:02Z",
+    "capture_status": "running",
+    "model_status": "loaded",
+    "firewall_status": "available",
+    "mitigation_mode": "automatic"
+  },
+  "metrics": {
+    "schema_version": "1",
+    "updated_at": "2026-10-22T19:00:02Z",
+    "points": [
+      {
+        "window_start": "2026-10-22T19:00:00Z",
+        "window_seconds": 1,
+        "packets_per_second": 1200,
+        "bytes_per_second": 240000
+      },
+      {
+        "window_start": "2026-10-22T19:00:01Z",
+        "window_seconds": 1,
+        "packets_per_second": 140,
+        "bytes_per_second": 28000
+      }
+    ]
+  },
+  "detections": {
+    "schema_version": "1",
+    "updated_at": "2026-10-22T19:00:02Z",
+    "detections": [
+      {
+        "id": "det-0002",
+        "detected_at": "2026-10-22T19:00:01Z",
+        "scope": "source",
+        "source_ip": "192.0.2.10",
+        "attack_score": 0.94,
+        "model_version": "rf-example-v1",
+        "decision": "block_requested"
+      },
+      {
+        "id": "det-0001",
+        "detected_at": "2026-10-22T19:00:00Z",
+        "scope": "aggregate",
+        "source_ip": null,
+        "attack_score": 0.87,
+        "model_version": "rf-example-v1",
+        "decision": "alert"
+      }
+    ]
+  },
+  "blocks": {
+    "schema_version": "1",
+    "updated_at": "2026-10-22T19:00:02Z",
+    "blocks": [
+      {
+        "id": "block-0001",
+        "source_ip": "192.0.2.10",
+        "reason": "Repeated source-level attack detections; related event det-0002",
+        "blocked_at": "2026-10-22T19:00:01.200Z",
+        "expires_at": "2026-10-22T19:01:01.200Z"
+      }
+    ]
+  }
+}
