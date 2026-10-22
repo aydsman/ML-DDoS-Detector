@@ -6,6 +6,74 @@ COMP-3670 team project: machine learning based SYN and UDP flood detection with 
 
 Planning stage. The implementation and evaluation are not yet complete.
 
+## Setup and tests
+
+Use Python 3.12. The repository's `.python-version` records the shared minor version, 3.12; this file does not install Python by itself. Use an updated 3.12 patch release appropriate to your platform. Each teammate creates their own `.venv` and installs dependencies locally. No VM is needed for the current feature tests, API planning, or frontend work. Full live capture and Linux firewall integration are tested in Vince's isolated Linux lab.
+
+### Get the code
+
+For a new checkout:
+
+```sh
+git clone --branch development https://github.com/aydsman/ML-DDoS-Detector.git
+cd ML-DDoS-Detector
+```
+
+For an existing checkout, save or commit your local changes before switching branches or pulling:
+
+```sh
+git switch development
+git pull --ff-only origin development
+```
+
+### Windows PowerShell
+
+Create the environment once, then install dependencies:
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe --version
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+If `py -3.12` cannot find a uv-managed installation, run `py -0p` to list installed runtimes. For the uv-managed Python 3.12.15 installation, the environment creation command is:
+
+```powershell
+py -V:Astral/CPython3.12.15 -m venv .venv
+```
+
+If `.venv` already exists, use its Python directly; you do not need to recreate it. The explicit executable paths avoid requiring PowerShell activation or execution-policy changes.
+
+### Linux
+
+With Python 3.12 and its venv support installed:
+
+```sh
+python3.12 -m venv .venv
+./.venv/bin/python --version
+./.venv/bin/python -m pip install -r requirements.txt
+```
+
+### VS Code
+
+Open the repository folder and run `Python: Select Interpreter` from the Command Palette. Select `.venv/Scripts/python.exe` on Windows or `.venv/bin/python` on Linux. Confirm the Git branch is `development`.
+
+### Run the tests
+
+Run from the repository root:
+
+```powershell
+# Windows PowerShell
+.\.venv\Scripts\python.exe -m pytest -q
+```
+
+```sh
+# Linux
+./.venv/bin/python -m pytest -q
+```
+
+The current tests cover the initial feature extractor and window grouping. Passing them does not validate live detection, model quality, or firewall mitigation. Dependency versions are not locked yet, so installations can resolve different package versions.
+
 ## Team
 
 | Member | Role | Responsibilities |
