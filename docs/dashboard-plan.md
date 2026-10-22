@@ -1,5 +1,7 @@
 # Backend and dashboard planning
 
+See [the API contract](api-contract.md) and [complete JSON examples](api-examples.json) for the proposed field definitions. The API contract takes precedence over older examples in this planning note.
+
 Status: proposed agreement for Ayden and Aadi to review. These endpoints are not implemented yet. Example values below are mock data.
 
 ## Goal
@@ -59,8 +61,8 @@ Start with display-only screens. Add controls after the mitigation design is agr
     {
       "window_start": "2026-10-22T18:59:59Z",
       "window_seconds": 1,
-      "packet_rate_pps": 120,
-      "byte_rate_Bps": 24000
+      "packets_per_second": 120,
+      "bytes_per_second": 24000
     }
   ]
 }

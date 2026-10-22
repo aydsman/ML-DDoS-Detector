@@ -56,7 +56,7 @@ Work and integration happen on `development`. Once changes have been tested and 
 
 ## Dashboard planning
 
-See [the backend and frontend planning draft](docs/dashboard-plan.md) for the proposed agreement between Ayden and Aadi.
+Start with [Aadi's frontend and documentation handoff](docs/aadi-handoff.md). See [the backend and frontend planning draft](docs/dashboard-plan.md), [API field contract](docs/api-contract.md), and [JSON examples](docs/api-examples.json) for the proposed agreement between Ayden and Aadi.
 
 ## First milestone
 
