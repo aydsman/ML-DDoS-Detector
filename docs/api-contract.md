@@ -37,14 +37,14 @@ These fields appear at the top of every endpoint response.
 
 ## Traffic
 
-The `points` field is an array of measurement objects. An empty array means there are no measurements to display yet. Points are sorted oldest first for charting. Version 1 reports combined incoming IPv4 TCP/UDP traffic to the configured protected server; it is not a per-source chart. The capture filter and byte-counting definition must be finalized with Vince and recorded in docs/design.md before live integration.
+The `points` field is an array of measurement objects. An empty array means there are no measurements to display yet. Points are sorted oldest first for charting. Version 1 reports combined incoming IPv4 TCP, UDP, and ICMP traffic to the configured protected server (lab default 10.10.10.10), captured on its lab NIC. It is not a per-source chart. Byte counts use IPv4 Total Length, including IP/transport headers and excluding link-layer headers. Offline/live normalization and capture alignment must be verified before integration; see [design](design.md).
 
 | Field | JSON type | Meaning and rules | Example |
 | --- | --- | --- | --- |
 | window_start | string | UTC start of the measurement interval. The interval includes its start and excludes its end. | "2026-10-22T19:00:00Z" |
 | window_seconds | number | Interval duration in seconds; must be greater than zero. Start with one-second non-overlapping windows. | 1 |
 | packets_per_second | number or null | Observed incoming packet count divided by window_seconds. Must be nonnegative. Zero is measured silence; null means unavailable. | 1200 |
-| bytes_per_second | number or null | Observed incoming byte count divided by window_seconds. Must be nonnegative. The exact byte definition is pending the packet-size decision; it must match offline/live extraction. | 240000 |
+| bytes_per_second | number or null | Observed incoming byte count divided by window_seconds. Must be nonnegative. Use the sum of IPv4 Total Length values divided by window_seconds; it must match offline/live extraction. | 240000 |
 
 These are observed capture rates, not guaranteed offered traffic or server throughput. If capture fails, do not fabricate zero-rate points. Report the capture status and leave an unmeasured interval absent, or explicitly use null rates for that interval.
 
@@ -58,11 +58,32 @@ The `detections` field is an array of prediction/decision records, sorted newest
 | detected_at | string | UTC time inference produced this event, not the start of the attack or measurement interval. | "2026-10-22T19:00:01Z" |
 | scope | string | aggregate describes combined traffic; source describes traffic attributed to a particular source. | "source" |
 | source_ip | string or null | Source address associated with the event. Required as a valid IPv4 address for source scope; null for aggregate scope. Never invent a source from an aggregate alert. | "192.0.2.10" |
-| attack_score | number | Model attack score between 0 and 1 inclusive. It is not verified accuracy or guaranteed confidence. The model's output interpretation must be documented with its artifact. | 0.94 |
+| attack_score | number | Aggregate-window model attack score between 0 and 1 inclusive. For source records this is copied from the referenced aggregate event, not a prediction about that IP. It is not verified accuracy or guaranteed confidence. | 0.94 |
 | model_version | string | Identifier of the trained model artifact that produced the score. The example name is a placeholder, not an existing model. | "rf-example-v1" |
+| aggregate_detection_id | string or null | null for aggregate records; for source records, ID of the aggregate event supplying the score and attack decision. | "det-0001" |
+| attribution | object or null | null for aggregate records; required evidence object for source records, defined below. | See below |
 | decision | string | no_action: no alert/block request; alert: record a suspicious event without a block request; block_requested: the policy requested enforcement. | "block_requested" |
 
-A high score alone does not authorize blocking. block_requested is permitted only for source scope with a known source_ip and a satisfied mitigation policy. Monitor-only mode must not create automatic block requests. The final source-attribution design is tracked in GitHub issue #1.
+A high score alone does not authorize blocking. block_requested is permitted only for source scope with a known source_ip and a satisfied mitigation policy. Monitor-only mode must not create automatic block requests. The model remains aggregate-only. Source rules are documented in [design](design.md); issue #1 tracks their implementation evidence. Default operation is monitor_only. A qualifying source in monitor_only is an alert, never block_requested.
+
+### Source-attribution evidence
+
+These fields are all required inside a source record's `attribution` object. They describe rule evidence, not ML features or a source model score.
+
+| Field | JSON type | Meaning and rules |
+| --- | --- | --- |
+| protocol | string | tcp, udp, or icmp; grouping is by source IP and protocol |
+| packets_per_second | number | Nonnegative source/protocol packet count divided by window duration |
+| syn_per_second | number or null | Nonnegative TCP SYN-only count divided by window duration; null for UDP/ICMP |
+| packet_share | number | Source/protocol packet share, from 0 to 1 inclusive, using the stated denominator |
+| share_basis | string | all_selected_packets or matching_protocol_packets; states which window count is the denominator |
+| consecutive_windows | integer | Number of consecutive qualifying windows ending at this event, at least 1 |
+
+For source events, attack_score and model_version must match the referenced aggregate event. The backend must retain or resolve that reference even if it falls outside the current response page. Do not plot source and aggregate records as independent ML predictions.
+
+Rate/share thresholds, final share basis, model decision threshold, block cap, and address configuration remain pending. The sample uses all_selected_packets only to illustrate the calculation; it does not settle the policy. Three qualifying windows and a 300-second timeout are the initial defaults.
+
+The mock responses deliberately show automatic mode and one confirmed block to demonstrate the UI. Normal startup must default to monitor_only. The source example assumes three preceding qualifying windows, configured thresholds satisfied, an allowlist check passed, and available block capacity; the small metrics snapshot is not the entire evidence history.
 
 ## Active blocks
 
@@ -72,9 +93,9 @@ The `blocks` field is an array of blocks confirmed active by the firewall, sorte
 | --- | --- | --- | --- |
 | id | string | Stable unique identifier for a block action. This is separate from a detection ID; multiple detections may contribute to one block. | "block-0001" |
 | source_ip | string | Valid IPv4 address confirmed blocked. Cannot be null. | "192.0.2.10" |
-| reason | string | Short readable explanation of why the policy requested the block. Include a detection reference when useful. It is display text, not a firewall command. | "Repeated source-level attack detections; related event det-0002" |
+| reason | string | Short readable explanation of why the policy requested the block. Include a detection reference when useful. It is display text, not a firewall command. | "Source policy satisfied for 3 windows; attribution event det-0002" |
 | blocked_at | string | UTC time the backend confirmed enforcement. Sending a request alone does not set this timestamp. | "2026-10-22T19:00:01.200Z" |
-| expires_at | string | Planned UTC expiration; must be later than blocked_at. Version 1 supports temporary blocks only. Reaching the time alone is not proof the firewall removed a rule. | "2026-10-22T19:01:01.200Z" |
+| expires_at | string | Planned UTC expiration; must be later than blocked_at. Version 1 supports temporary blocks only. Reaching the time alone is not proof the firewall removed a rule. | "2026-10-22T19:05:01.200Z" |
 
 ## Rules shared by backend and frontend
 
@@ -90,5 +111,9 @@ The `blocks` field is an array of blocks confirmed active by the firewall, sorte
 
 ## Decisions still requiring review
 
-- Ayden and Vince: source attribution, exact capture/grouping rules, and packet-size definition; see GitHub issues #1 and #2.
+- Ayden and Vince: finalize numerical policy settings, capture normalization/window alignment, allowlist addresses, and offline/live parity evidence. The aggregate model, separate source rules, and IP-byte definition are now recorded in design.md.
+- Vince and Ali: verify dataset files, ground truth, label threshold, exclusions, and independent splits before training; see issue #3.
+- Vince: confirm the existing IPv4-only version-one scope; IPv6 support is deferred unless capture, API, and firewall contracts are updated together.
 - Ayden and Aadi: confirm the display fields, history limits, error responses, and stale-data behavior before treating version 1 as finalized.
+
+Remaining infrastructure, policy, and dataset work is tracked in [Vince's follow-up issue #5](https://github.com/aydsman/ML-DDoS-Detector/issues/5).

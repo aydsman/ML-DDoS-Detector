@@ -20,7 +20,7 @@ Agree what the dashboard displays and what the backend sends. Aadi can build aga
 | --- | --- | --- |
 | System health | GET /api/health | Capture/model/firewall status, mitigation mode, last update |
 | Traffic chart | GET /api/metrics | Timestamped packet and byte rates with explicit scope |
-| Detection table | GET /api/detections | Event ID, time, model version, score, decision scope, source if known |
+| Detection table | GET /api/detections | Event ID, time, aggregate model score/version, decision scope, source if known, linked aggregate event and attribution evidence |
 | Active blocks | GET /api/blocks | Source IP, reason, confirmed application time and expiry |
 
 Start with display-only screens. Add controls after the mitigation design is agreed and tested.
@@ -34,7 +34,9 @@ Start with display-only screens. Add controls after the mitigation design is agr
 - Use a stable event ID and deterministic ordering for event lists; agree bounded history and pagination before live integration.
 - Distinguish unknown/unavailable values from measured zero.
 - Display backend failures and stale data clearly; never imply a failed capture is healthy zero traffic.
-- A model score is not verified live accuracy. Record whether a displayed source is identified or unresolved.
+- Scores describe aggregate windows. Source rows link to that event and show separate rule evidence; they do not represent a source model prediction.
+- Traffic covers inbound IPv4 TCP/UDP/ICMP to the protected server. Byte rates include IP/transport headers and exclude link-layer headers.
+- Start in monitor-only mode. Automatic enforcement needs validated source rules, an allowlist, a block cap, and confirmed firewall results.
 - Confirmed firewall actions, not requested actions alone, populate the active-block view.
 
 ## Mock health response
@@ -56,7 +58,6 @@ Start with display-only screens. Add controls after the mitigation design is agr
 {
   "schema_version": "1",
   "updated_at": "2026-10-22T19:00:00Z",
-  "scope": "protected_server_inbound",
   "points": [
     {
       "window_start": "2026-10-22T18:59:59Z",

@@ -14,14 +14,14 @@
       {
         "window_start": "2026-10-22T19:00:00Z",
         "window_seconds": 1,
-        "packets_per_second": 1200,
-        "bytes_per_second": 240000
+        "packets_per_second": 4212,
+        "bytes_per_second": 252720
       },
       {
         "window_start": "2026-10-22T19:00:01Z",
         "window_seconds": 1,
-        "packets_per_second": 140,
-        "bytes_per_second": 28000
+        "packets_per_second": 4212,
+        "bytes_per_second": 252720
       }
     ]
   },
@@ -31,21 +31,32 @@
     "detections": [
       {
         "id": "det-0002",
-        "detected_at": "2026-10-22T19:00:01Z",
+        "detected_at": "2026-10-22T19:00:01.100Z",
         "scope": "source",
-        "source_ip": "192.0.2.10",
+        "source_ip": "10.10.10.30",
         "attack_score": 0.94,
         "model_version": "rf-example-v1",
-        "decision": "block_requested"
+        "decision": "block_requested",
+        "aggregate_detection_id": "det-0001",
+        "attribution": {
+          "protocol": "tcp",
+          "packets_per_second": 4200,
+          "syn_per_second": 4200,
+          "packet_share": 0.9971509971509972,
+          "share_basis": "all_selected_packets",
+          "consecutive_windows": 3
+        }
       },
       {
         "id": "det-0001",
-        "detected_at": "2026-10-22T19:00:00Z",
+        "detected_at": "2026-10-22T19:00:01Z",
         "scope": "aggregate",
         "source_ip": null,
-        "attack_score": 0.87,
+        "attack_score": 0.94,
         "model_version": "rf-example-v1",
-        "decision": "alert"
+        "decision": "alert",
+        "aggregate_detection_id": null,
+        "attribution": null
       }
     ]
   },
@@ -55,10 +66,10 @@
     "blocks": [
       {
         "id": "block-0001",
-        "source_ip": "192.0.2.10",
-        "reason": "Repeated source-level attack detections; related event det-0002",
+        "source_ip": "10.10.10.30",
+        "reason": "Source policy satisfied for 3 windows; aggregate model event det-0001; attribution event det-0002",
         "blocked_at": "2026-10-22T19:00:01.200Z",
-        "expires_at": "2026-10-22T19:01:01.200Z"
+        "expires_at": "2026-10-22T19:05:01.200Z"
       }
     ]
   }

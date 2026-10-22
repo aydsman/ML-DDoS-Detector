@@ -120,7 +120,7 @@ Each member writes the explanation of their own component. Aadi assembles and ed
 
 ## Planned architecture
 
-An isolated lab contains a legitimate client, a controlled attack simulator, and a protected Linux server. The server captures packets, extracts window features, runs inference, and applies temporary firewall blocks. A local browser dashboard uses the backend API to show traffic, detections, actions, and system health.
+An isolated lab contains a legitimate client, a controlled attack simulator, and a protected Linux server. The server captures packets, extracts window features, runs aggregate-window inference, and evaluates separate per-source attribution rules before requesting temporary firewall blocks. Startup defaults to monitor-only; enforcement requires validated policy settings. A local browser dashboard uses the backend API to show traffic, detections, actions, and system health.
 
 ```mermaid
 flowchart TD
@@ -140,7 +140,7 @@ flowchart TD
 
 Ubuntu Linux VMs, Python, Scapy, pandas, NumPy, scikit-learn, FastAPI, Uvicorn, iptables, HTML/CSS/JavaScript, Chart.js, Wireshark or tcpdump, pytest, Git, and GitHub.
 
-Start with Random Forest, then compare an MLP after the end-to-end pipeline works. Offline and live processing must share the same feature definitions.
+Start with Random Forest, then compare an MLP after the end-to-end pipeline works. Offline and live processing must share the same feature definitions. See [the detection and mitigation design](docs/design.md) for IP-byte counting, aggregate detection, source attribution, and the pending dataset/policy decisions.
 
 ## Task workflow
 

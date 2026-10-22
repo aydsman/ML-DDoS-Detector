@@ -15,7 +15,7 @@ class Packet:
     ts: float
     src: str
     proto: str  # "tcp", "udp" or "icmp"
-    size: int
+    size: int  # IP packet length in bytes, including IP headers; excludes link-layer headers
     flags: int = 0  # TCP flags, 0 for non-TCP
 
 
@@ -25,7 +25,12 @@ def _entropy(counts):
 
 
 def extract_features(packets, window_seconds):
-    """Return a dict keyed by FEATURE_NAMES for one window of packets."""
+    """Summarize one aggregate window of normalized inbound packets.
+
+    Packet.size must use declared IP packet bytes for offline/live parity.
+    Size standard deviation is the population statistic, in bytes.
+    Capture filtering and raw-packet normalization belong to the adapters.
+    """
     n = len(packets)
     if n == 0:
         return {name: 0.0 for name in FEATURE_NAMES}
