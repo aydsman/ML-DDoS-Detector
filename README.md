@@ -6,6 +6,30 @@ COMP-3670 team project: machine learning based SYN and UDP flood detection with 
 
 Planning stage. The implementation and evaluation are not yet complete.
 
+## Where to find things
+
+Start here if you are not sure where your work belongs. The "Owner" column follows the roles in the [Team](#team) table.
+
+| Path | What it is | Main owner |
+| --- | --- | --- |
+| `ddos_detector/` | Python package. Shared code for offline training and live capture. | Vince (feature extraction), Ayden (training, inference, API) |
+| `ddos_detector/features.py` | The single feature extractor and window grouping. Offline and live processing must both use it. | Vince |
+| `ddos_detector/config.py` | Shared settings (window length, data folder) and the feature name list. | Vince |
+| `tests/` | pytest suite. `tests/test_features.py` covers the feature extractor and window grouping. | Ali (QA), everyone adds tests for their own code |
+| `docs/design.md` | Design decisions: dataset, 1 second window, feature list, leakage rules, open items. | Ayden, Vince |
+| `docs/aadi-handoff.md` | Where Aadi starts on the dashboard and documentation. | Aadi |
+| `docs/dashboard-plan.md` | Backend and dashboard planning agreement. | Ayden, Aadi |
+| `docs/api-contract.md` | Proposed API field contract. Takes precedence over older examples. | Ayden |
+| `docs/api-examples.json` | Mock JSON responses for building the dashboard. | Ayden, Aadi |
+| `frontend/` | Dashboard source. Not created yet; Aadi adds it (see the handoff). | Aadi |
+| `.github/workflows/ci.yml` | GitHub Actions CI, see [Automated checks](#automated-checks). | Whole team |
+| `requirements.txt` | Python dependencies. `.python-version` records Python 3.12. | Whole team |
+| `data/` | Local datasets and captures. Gitignored, so it will not appear in a fresh clone. | Local only |
+
+Not in the repository yet: packet capture, model training, the backend API, firewall mitigation, and experiment scripts. Add new code under `ddos_detector/` unless the team agrees otherwise, and mention the new file in this table.
+
+**Quick start:** use Python 3.12, create `.venv`, install `requirements.txt`, and run `python -m pytest -q` from the repository root. Exact commands for Windows and Linux are in [Setup and tests](#setup-and-tests). Work on `development` (see [Branch workflow](#branch-workflow)) and track tasks on the [Trello board](https://trello.com/b/7nOJyLqY/ml-ddos-detector).
+
 ## Setup and tests
 
 Use Python 3.12. The repository's `.python-version` records the shared minor version, 3.12; this file does not install Python by itself. Use an updated 3.12 patch release appropriate to your platform. Each teammate creates their own `.venv` and installs dependencies locally. No VM is needed for the current feature tests, API planning, or frontend work. Full live capture and Linux firewall integration are tested in Vince's isolated Linux lab.
