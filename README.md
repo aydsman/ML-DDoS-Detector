@@ -74,6 +74,14 @@ Run from the repository root:
 
 The current tests cover the initial feature extractor and window grouping. Passing them does not validate live detection, model quality, or firewall mitigation. Dependency versions are not locked yet, so installations can resolve different package versions.
 
+## Automated checks
+
+[GitHub Actions](https://github.com/aydsman/ML-DDoS-Detector/actions/workflows/ci.yml) runs CI on pushes to development and main, and on pull requests targeting either branch. The workflow uses an isolated Ubuntu runner, reads the Python version from .python-version, installs requirements.txt, checks dependency consistency, and runs the existing pytest suite.
+
+Open the Actions tab or a pull request's checks to inspect the result and failure logs. Passing CI only verifies the automated tests currently present; it does not replace the isolated lab experiments. No deployment or automatic merge is configured. Requiring a passing check to merge would be a separate branch-protection setting.
+
+The workflow is stored in .github/workflows/ci.yml and can be manually dispatched once GitHub makes it available on the default branch. Local test commands remain the same.
+
 ## Team
 
 | Member | Role | Responsibilities |
