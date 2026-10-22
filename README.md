@@ -44,11 +44,19 @@ Start with Random Forest, then compare an MLP after the end-to-end pipeline work
 
 ## Task workflow
 
-Use GitHub Issues and a GitHub Projects board:
+Use Trello to assign and track tasks, and GitHub Issues for technical decisions and bugs:
 
 **Backlog -> Ready -> In progress -> Review/testing -> Done**
 
 Each task has one accountable owner, a deadline, a deliverable, dependencies, and a verifiable completion condition. Aim for one to three working sessions per task and review the board twice a week.
+
+## Branch workflow
+
+Work and integration happen on `development`. Once changes have been tested and reviewed, promote them to `main` through a pull request. `main` contains the tested version.
+
+## Dashboard planning
+
+See [the backend and frontend planning draft](docs/dashboard-plan.md) for the proposed agreement between Ayden and Aadi.
 
 ## First milestone
 
