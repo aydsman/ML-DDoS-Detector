@@ -5,14 +5,14 @@ Status: planning decisions recorded from Vince's replies to issues [#1](https://
 ## Capture scope and windows
 
 - Version one targets inbound IPv4 TCP, UDP, and ICMP traffic to the protected server, lab address `10.10.10.10`, on its lab NIC. The address and interface must be configurable. Dataset victims must be selected from verified dataset metadata, not assumed to use the lab address.
-- Keep the current IPv4 scope for version one; Vince should confirm this. IPv6 needs separate capture, address-validation, and firewall support before it can be advertised.
+- Vince confirmed IPv4-only version-one scope in issue #5. IPv6 needs separate capture, address-validation, and firewall support before it can be advertised.
 - Use one-second, non-overlapping windows by default, controlled by `window_seconds`. Intervals include their start and exclude their end. Packet timestamps are Unix epoch seconds; API timestamps are UTC ISO 8601.
-- The current `windows()` helper anchors windows to the first supplied packet. Offline and live adapters must share an explicit origin and ordering rule; final capture/window alignment and empty-window behavior require a parity test.
+- Approved window origin: `floor(timestamp / window_seconds) * window_seconds`, aligned to Unix epoch time. For example, at duration 1s, timestamps 100.1 and 100.9 belong to [100, 101); 101.0 belongs to [101, 102). Inputs must be time-sorted. A measured empty interval breaks the attribution streak. Capture failure/missing coverage also breaks the streak, but is unavailable data rather than zero traffic. The current `windows()` helper still anchors to the first packet; Vince must implement epoch alignment and demonstrate offline/live parity in his docs/fixtures and extractor work.
 - Aggregate features include all selected packets in the window. Do not train the model on per-source groups.
 
 ## Stage 1: aggregate detection
 
-Start with a Random Forest producing one attack score and decision per aggregate window. Its score describes combined traffic, never the probability that a particular source is malicious. Choose the model decision threshold using validation data; it is not fixed yet.
+Start with a Random Forest producing one attack score and decision per aggregate window. Its score describes combined traffic, never the probability that a particular source is malicious. Use an attack-score threshold of 0.5 as an experimental baseline (attack when score >= threshold). Choose the final value using validation data, considering attack detection and legitimate-client false positives; never tune on the final test. This score threshold is separate from the provisional 80% ground-truth window-label rule.
 
 | Feature | Definition |
 | --- | --- |
@@ -40,11 +40,11 @@ A source is eligible only when all conditions hold:
 3. The qualifying condition holds for three consecutive windows by default. A benign, nonqualifying, missing, or failed-capture interval breaks the streak. Tune the count using validation/lab evidence.
 4. The source is not allowlisted and enforcement limits permit a request.
 
-Pending: exact rate thresholds, traffic-share denominator (all selected traffic or matching protocol), minimum share, maximum active blocks, and reset/deduplication rules across protocols. Until configured and verified, remain in monitor-only mode.
+Approved traffic-share denominator: all selected inbound packets to the protected host, across TCP/UDP/ICMP. The numerator is the source/protocol group packet count. The configurable active-block cap starts at 20 as a provisional lab value. Exact per-protocol packet/s or SYN/s thresholds and minimum share still need lab/validation evidence. Vince proposes streaks per (source IP, protocol), one active block per IP, and expiry measured from the first confirmed block; cross-protocol reset/deduplication behavior still needs review and tests. Until the real NIC, allowlist, and policy settings are verified, remain in monitor-only mode.
 
-Never block the protected server (`10.10.10.10`), legitimate lab client (`10.10.10.20`), loopback, or management/gateway addresses. Vince must supply the actual management/gateway addresses or networks. Validate this allowlist before enabling enforcement.
+Never block the protected server (`10.10.10.10`), legitimate lab client (`10.10.10.20`), loopback, or management/gateway addresses. The attacker address is 10.10.10.30. Vince must supply the actual management/gateway addresses or networks. Validate this allowlist before enabling enforcement.
 
-Defaults: dry-run (`monitor_only`), temporary blocks of 300 seconds, and a bounded number of active blocks (cap value pending). Dry-run logs candidates without sending firewall requests. Switching to `automatic` does not bypass eligibility checks. A request is not an active block until the firewall confirms it; expiry must also be confirmed and reconciled.
+Defaults: dry-run (`monitor_only`), temporary blocks of 300 seconds, and at most 20 active blocks as a configurable provisional lab cap. Dry-run logs candidates without sending firewall requests. Switching to `automatic` does not bypass eligibility checks. A request is not an active block until the firewall confirms it; expiry must also be confirmed and reconciled.
 
 For spoofed random-source floods, per-source blocks may be ineffective. Protected-port rate limiting is a separate follow-up proposal, not an implemented fallback or an existing dashboard capability.
 
@@ -62,7 +62,7 @@ An aggregate event has `scope: aggregate`, `source_ip: null`, and no attribution
 
 The definition extends to ordinary IPv6 as fixed IPv6 header plus Payload Length if IPv6 is supported later; IPv6 exceptional cases require explicit handling before support is claimed.
 
-Offline PCAP and live capture must use the same normalization helper. Skip non-IP and out-of-scope packets. For a truncated capture, use the declared IP length only if enough valid header data exists to read and validate it; do not substitute captured byte length. If necessary classification/source fields cannot be read, skip the packet rather than inventing values. Skip malformed IP headers and increment an internal `skipped_packets` diagnostic counter. Its API schema is not specified yet. Fragment handling and skip reason accounting need Vince's adapter specification.
+Offline PCAP and live capture must use the same normalization helper. Skip non-IP and out-of-scope packets. For a truncated capture, use the declared IP length only if enough valid header data exists to read and validate it; do not substitute captured byte length. If necessary classification/source fields cannot be read, skip the packet rather than inventing values. Skip malformed IP headers and increment an internal `skipped_packets` diagnostic counter. Its API schema is not specified yet. Vince confirmed that non-first fragments count toward IP bytes and protocol counts but have no readable transport ports/flags. They must not contribute fabricated TCP flag evidence. The adapter still needs to distinguish unavailable flags from a real observed zero value; the current Packet.flags integer alone cannot express this distinction. Skip diagnostics distinguish non-IP, IPv6, truncated header, bad length, and unsupported protocol; final validation/fragment rules and fixtures remain Vince's work. Diagnostics are logs/internal counters, not a new dashboard field.
 
 Verification fixture: an IPv4/TCP packet with 20-byte IP header, 20-byte TCP header, and 20-byte payload is 60 IP bytes. Three such packets in one second must give byte_rate 180, pkt_size_mean 60, and pkt_size_std 0. The feature-level fixture is tested; offline/live adapter parity remains to be implemented and demonstrated.
 
@@ -73,9 +73,9 @@ Verification fixture: an IPv4/TCP packet with 20-byte IP header, 20-byte TCP hea
 - Verify whether official metadata supplies the necessary attack types, attacker/victim identities, and time intervals. An attack schedule alone must not be assumed to identify individual attack packets, especially with spoofed sources.
 - A candidate packet label requires verified attack-interval and attacker-to-victim evidence. Traffic lacking trustworthy ground truth stays unlabelled; do not automatically call it benign.
 - Use aggregate windows, consistent with stage 1. The per-source alternative in the earlier issue discussion does not apply to this design.
-- Proposed attack label: at least X% of packets are independently attack-labelled. Vince suggested 80%; X is NOT agreed yet.
+- Provisional attack label: at least 80% of the window's packets are independently attack-labelled, provided ground truth is trustworthy and the window is not mixed/uncertain/boundary under the agreed exclusion rules. Vince will report sensitivity to this label threshold. This is a provisional experiment setting, not the model-score decision threshold.
 - Benign label requires verified benign traffic outside all attack intervals, with no attack-labelled or unknown packets. Unknown evidence must never silently become benign.
-- Exclude mixed windows below X, uncertain/boundary windows, empty windows, and windows inside an attack interval with zero confirmed attack packets until explicit rules are agreed. Count and report exclusions separately. Do not use them as benign training examples or include them in headline metrics.
+- Exclude mixed windows below 80%, uncertain/boundary windows, empty windows, and windows inside an attack interval with zero confirmed attack packets until explicit rules are agreed. Count and report exclusions separately. Do not use them as benign training examples or include them in headline metrics.
 - Record schedule timezone and conversion to epoch seconds once verified. Preserve capture file, window start/end, label reason, metadata reference, and split in generated records.
 - Live lab labels need independent generator logs, source/protocol identities, and recorded start/end times, separate from detector predictions. Apply the same mixed/uncertain rules.
 
@@ -91,6 +91,8 @@ Vince and Ali must produce a small inspectable sample (for example five minutes 
 
 ## Remaining decisions and workflow
 
-Follow-up [issue #5](https://github.com/aydsman/ML-DDoS-Detector/issues/5), assigned to Vince, consolidates unresolved thresholds, capture details, and dataset verification. Original issues #1-#3 remain open until their completion evidence is satisfied. Aadi must still review display fields, history limits, and backend error/stale-data behavior with Ayden.
+Follow-up [issue #5](https://github.com/aydsman/ML-DDoS-Detector/issues/5), assigned to Vince, consolidates unresolved thresholds, capture details, and dataset verification. Original issues #1-#3 remain open until their completion evidence is satisfied. Aadi must still review display fields, history limits, and backend error/stale-data behavior with Ayden. Review order agreed on October 26: docs and fixtures PR into development first, then lab settings/measurements, then dataset verification. Ali independently checks fixtures and labelled samples. See [feature contract](feature-contract.md) for ordered ML inputs and component boundaries.
+
+Approved decisions are recorded in [Ayden's issue #5 reply](https://github.com/aydsman/ML-DDoS-Detector/issues/5#issuecomment-6428534359). Documenting them does not complete the outstanding acceptance evidence.
 
 Work and integration happen on `development`. Promote tested and reviewed changes to `main` through a pull request.

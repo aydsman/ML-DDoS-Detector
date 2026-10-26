@@ -51,7 +51,7 @@ Ayden owns the field contract, example responses, and backend endpoints. The pla
 
 The model predicts aggregate windows; a separate source-rule stage identifies candidates. Keep source_ip nullable for aggregate alerts. Traffic charts show inbound IPv4 TCP/UDP/ICMP to the protected server. Bytes mean IP packet bytes, including IP/transport headers but excluding Ethernet headers. See [design](design.md) for the recorded decisions and pending implementation checks.
 
-Monitor-only is the startup default. The JSON deliberately shows automatic mode and one confirmed 300-second block so you can build the active-block table. This does not authorize automatic enforcement by default. Thresholds and the block cap still need agreement.
+Monitor-only is the startup default. The JSON deliberately shows automatic mode and one confirmed 300-second block so you can build the active-block table. This does not authorize automatic enforcement by default. The provisional block cap is 20; exact source-rate/minimum-share settings still need evidence. The experimental model threshold starts at 0.5 and is not a per-source score. Windows are aligned to epoch time.
 
 Do not implement real block/unblock controls yet. We will specify and test those with the backend later.
 
@@ -69,3 +69,17 @@ Create the report outline and record how to run the frontend, its libraries, scr
 Work on development. Promote changes to main only after testing and review. Send Ayden the layout and any field questions before spending time polishing the design.
 
 Remaining infrastructure, policy, and dataset work is tracked in [Vince's follow-up issue #5](https://github.com/aydsman/ML-DDoS-Detector/issues/5).
+
+## Review requested from Aadi
+
+Status: awaiting Aadi's review, not signed off. Pull the latest development branch and read this handoff plus api-contract.md and api-examples.json. Build only the week-one mock dashboard/report-outline scope for now.
+
+Please reply on your [week-one Trello card](https://trello.com/c/ZRF6obnC) with:
+
+1. Whether the four sections can be built with the documented fields; list any missing field or unclear meaning.
+2. Confirmation that aggregate source_ip is null, source rows reference aggregate scores, and rule evidence is displayed separately.
+3. Confirmation that zero, unavailable/null, empty arrays, and failed/stale requests look different. Do not substitute zero on failure.
+4. A proposed history length for charts/tables, a stale-data cutoff, and any error-response information needed. These remain review items, not implemented endpoint behavior.
+5. A link or screenshot of the initial layout, plus the frontend run instructions and report outline when available.
+
+Ayden will review your response and update the contract as needed. No review has been completed on your behalf. The backend API, capture adapters, and enforcement are still separate implementation work.
