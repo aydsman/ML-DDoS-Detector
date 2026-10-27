@@ -11,7 +11,7 @@
     COMP-3670 team project
     <br />
     <br />
-    <a href="docs/design.md"><strong>Explore the design docs Â»</strong></a>
+    <a href="docs/design.md"><strong>Explore the design docs Ã‚Â»</strong></a>
     <br />
     <br />
     <a href="docs/lab-setup.md">VM lab setup</a>
@@ -292,3 +292,5 @@ Traffic generation and mitigation experiments are intended for the isolated proj
 ## Feature contract
 
 See [the version-one ML feature contract](docs/feature-contract.md) and [ordered machine-readable feature definitions](docs/feature-contract.json) for component boundaries, feature order/types/units, and missing-data rules. This is a design draft pending the capture/dataset checks in issue #5 and Aadi's frontend review.
+
+See [Ayden's week-one status](docs/week1-status.md) for prepared deliverables and explicit remaining dependencies, and [dataset selection/label rules](docs/dataset-plan.md) before starting training.

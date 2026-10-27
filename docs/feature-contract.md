@@ -35,7 +35,7 @@ Definitions and range constraints are in the JSON and [design](design.md). Logic
 
 ## Missing, empty, invalid, and fragmented data
 
-These are planned pipeline validation rules; the current extractor helper does not enforce all of them.
+The numeric/name/version guard is now implemented as ddos_detector.contracts.feature_vector. It rejects invalid records and emits ordered Python floats for a float64 model conversion. Coverage, labeling, fragment normalization, and model execution are still separate pipeline responsibilities; the extractor helper itself does not enforce them.
 
 - Require all twelve feature names exactly once with no extras. Reject missing fields, null, NaN/infinity, negative numbers, fractions outside [0,1], and nonintegral count values. Do not silently impute them.
 - A successfully monitored empty window has zero-valued features; its chart rates can be zero. Exclude it from training and inference, emit no attack prediction, and break the source streak. This is distinct from how the low-level helper currently returns zeros when called with an empty list.
@@ -46,7 +46,7 @@ These are planned pipeline validation rules; the current extractor helper does n
 
 ## Model compatibility and completion gates
 
-Each future saved model must record feature_schema_version, exact feature_names/order, dtype, window_seconds, capture scope, packet-size definition, preprocessing, model version, score interpretation, and selected decision threshold. The loader must reject an incompatible schema/order instead of guessing. These metadata requirements are not implemented by this document.
+Each future saved model must record feature_schema_version, exact feature_names/order, dtype, window_seconds, capture scope, packet-size definition, preprocessing, model version, score interpretation, and selected decision threshold. The loader must reject an incompatible schema/order instead of guessing. The version/name/numeric input guard is implemented, but model artifact loading and metadata compatibility checks remain future work.
 
 Any feature addition/removal/reordering or meaning change requires a new feature schema version and corresponding model retraining/validation; do not load an older model against changed definitions. The current schema remains draft until inbound-only SYN/ACK definitions and fragment handling are reviewed, fixtures demonstrate offline/live parity, and the selected dataset produces these features with trustworthy labels.
 
@@ -54,6 +54,8 @@ Any feature addition/removal/reordering or meaning change requires a new feature
 
 - Prepared: component boundaries, ordered typed feature specification, API examples, and the decisions approved in issue #5.
 - Awaiting Vince/Ali: exact dataset manifest/ground truth/splits, labelled sample, live/offline parity, and remaining policy/feature evidence.
-- Awaiting Aadi: display-field/layout review and history/error/staleness proposals on his week-one Trello card.
+- Aadi reported on October 27 that the mock required no API field changes and the report outline is ready. His actual frontend files/screenshots are not yet pushed, so independent layout/behavior review and history/error/staleness agreement remain pending.
 
 Keep Ayden's week-one task open until its dataset and shared-contract acceptance criteria are verified. Do not interpret documentation completion as implementation completion.
+
+Dataset selection and expected label cases: [dataset-plan.md](dataset-plan.md). Completion evidence and remaining blockers: [week1-status.md](week1-status.md).

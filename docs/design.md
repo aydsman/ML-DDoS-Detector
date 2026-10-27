@@ -68,6 +68,8 @@ Verification fixture: an IPv4/TCP packet with 20-byte IP header, 20-byte TCP hea
 
 ## Dataset and labels
 
+See [the bounded subset and labeling plan](dataset-plan.md) and [manifest template](dataset-manifest.example.json). The source/download-access check is recorded there; a template is not a verified inventory.
+
 - Train offline on a small raw-PCAP subset of CIC-DDoS2019, initially SYN, UDP, and benign traffic only. DNS/NTP are outside the initial scope. Exact filenames, sizes, checksums, official download URLs, disk needs, and storage location are still unverified.
 - Keep captures under gitignored `data/`; never commit captures or generated datasets to Git.
 - Verify whether official metadata supplies the necessary attack types, attacker/victim identities, and time intervals. An attack schedule alone must not be assumed to identify individual attack packets, especially with spoofed sources.
