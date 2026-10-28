@@ -187,6 +187,9 @@ Start here if you are not sure where your work belongs. The "Main owner" column 
 | `ddos_detector/config.py` | Shared settings (window length, data folder) and the feature name list. | Vince |
 | `tests/` | pytest suite. `tests/test_features.py` covers the feature extractor and window grouping. | Ali (QA), everyone adds tests for their own code |
 | `docs/design.md` | Design decisions: dataset, 1 second window, feature list, leakage rules, open items. | Ayden, Vince |
+| `docs/test-plan.md` | Week 1 QA scenarios, acceptance checks, prerequisites, and owner review decisions. | Ali |
+| `docs/measurement-formats.md` | Proposed metric definitions, collection methods, and experiment record format. | Ali, component owners review |
+| `docs/templates/run-record.template.json` | Empty experiment record template; real run artifacts remain local and ignored. | Ali |
 | `docs/lab-setup.md` | How to build the isolated three-VM lab, verify capture, and move it to another PC. | Vince |
 | `docs/aadi-handoff.md` | Where Aadi starts on the dashboard and documentation. | Aadi |
 | `docs/dashboard-plan.md` | Backend and dashboard planning agreement. | Ayden, Aadi |
@@ -207,6 +210,7 @@ Not in the repository yet: packet capture, model training, the backend API, fire
 There is no end-to-end pipeline to run yet. What you can do today:
 
 * Run the feature-extraction tests (see [Run the tests](#run-the-tests)).
+* Review the [QA test plan](docs/test-plan.md) and [measurement formats](docs/measurement-formats.md) before recording experiment results. Owner agreement and lab evidence are still pending.
 * Build the isolated lab and verify packet capture with [the lab setup notes](docs/lab-setup.md).
 * Build the dashboard against the mock responses in [`docs/api-examples.json`](docs/api-examples.json), starting from [Aadi's handoff](docs/aadi-handoff.md). See also the [backend and frontend planning draft](docs/dashboard-plan.md) and the [API field contract](docs/api-contract.md).
 
