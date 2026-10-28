@@ -1,4 +1,4 @@
-# Final report outline — ML-DDoS-Detector
+# Final report outline â€” ML-DDoS-Detector
 
 Coordinator/editor: Aadi. Week 1 draft, October 26, 2026. Confirm the instructor's rubric, length, format, and citation requirements before final assembly. Each member writes their own component; Aadi consolidates and edits.
 
@@ -7,7 +7,7 @@ Coordinator/editor: Aadi. Week 1 draft, October 26, 2026. Confirm the instructor
 | Title page and abstract | Course, team, objectives and evidence-supported findings; write abstract last | Aadi; all verify |
 | 1. Introduction | Problem, objectives, isolated-lab scope, SYN/UDP focus, success criteria | Aadi, Ayden |
 | 2. Background | DDoS detection approaches, model rationale, dataset and library citations | Ayden; all supply references |
-| 3. Architecture | Capture → aggregate features → inference → source attribution → mitigation; API/dashboard boundaries and diagram | Ayden, Vince; Aadi assembles |
+| 3. Architecture | Capture â†’ aggregate features â†’ inference â†’ source attribution â†’ mitigation; API/dashboard boundaries and diagram | Ayden, Vince; Aadi assembles |
 | 4. Lab and reproducibility | VM topology, versions, interfaces, setup commands, verified captures | Vince |
 | 5. Dataset and features | Verified files, labels, provenance, window definitions, exclusions, independent splits, leakage prevention | Vince, Ayden; Ali checks ground truth |
 | 6. Model | Random Forest training, preprocessing, settings/seeds, validation threshold, saved artifacts; MLP only if implemented | Ayden |
@@ -27,8 +27,8 @@ Each owner supplies prose, source paths/commit, exact commands and versions, evi
 
 - Dashboard: `frontend/`; startup and manual acceptance checks: `frontend/README.md`.
 - Examples: `docs/api-examples.json`, clearly labelled as invented data in the dashboard.
-- The outline and contribution assignments were shared in a comment on [Aadi's Week 1 Trello card](https://trello.com/c/ZRF6obnC). Team acknowledgement and source publication are pending.
-- Ayden/Aadi layout review is pending. Agree error responses, history limits, freshness policy, and live integration behavior before connecting the backend.
+- The outline and contribution assignments were shared in a comment on [Aadi's Week 1 Trello card](https://trello.com/c/ZRF6obnC). Source is published in PR #10; Ayden approved the outline and responsibilities. Other team acknowledgements remain to be collected.
+- Ayden approved the week-one mock layout/API review in PR #10. The proposed history limits/freshness defaults are provisional; finalize pagination, error responses, per-endpoint freshness, and partial-failure behavior before live integration.
 
 ## Final assembly checklist
 

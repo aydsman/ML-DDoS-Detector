@@ -41,7 +41,7 @@ Future API loading belongs in `data.js`. Agree polling, partial failures, histor
 
 ## Limitations and review
 
-Only the two supplied chart points are shown. Mock staleness is selected explicitly, not inferred from historical timestamps. Schema versions are checked; full backend payload validation remains integration work. Historical blocks describe the saved snapshot, not current firewall state. Ayden/Aadi joint layout review remains pending.
+Only the two supplied chart points are shown. Mock staleness is selected explicitly, not inferred from historical timestamps. Schema versions are checked; full backend payload validation remains integration work. Historical blocks describe the saved snapshot, not current firewall state. Ayden approved the week-one mock/layout review on PR #10; live integration remains separate.
 
 Report outline: `docs/report-outline.md`. Each teammate supplies their own section and evidence.
 
@@ -49,6 +49,6 @@ Report outline: `docs/report-outline.md`. Each teammate supplies their own secti
 
 Browser verification covered representative values, all four alternate scenarios, error recovery, and a 390px viewport without document overflow. Both JavaScript files passed module syntax checks; the existing Python suite passed (4 tests). These checks validate the prototype, not model quality or live backend behavior.
 
-Saved mock screenshots: [desktop](../docs/screenshots/dashboard-desktop.png) and [mobile](../docs/screenshots/dashboard-mobile.png). Label them as mock data in the report. The outline and contribution assignments were shared on Aadi's Week 1 Trello card; joint review and GitHub source publication remain pending.
+Saved mock screenshots: [desktop](../docs/screenshots/dashboard-desktop.png) and [mobile](../docs/screenshots/dashboard-mobile.png). Label them as mock data in the report. The outline and contribution assignments were shared on Aadi's Week 1 Trello card; source is published in PR #10 and Ayden's week-one review is approved.
 
 October 28 recheck: representative, measured-zero, empty, unavailable, stale, connection failure, and recovery scenarios passed in the browser, with no captured console errors. The local preview requires the server command above to remain running. See the [Week 1 readiness record](../docs/week1-readiness.md) for remaining handoff items.
