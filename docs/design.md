@@ -66,6 +66,17 @@ Offline PCAP and live capture must use the same normalization helper. Skip non-I
 
 Verification fixture: an IPv4/TCP packet with 20-byte IP header, 20-byte TCP header, and 20-byte payload is 60 IP bytes. Three such packets in one second must give byte_rate 180, pkt_size_mean 60, and pkt_size_std 0. The feature-level fixture is tested; offline/live adapter parity remains to be implemented and demonstrated.
 
+## Normalization helper and window rules (issue #5)
+
+Implemented by `normalize_ip_packet()` in `ddos_detector/normalize.py` and `window_start()` / `windows()` in `ddos_detector/features.py`. Items marked PROPOSED were not explicitly approved by Ayden on issue #5 and need his confirmation. For the rest, see [feature-contract.md](feature-contract.md) and [dataset-plan.md](dataset-plan.md).
+
+- Packet size is the IPv4 Total Length (IP header, transport header and data). The Ethernet header is excluded, and the captured byte count is never substituted.
+- Skipped packets are counted by reason: `non_ip`, `ipv6`, `truncated_header`, `bad_length`, `unsupported_protocol`. The counters are for logs and diagnostics only; the API contract has no new field for them.
+- A non-first fragment keeps its size and protocol but has no ports or TCP flags. PROPOSED: its `Packet.flags` is `None` (unknown), as is the flags value of a TCP packet whose TCP header was not captured. A real observed `0` stays `0`, so the two are distinguishable. SYN, SYN-ACK and ACK counts use only packets whose flags are known; all other features still count unknown-flag packets.
+- Windows are epoch-aligned: `start = floor(ts / window_seconds) * window_seconds`, start-inclusive and end-exclusive, the same rule offline and live (approved on issue #5). A measured empty window breaks a streak. A capture failure also breaks it but is recorded as `unavailable`, never as zero traffic.
+- PROPOSED, pending Ayden's approval: absolute per-protocol rate thresholds set from lab/validation data only; streaks per `(src_ip, protocol)`; one block entry per IP, with the 300-second timeout counted from the first block; filtering the dataset to inbound-to-victim packets so training matches inbound-only live capture.
+- Still open: whether `syn_ack_ratio` and the other SYN/ACK features stay meaningful with inbound-only capture. They must be re-defined before training, and the feature contract updated if they change.
+
 ## Dataset and labels
 
 See [the bounded subset and labeling plan](dataset-plan.md) and [manifest template](dataset-manifest.example.json). The source/download-access check is recorded there; a template is not a verified inventory.

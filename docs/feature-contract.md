@@ -42,6 +42,7 @@ The numeric/name/version guard is now implemented as ddos_detector.contracts.fea
 - Capture failure or incomplete/unknown interval coverage means unavailable measurements. Do not call the model with a fabricated all-zero vector; do not extend source streaks. Surface capture status and use null rates or absent intervals in the dashboard.
 - Non-IP, IPv6, unsupported protocols, invalid IP lengths, and incomplete IP headers are skipped with diagnostic reasons. Usable truncated IPv4 packets use declared IP length, not captured byte count; Vince's fixtures must prove the rules.
 - Non-first fragments may contribute packet/byte/protocol/source counts but have no readable transport flags. Do not infer observed flags from missing headers. The current Packet.flags default of zero cannot distinguish unavailable flags from a real zero; Vince must resolve representation and flag-feature denominators before training. Keep this limitation explicit rather than silently promising a complete schema.
+- PROPOSED (pending Ayden's approval): `Packet.flags` may be `None` for unknown flags (non-first fragments, or a TCP header that was not captured). It is distinct from an observed `0`, and SYN/ACK counts ignore unknown-flag packets.
 - Inputs must be sorted by timestamp. Live late/out-of-order packet handling and coverage detection need Vince's adapter policy and tests; do not silently reassign finalized windows.
 
 ## Model compatibility and completion gates
