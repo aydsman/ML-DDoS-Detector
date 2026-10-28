@@ -192,7 +192,8 @@ Start here if you are not sure where your work belongs. The "Main owner" column 
 | `docs/dashboard-plan.md` | Backend and dashboard planning agreement. | Ayden, Aadi |
 | `docs/api-contract.md` | Proposed API field contract. Takes precedence over older examples. | Ayden |
 | `docs/api-examples.json` | Mock JSON responses for building the dashboard. | Ayden, Aadi |
-| `frontend/` | Dashboard source. Not created yet; Aadi adds it (see the handoff). | Aadi |
+| `frontend/` | Local mock dashboard; see [startup and checks](frontend/README.md). | Aadi |
+| `docs/report-outline.md` | Report outline, contributor responsibilities, and evidence checklist. | Aadi, all contributors |
 | `.github/workflows/ci.yml` | GitHub Actions CI. | Whole team |
 | `requirements.txt` | Python dependencies. `.python-version` records Python 3.12. | Whole team |
 | `data/` | Local datasets and captures. Gitignored, so it will not appear in a fresh clone. | Local only |
