@@ -12,7 +12,7 @@ import httpx
 import pytest
 
 from ddos_detector.http_client import (
-    ClientSettings, RequestResult, RunResult, RunSettings, export_run,
+    ClientSettings, RequestResult, RunExport, RunResult, RunSettings, export_run,
     run_requests, send_request,
 )
 import ddos_detector.http_client as http_client
@@ -39,6 +39,7 @@ def test_http_errors_are_still_measured_responses(status):
     assert result.error_type is None
     assert result.elapsed_ms >= 0
     assert datetime.fromisoformat(result.started_at).utcoffset().total_seconds() == 0
+    assert result.epoch_seconds == datetime.fromisoformat(result.started_at).timestamp()
 
 
 @pytest.mark.parametrize("exception,outcome", [(httpx.ReadTimeout, "timeout"), (httpx.ConnectError, "request_error")])
@@ -155,7 +156,8 @@ def test_exports_preserve_settings_failures_and_run_identity(tmp_path):
     with (run_dir / "requests.csv").open(encoding="utf-8", newline="") as handle:
         rows = list(csv.DictReader(handle))
     assert metadata["run_id"] == run_dir.name == result.run_id
-    assert metadata["schema_version"] == "draft-1"
+    assert metadata["schema_version"] == "draft-2"
+    assert metadata["state"] == "complete"
     assert metadata["settings"] == {
         "target": settings.target, "timeout_seconds": 0.5,
         "request_rate": 2, "duration_seconds": 2, "concurrency": 1,
@@ -173,6 +175,7 @@ def test_exports_preserve_settings_failures_and_run_identity(tmp_path):
     assert rows[2]["status_code"] == ""
     assert rows[2]["error_type"] == "ReadTimeout"
     assert float(rows[0]["elapsed_ms"]) == 10.5
+    assert float(rows[0]["epoch_seconds"]) == datetime.fromisoformat(timestamp).timestamp()
     original_json = (run_dir / "run.json").read_bytes()
     with pytest.raises(FileExistsError):
         export_run(tmp_path, settings, run, result)
@@ -295,8 +298,8 @@ def test_delayed_workers_do_not_send_after_deadline(monkeypatch):
         def __exit__(self, *args):
             pass
 
-        def submit(self, action):
-            return DelayedFuture(action)
+        def submit(self, action, *args):
+            return DelayedFuture(lambda: action(*args))
 
     def unexpected_request(request):
         pytest.fail("A delayed worker sent a request after the deadline")
@@ -309,3 +312,193 @@ def test_delayed_workers_do_not_send_after_deadline(monkeypatch):
     assert result.attempted == 0
     assert result.skipped_at_deadline == 2
     assert result.skipped_due_to_capacity > 0
+
+
+@pytest.mark.parametrize("target", [
+    "http://example.com/", "http://10.10.10.30/", "http://localhost.example.com/",
+    "http://127.0.0.1.example.com/", "http://10.10.10.10.example.com/",
+])
+def test_targets_outside_lab_and_loopback_are_rejected(target):
+    with pytest.raises(ValueError, match="lab server"):
+        ClientSettings(target)
+
+
+@pytest.mark.parametrize("target", [
+    "http://127.0.0.1:8000/", "http://localhost/", "http://[::1]/", "http://10.10.10.10/",
+])
+def test_local_and_lab_targets_are_allowed(target):
+    assert ClientSettings(target).target == target
+
+
+def test_legitimate_rate_is_capped():
+    assert RunSettings(100, 1).request_rate == 100
+    with pytest.raises(ValueError, match="must not exceed"):
+        RunSettings(1e6, 1, 32)
+
+
+def test_fixed_grid_avoids_accumulated_wakeup_drift(monkeypatch):
+    clock = [0.0]
+    starts = []
+
+    def late_sleep(seconds):
+        clock[0] += seconds + 0.01
+
+    def respond(request):
+        starts.append(clock[0])
+        return httpx.Response(200)
+
+    monkeypatch.setattr(http_client, "perf_counter", lambda: clock[0])
+    monkeypatch.setattr(http_client, "sleep", late_sleep)
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        result = run_requests(client, ClientSettings("http://localhost/"), RunSettings(2, 2))
+    assert starts == pytest.approx([0, 0.51, 1.01, 1.51])
+    assert result.skipped_due_to_lag == 0
+
+
+def test_fixed_grid_skips_whole_missed_slots(monkeypatch):
+    clock = [0.0]
+    starts = []
+
+    def advance(seconds):
+        clock[0] += seconds
+
+    def respond(request):
+        starts.append(clock[0])
+        advance(1.2)
+        return httpx.Response(200)
+
+    monkeypatch.setattr(http_client, "perf_counter", lambda: clock[0])
+    monkeypatch.setattr(http_client, "sleep", advance)
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        result = run_requests(client, ClientSettings("http://localhost/"), RunSettings(2, 2))
+    assert starts == [0, 1.2]
+    assert [item.request_index for item in result.requests] == [1, 3]
+    assert result.skipped_due_to_lag == 1
+
+
+def test_unexpected_request_error_is_recorded():
+    def fail(request):
+        raise RuntimeError("Unexpected adapter failure")
+
+    with httpx.Client(transport=httpx.MockTransport(fail)) as client:
+        result = send_request(client, ClientSettings("http://localhost/"))
+    assert result.outcome == "unexpected_error"
+    assert result.error_type == "RuntimeError"
+    assert result.status_code is None
+
+
+@pytest.mark.parametrize("concurrency", [1, 2])
+def test_interrupt_while_waiting_preserves_flushed_results(tmp_path, monkeypatch, concurrency):
+    sent = Event()
+
+    def respond(request):
+        sent.set()
+        return httpx.Response(200)
+
+    def interrupt(seconds):
+        assert sent.wait(timeout=3)
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(http_client, "sleep", interrupt)
+    export = RunExport(tmp_path)
+    try:
+        with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+            result = run_requests(
+                client, ClientSettings("http://localhost/"), RunSettings(1, 30, concurrency),
+                export=export,
+            )
+    finally:
+        export.close()
+    assert result.interrupted
+    assert result.attempted == 1
+    metadata = json.loads((export.run_dir / "run.json").read_text(encoding="utf-8"))
+    with (export.run_dir / "requests.csv").open(encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    assert metadata["state"] == "interrupted"
+    assert metadata["summary"]["interrupted"]
+    assert len(rows) == metadata["summary"]["attempted"] == 1
+
+
+def test_interrupt_during_request_keeps_that_attempt(tmp_path):
+    export = RunExport(tmp_path)
+
+    def interrupt(request):
+        raise KeyboardInterrupt
+
+    try:
+        with httpx.Client(transport=httpx.MockTransport(interrupt)) as client:
+            result = run_requests(
+                client, ClientSettings("http://localhost/"), RunSettings(1, 30), export=export,
+            )
+    finally:
+        export.close()
+    assert result.interrupted
+    assert result.attempted == 1
+    assert result.requests[0].outcome == "interrupted"
+    assert result.requests[0].error_type == "KeyboardInterrupt"
+
+
+def test_completed_rows_are_readable_before_run_finishes(tmp_path):
+    export = RunExport(tmp_path)
+    count = [0]
+
+    def respond(request):
+        count[0] += 1
+        if count[0] == 2:
+            with (export.run_dir / "requests.csv").open(encoding="utf-8", newline="") as handle:
+                rows = list(csv.DictReader(handle))
+            assert len(rows) == 1
+            assert rows[0]["status_code"] == "200"
+            # Simulate a process-level failure, not an ordinary HTTP error.
+            raise SystemExit(99)
+        return httpx.Response(200)
+
+    try:
+        with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+            with pytest.raises(SystemExit):
+                run_requests(client, ClientSettings("http://localhost/"), RunSettings(20, 1), export=export)
+    finally:
+        export.close()
+    metadata = json.loads((export.run_dir / "run.json").read_text(encoding="utf-8"))
+    assert metadata["state"] == "running"
+    assert metadata["summary"] is None
+    with (export.run_dir / "requests.csv").open(encoding="utf-8", newline="") as handle:
+        assert len(list(csv.DictReader(handle))) == 1
+
+
+def test_cli_interrupt_reports_saved_run_and_exit_code(tmp_path, monkeypatch, capsys):
+    client = httpx.Client(transport=httpx.MockTransport(lambda request: httpx.Response(200)))
+
+    def interrupt(seconds):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(http_client.httpx, "Client", lambda **kwargs: client)
+    monkeypatch.setattr(http_client, "sleep", interrupt)
+    monkeypatch.setattr(sys, "argv", [
+        "http_client", "--target", "http://localhost/", "--rate", "1",
+        "--duration", "30", "--output", str(tmp_path),
+    ])
+    assert http_client.main() == 130
+    report = json.loads(capsys.readouterr().out)
+    assert report["result"]["interrupted"]
+    metadata = json.loads((Path(report["export_directory"]) / "run.json").read_text(encoding="utf-8"))
+    assert metadata["state"] == "interrupted"
+    assert metadata["summary"]["attempted"] == 1
+
+
+def test_export_failure_before_run_does_not_send_traffic(tmp_path, monkeypatch, capsys):
+    blocked_path = tmp_path / "file-not-directory"
+    blocked_path.write_text("Not a directory", encoding="utf-8")
+
+    def unexpected_send(*args, **kwargs):
+        pytest.fail("Traffic was sent before the output directory was validated")
+
+    monkeypatch.setattr(http_client, "send_request", unexpected_send)
+    monkeypatch.setattr(sys, "argv", [
+        "http_client", "--target", "http://localhost/", "--rate", "1",
+        "--duration", "1", "--output", str(blocked_path),
+    ])
+    with pytest.raises(SystemExit) as exc:
+        http_client.main()
+    assert exc.value.code == 2
+    assert "Export failed" in capsys.readouterr().err

@@ -185,7 +185,7 @@ Start here if you are not sure where your work belongs. The "Main owner" column 
 | `ddos_detector/` | Python package. Shared code for offline training and live capture. | Vince (feature extraction), Ayden (training, inference, API) |
 | `ddos_detector/features.py` | The single feature extractor and window grouping. Offline and live processing must both use it. | Vince |
 | `ddos_detector/config.py` | Shared settings (window length, data folder) and the feature name list. | Vince |
-| `ddos_detector/http_client.py` | Legitimate HTTP client: paced runs, bounded concurrency, run IDs, and draft JSON/CSV exports. See [client instructions](docs/http-client.md). | Mujtaba |
+| `ddos_detector/http_client.py` | Legitimate HTTP client: capped rates, local/lab targets, bounded concurrency, epoch timestamps, and incremental draft JSON/CSV exports. See [client instructions](docs/http-client.md). | Mujtaba |
 | `tests/` | pytest suite. `test_features.py` covers feature extraction; `test_http_client.py` covers the legitimate HTTP client and exports. | Ali (QA), everyone adds tests for their own code |
 | `docs/design.md` | Design decisions: dataset, 1 second window, feature list, leakage rules, open items. | Ayden, Vince |
 | `docs/lab-setup.md` | How to build the isolated three-VM lab, verify capture, and move it to another PC. | Vince |
