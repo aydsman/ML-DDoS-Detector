@@ -1,6 +1,6 @@
 {
   "feature_schema_version": "1",
-  "status": "design-draft-awaiting-capture-and-dataset-verification",
+  "status": "week-one-baseline-specification",
   "scope": "protected_server_inbound_ipv4_tcp_udp_icmp",
   "default_window_seconds": 1.0,
   "window_alignment": "unix_epoch",
@@ -111,8 +111,8 @@
   ],
   "missing_values": "Reject missing, extra, null, NaN, infinity, or out-of-range feature values; never impute capture failure as zero. Empty measured windows are zeros for display/diagnostics, excluded from training and inference by the planned pipeline.",
   "unresolved": [
-    "Inbound-only SYN/ACK feature usefulness and unavailable-fragment-flag handling need review before training.",
-    "Current windows() implementation is first-packet aligned; epoch alignment still needs implementation and parity evidence.",
-    "Dataset subset, metadata, exclusions and split need verification under issue #5."
+    "Before training: verify actual dataset files, metadata, splits, labels and feature compatibility under issue #5.",
+    "Before live use: verify offline/live adapters, capture coverage, runtime allowlist and policy values.",
+    "Evaluate inbound-only SYN-related feature usefulness on validation data; removal or redefinition requires a new schema version."
   ]
 }

@@ -72,7 +72,7 @@ Remaining infrastructure, policy, and dataset work is tracked in [Vince's follow
 
 ## Review requested from Aadi
 
-Status: awaiting Aadi's review, not signed off. Pull the latest development branch and read this handoff plus api-contract.md and api-examples.json. Build only the week-one mock dashboard/report-outline scope for now.
+Status: Aadi confirmed the fields, and Ayden approved the week-one mock layout/report in merged PR #10. The checklist below is retained for live-integration follow-up. Pull the latest development branch and read this handoff plus api-contract.md and api-examples.json. Build only the week-one mock dashboard/report-outline scope for now.
 
 Please reply on your [week-one Trello card](https://trello.com/c/ZRF6obnC) with:
 
@@ -82,4 +82,4 @@ Please reply on your [week-one Trello card](https://trello.com/c/ZRF6obnC) with:
 4. A proposed history length for charts/tables, a stale-data cutoff, and any error-response information needed. These remain review items, not implemented endpoint behavior.
 5. A link or screenshot of the initial layout, plus the frontend run instructions and report outline when available.
 
-Ayden will review your response and update the contract as needed. No review has been completed on your behalf. The backend API, capture adapters, and enforcement are still separate implementation work.
+Ayden will review your response and update the contract as needed. The week-one review is completed; live-integration decisions remain follow-up work. The backend API, capture adapters, and enforcement are still separate implementation work.

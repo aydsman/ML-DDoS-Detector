@@ -1,23 +1,27 @@
-# Ayden week-one handoff status
+# Ayden week-one planning closeout
 
-Checked October 27, 2026. Task: [Define interfaces and the ML feature contract](https://trello.com/c/INBpxEAL). Review: [PR #6 into development](https://github.com/aydsman/ML-DDoS-Detector/pull/6).
+Checked October 28, 2026. Task: [Define interfaces and the ML feature contract](https://trello.com/c/INBpxEAL).
 
-| Acceptance item | Evidence | Status |
+The original Trello card asks for component inputs/outputs and API examples, a manageable dataset subset/labeling approach, and agreement on the shared features/window/units/missing-data rules. It does not require a trained model, complete live capture, finished firewall, or executed benchmark experiments. Earlier progress notes treated some of those later evidence checks as week-one closure gates; this record corrects that distinction without claiming they are finished.
+
+| Original acceptance item | Delivered evidence | Planning status |
 | --- | --- | --- |
-| Component input/output and prediction agreement | feature-contract.md, api-contract.md, api-examples.json | Prepared; PR review pending |
-| Versioned ordered feature definitions/types/units | feature-contract.json and FEATURE_NAMES; numeric/version/name validation in contracts.feature_vector | Prepared and checked; capture/feature review still needed |
-| Dataset subset and labeling approach | dataset-plan.md, bounded selection, label examples, manifest template | Plan prepared; real inventory/metadata evidence unavailable |
-| Agreement with Vince | Approved five answers on issue #5; epoch alignment, aggregate capture, IP bytes, share denominator, provisional thresholds/cap recorded | Core decisions recorded; SYN/ACK/fragment and parity verification pending |
-| Aadi handoff | aadi-handoff.md and Trello review request; Aadi says no API changes needed for his local mock | Recipient response received; files/layout not independently reviewed |
+| Component inputs, outputs and prediction/API examples | feature-contract.md; api-contract.md; api-examples.json; PR #6 reviewed by Vince and merged into development | Complete |
+| Manageable subset and labeling approach supporting the chosen features | dataset-plan.md selects raw PCAP processing for SYN/UDP/benign, caps the pilot at 300 eligible windows per class/split, defines independent splits and exclusions, and separates model threshold from ground-truth labeling. Raw IP packet inputs support the specified packet/window features; normalization fixtures verify their byte/flag interpretation. | Selection and processing plan complete; actual file inventory/labels remain a prerequisite for training |
+| Agreement on features/window/order/units/missing values | Twelve-feature version-one JSON/Markdown specification; ordered input guard; issue #5 decisions; approved/merged PR #8 with epoch alignment and None for unknown flags | Complete baseline specification; predictive usefulness and live behavior not certified |
+| Handoff to Aadi | Aadi confirms all four sections use the fields; source/report/screenshots published; Ayden independently reviewed and approved PR #10; merged into development | Complete week-one mock review |
 
-## What can be completed without waiting
+## Integrated verification
 
-The architecture, field documentation, ordered feature contract, input guard, dataset selection/label specification, acceptance cases, and handoff package are prepared on the PR branch. Input-guard tests check shuffled feature ordering and reject malformed data rather than silently scoring it. Existing feature tests remain in place. No model training, capture parity, frontend review, or lab run is implied.
+PR #6 supplies the architecture/specification and input validation. PR #8 supplies shared IPv4 normalization and epoch windowing; the review additionally fixed flag reads beyond declared IP length. PR #10 supplies the mock frontend and report outline. The integrated Python suite passes 46 tests. Independent browser checks covered representative, zero, empty, unavailable, stale, failed/recovered and initial-load-failure states plus narrow layout. These tests do not measure model quality or prove a live detector.
 
-## What prevents honest task closure
+## Prerequisites carried forward, not claimed complete
 
-1. Vince must provide an actual capture manifest, trustworthy labels/timezone/splits, and sample feature records. The official download endpoint displayed an error during this check; no verified filenames/checksums can be claimed.
-2. Vince/Ali must settle inbound-only SYN/ACK usefulness, unknown fragment flags, and verify offline/live extraction. These affect the shared training contract.
-3. Review PR #6, and obtain Aadi's pushed mock/layout for the joint review. Aadi's self-reported local tests are evidence of progress, not independent verification.
+- Vince/Ali: actual CIC capture inventory, hashes, timezone, trustworthy labels/splits and inspectable sample before model training. The October 27 official-download check failed; manifest example fields remain null. The bounded plan must be revised if usable independent captures cannot be obtained. Do not train or claim benchmark results using this template.
+- Vince/Ali: real offline/live adapters and capture-coverage/parity evidence; runtime interface/allowlist confirmation; late/out-of-order handling.
+- Ayden/Vince: source rate/minimum-share tuning and model threshold selection using validation data only. Keep monitor-only operation until policy prerequisites are met. Evaluate inbound SYN feature redundancy; any definition change requires a new schema.
+- Ayden/Aadi: finalized pagination/cursors, error payloads, per-endpoint freshness and partial failure handling before live API integration. Current 60 chart points / 50 rows per page / 5-second stale warning are provisional defaults, not implemented API behavior.
 
-Keep the card In progress, with these named dependencies. Do not mark Done or close issues #1-#3/#5 based on documentation alone. Training and full live enforcement belong to later tasks; the remaining gate is credible compatibility/evidence, not a requirement to finish the whole product in week one.
+These remain tracked in [issue #5](https://github.com/aydsman/ML-DDoS-Detector/issues/5) and the original issues #1-#3. Do not close those evidence issues as part of week-one planning closeout. In particular, Ayden's Week 2 training task must not bypass the dataset gate.
+
+The week-one card can be marked Done for its planning deliverables once this closeout is merged. Done describes the completed architecture/handoff task, not the finished project or verified training data.
