@@ -105,3 +105,13 @@ def test_syn_features_ignore_unknown_flag_packets():
     assert f["syn_count"] == 1
     assert f["packet_rate"] == 3 and f["tcp_share"] == 1.0
     assert f["syn_no_ack_share"] == 1.0
+
+
+@pytest.mark.parametrize("total_length", [20, 33])
+def test_bytes_beyond_declared_ip_packet_cannot_supply_tcp_flags(total_length):
+    # Link-layer padding/trailing bytes may resemble a TCP SYN, but are outside IP.
+    raw = ipv4(proto=6, total_length=total_length)
+    pkt = normalize_ip_packet(0, raw)
+    assert pkt.size == total_length
+    assert pkt.flags is None
+    assert extract_features([pkt], 1.0)["syn_count"] == 0

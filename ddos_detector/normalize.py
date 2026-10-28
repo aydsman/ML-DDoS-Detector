@@ -32,8 +32,8 @@ def normalize_ip_packet(ts, data, skips=None, ethertype=None):
     Packet.size is the IPv4 Total Length field (IP header + transport header +
     payload); the Ethernet header is excluded and the captured byte count is
     never substituted. Pass ethertype when the link layer was already parsed.
-    A non-first fragment counts for size and protocol but carries flags=0
-    (it has no transport header). TCP flags are None (unknown), not 0, for a
+    A non-first fragment counts for size and protocol but has no transport
+    header. TCP flags are None (unknown), not 0, for a
     non-first fragment or when the TCP header was not captured; a real flags
     value of 0 stays 0. Non-TCP packets keep flags=0 unless they are non-first
     fragments, which are also None.
@@ -73,5 +73,5 @@ def normalize_ip_packet(ts, data, skips=None, ethertype=None):
     if frag_offset > 0:
         flags = None
     elif proto == "tcp":
-        flags = data[ihl + 13] if len(data) >= ihl + 14 else None
+        flags = data[ihl + 13] if min(len(data), total_length) >= ihl + 14 else None
     return Packet(ts, socket.inet_ntoa(data[12:16]), proto, total_length, flags)
