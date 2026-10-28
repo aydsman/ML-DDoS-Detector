@@ -1,6 +1,6 @@
 # ML feature contract, version 1
 
-Status: explicit design draft, not evidence of working capture, API validation, or a trained model. This feature schema version is separate from API schema_version and model_version. [feature-contract.json](feature-contract.json) records the ordered names, units, and logical types. `ddos_detector/config.py::FEATURE_NAMES` currently matches this order. Resolve the outstanding SYN/ACK and fragment questions before freezing a training artifact.
+Status: version-one baseline specification approved for week-one planning. This is not evidence of a trained model or complete live capture/API integration. This feature schema version is separate from API schema_version and model_version. [feature-contract.json](feature-contract.json) records the ordered names, units, and logical types. `ddos_detector/config.py::FEATURE_NAMES` currently matches this order. Unknown flags use None as approved in PR #8. Retain the documented inbound SYN/ACK formulas for baseline validation, without claiming they measure server handshake completion; review usefulness on validation data before choosing the final model.
 
 ## Component inputs and outputs
 
@@ -41,22 +41,21 @@ The numeric/name/version guard is now implemented as ddos_detector.contracts.fea
 - A successfully monitored empty window has zero-valued features; its chart rates can be zero. Exclude it from training and inference, emit no attack prediction, and break the source streak. This is distinct from how the low-level helper currently returns zeros when called with an empty list.
 - Capture failure or incomplete/unknown interval coverage means unavailable measurements. Do not call the model with a fabricated all-zero vector; do not extend source streaks. Surface capture status and use null rates or absent intervals in the dashboard.
 - Non-IP, IPv6, unsupported protocols, invalid IP lengths, and incomplete IP headers are skipped with diagnostic reasons. Usable truncated IPv4 packets use declared IP length, not captured byte count; Vince's fixtures must prove the rules.
-- Non-first fragments may contribute packet/byte/protocol/source counts but have no readable transport flags. Do not infer observed flags from missing headers. The current Packet.flags default of zero cannot distinguish unavailable flags from a real zero; Vince must resolve representation and flag-feature denominators before training. Keep this limitation explicit rather than silently promising a complete schema.
-- PROPOSED (pending Ayden's approval): `Packet.flags` may be `None` for unknown flags (non-first fragments, or a TCP header that was not captured). It is distinct from an observed `0`, and SYN/ACK counts ignore unknown-flag packets.
+- Non-first fragments may contribute packet/byte/protocol/source counts but have no readable transport flags. Do not infer observed flags from missing headers. The implemented Packet.flags supports None for unavailable flags and preserves observed zero. SYN/ACK counts and denominators use known flags only; unknown-flag packets still contribute to source/protocol/size aggregates.
 - Inputs must be sorted by timestamp. Live late/out-of-order packet handling and coverage detection need Vince's adapter policy and tests; do not silently reassign finalized windows.
 
 ## Model compatibility and completion gates
 
 Each future saved model must record feature_schema_version, exact feature_names/order, dtype, window_seconds, capture scope, packet-size definition, preprocessing, model version, score interpretation, and selected decision threshold. The loader must reject an incompatible schema/order instead of guessing. The version/name/numeric input guard is implemented, but model artifact loading and metadata compatibility checks remain future work.
 
-Any feature addition/removal/reordering or meaning change requires a new feature schema version and corresponding model retraining/validation; do not load an older model against changed definitions. The current schema remains draft until inbound-only SYN/ACK definitions and fragment handling are reviewed, fixtures demonstrate offline/live parity, and the selected dataset produces these features with trustworthy labels.
+Any feature addition/removal/reordering or meaning change requires a new feature schema version and corresponding model retraining/validation; do not load an older model against changed definitions. Version one is the explicit baseline interface. A trained artifact must not be certified until the actual dataset/labels and capture parity are verified. Validation may show that an inbound SYN-related feature is redundant; changes must create a new feature version rather than silently changing version one.
 
 ## Week-one status
 
-- Prepared: component boundaries, ordered typed feature specification, API examples, and the decisions approved in issue #5.
-- Awaiting Vince/Ali: exact dataset manifest/ground truth/splits, labelled sample, live/offline parity, and remaining policy/feature evidence.
-- Aadi reported on October 27 that the mock required no API field changes and the report outline is ready. His actual frontend files/screenshots are not yet pushed, so independent layout/behavior review and history/error/staleness agreement remain pending.
+- Completed planning: component boundaries, versioned ordered feature specification, API examples, approved baseline decisions, and the reviewed Aadi handoff.
+- Implemented support: ordered input guard, shared IP normalization, explicit unknown flags, and epoch-aligned windowing, with 46 tests passing on the integrated Python suite.
+- Next-stage prerequisites: verify the real dataset manifest/ground truth/splits and label sample, actual offline/live adapters and coverage, runtime allowlist, policy tuning, and model artifacts under issue #5. Week-one planning completion does not certify these.
 
-Keep Ayden's week-one task open until its dataset and shared-contract acceptance criteria are verified. Do not interpret documentation completion as implementation completion.
+Aadi's frontend/report source is merged from PR #10 and Ayden independently reviewed the mock layout and scenarios. History/error/staleness defaults remain provisional for live API integration.
 
-Dataset selection and expected label cases: [dataset-plan.md](dataset-plan.md). Completion evidence and remaining blockers: [week1-status.md](week1-status.md).
+Dataset selection and expected label cases: [dataset-plan.md](dataset-plan.md). Acceptance evidence and remaining implementation prerequisites: [week1-status.md](week1-status.md).
