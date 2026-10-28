@@ -11,7 +11,7 @@
     COMP-3670 team project
     <br />
     <br />
-    <a href="docs/design.md"><strong>Explore the design docs Ã‚Â»</strong></a>
+    <a href="docs/design.md"><strong>Explore the design docs &raquo;</strong></a>
     <br />
     <br />
     <a href="docs/lab-setup.md">VM lab setup</a>
