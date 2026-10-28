@@ -167,7 +167,7 @@ From the repository root:
 ./.venv/bin/python -m pytest -q
 ```
 
-The current tests cover the initial feature extractor and window grouping. Passing them does not validate live detection, model quality, or firewall mitigation. Dependency versions are not locked yet, so installations can resolve different package versions.
+The current tests cover the initial feature extractor, window grouping, and legitimate HTTP client, including pacing, error handling, and exports. Passing them does not validate live detection, model quality, lab integration, or firewall mitigation. Dependency versions are not locked yet, so installations can resolve different package versions.
 
 ### Automated checks
 
@@ -185,7 +185,8 @@ Start here if you are not sure where your work belongs. The "Main owner" column 
 | `ddos_detector/` | Python package. Shared code for offline training and live capture. | Vince (feature extraction), Ayden (training, inference, API) |
 | `ddos_detector/features.py` | The single feature extractor and window grouping. Offline and live processing must both use it. | Vince |
 | `ddos_detector/config.py` | Shared settings (window length, data folder) and the feature name list. | Vince |
-| `tests/` | pytest suite. `tests/test_features.py` covers the feature extractor and window grouping. | Ali (QA), everyone adds tests for their own code |
+| `ddos_detector/http_client.py` | Legitimate HTTP client: single requests or paced runs, run IDs, and draft JSON/CSV exports. See [client instructions](docs/http-client.md). | Mujtaba |
+| `tests/` | pytest suite. `test_features.py` covers feature extraction; `test_http_client.py` covers the legitimate HTTP client and exports. | Ali (QA), everyone adds tests for their own code |
 | `docs/design.md` | Design decisions: dataset, 1 second window, feature list, leakage rules, open items. | Ayden, Vince |
 | `docs/lab-setup.md` | How to build the isolated three-VM lab, verify capture, and move it to another PC. | Vince |
 | `docs/aadi-handoff.md` | Where Aadi starts on the dashboard and documentation. | Aadi |
@@ -207,6 +208,7 @@ Not in the repository yet: packet capture, model training, the backend API, fire
 There is no end-to-end pipeline to run yet. What you can do today:
 
 * Run the feature-extraction tests (see [Run the tests](#run-the-tests)).
+* Try the [HTTP client locally](docs/http-client.md), with a configurable request rate and duration and optional JSON/CSV exports. Lab integration and Ali's export-format review are still pending.
 * Build the isolated lab and verify packet capture with [the lab setup notes](docs/lab-setup.md).
 * Build the dashboard against the mock responses in [`docs/api-examples.json`](docs/api-examples.json), starting from [Aadi's handoff](docs/aadi-handoff.md). See also the [backend and frontend planning draft](docs/dashboard-plan.md) and the [API field contract](docs/api-contract.md).
 

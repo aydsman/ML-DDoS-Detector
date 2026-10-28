@@ -1,0 +1,193 @@
+import csv
+import json
+import subprocess
+import sys
+from datetime import datetime
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from threading import Thread
+
+import httpx
+import pytest
+
+from ddos_detector.http_client import (
+    ClientSettings, RequestResult, RunResult, RunSettings, export_run,
+    run_requests, send_request,
+)
+import ddos_detector.http_client as http_client
+
+
+@pytest.mark.parametrize("target", ["localhost:8000", "ftp://localhost/", "http://", "http://user:password@localhost/"])
+def test_invalid_target_is_rejected(target):
+    with pytest.raises(ValueError):
+        ClientSettings(target)
+
+
+@pytest.mark.parametrize("timeout", [0, -1, float("nan"), float("inf")])
+def test_invalid_timeout_is_rejected(timeout):
+    with pytest.raises(ValueError):
+        ClientSettings("http://127.0.0.1/", timeout)
+
+
+@pytest.mark.parametrize("status", [200, 404, 503])
+def test_http_errors_are_still_measured_responses(status):
+    with httpx.Client(transport=httpx.MockTransport(lambda request: httpx.Response(status))) as client:
+        result = send_request(client, ClientSettings("http://localhost/"))
+    assert result.outcome == "http_response"
+    assert result.status_code == status
+    assert result.error_type is None
+    assert result.elapsed_ms >= 0
+    assert datetime.fromisoformat(result.started_at).utcoffset().total_seconds() == 0
+
+
+@pytest.mark.parametrize("exception,outcome", [(httpx.ReadTimeout, "timeout"), (httpx.ConnectError, "request_error")])
+def test_transport_failures_produce_results(exception, outcome):
+    def fail(request):
+        raise exception("Controlled test failure", request=request)
+
+    with httpx.Client(transport=httpx.MockTransport(fail)) as client:
+        result = send_request(client, ClientSettings("http://localhost/"))
+    assert result.outcome == outcome
+    assert result.status_code is None
+    assert result.error_type == exception.__name__
+    assert result.elapsed_ms >= 0
+
+
+def test_real_request_to_local_server(tmp_path):
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            body = b"Local HTTP client test"
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    with ThreadingHTTPServer(("127.0.0.1", 0), Handler) as server:
+        thread = Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            settings = ClientSettings(f"http://127.0.0.1:{server.server_port}/")
+            with httpx.Client(trust_env=False) as client:
+                result = send_request(client, settings)
+            assert result.outcome == "http_response"
+            assert result.status_code == 200
+            command = subprocess.run([
+                sys.executable, "-m", "ddos_detector.http_client",
+                "--target", settings.target, "--timeout", "2",
+                "--rate", "5", "--duration", "0.3", "--output", str(tmp_path),
+            ], capture_output=True, text=True, timeout=15)
+            assert command.returncode == 0, command.stderr
+            report = json.loads(command.stdout)
+            run_dir = Path(report["export_directory"])
+            metadata = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
+            with (run_dir / "requests.csv").open(encoding="utf-8", newline="") as handle:
+                rows = list(csv.DictReader(handle))
+            assert len(rows) == report["result"]["attempted"] > 0
+            assert metadata["summary"]["successful_2xx"] == len(rows)
+            assert all(row["status_code"] == "200" for row in rows)
+        finally:
+            server.shutdown()
+            thread.join(timeout=5)
+
+
+@pytest.mark.parametrize("value", [0, -1, float("nan"), float("inf")])
+def test_invalid_run_settings_are_rejected(value):
+    with pytest.raises(ValueError):
+        RunSettings(value, 1)
+    with pytest.raises(ValueError):
+        RunSettings(1, value)
+
+
+@pytest.mark.parametrize("response_seconds,expected_starts", [
+    (0.05, [0, 0.5, 1, 1.5]),
+    (0.75, [0, 0.75, 1.5]),
+])
+def test_run_pacing_deadline_and_achieved_rate(monkeypatch, response_seconds, expected_starts):
+    # Virtual time tests slow responses without flaky real-time assertions.
+    clock = [0.0]
+    starts = []
+
+    def advance(seconds):
+        clock[0] += seconds
+
+    def respond(request):
+        starts.append(clock[0])
+        advance(response_seconds)
+        return httpx.Response(200)
+
+    monkeypatch.setattr(http_client, "perf_counter", lambda: clock[0])
+    monkeypatch.setattr(http_client, "sleep", advance)
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        result = run_requests(client, ClientSettings("http://localhost/"), RunSettings(2, 2))
+    assert starts == expected_starts
+    assert all(start < 2 for start in starts)
+    assert result.attempted == len(starts)
+    assert result.successful_2xx == len(starts)
+    assert result.elapsed_seconds == max(2, starts[-1] + response_seconds)
+    assert result.achieved_requests_per_second == len(starts) / result.elapsed_seconds
+    assert [item.elapsed_ms for item in result.requests] == pytest.approx(
+        [response_seconds * 1000] * len(starts)
+    )
+
+
+def test_exports_preserve_settings_failures_and_run_identity(tmp_path):
+    timestamp = "2026-10-27T23:00:00Z"
+    requests = [
+        RequestResult(timestamp, 10.5, "http_response", 200, None),
+        RequestResult(timestamp, 20.0, "http_response", 503, None),
+        RequestResult(timestamp, 500, "timeout", None, "ReadTimeout"),
+        RequestResult(timestamp, 30, "request_error", None, "ConnectError"),
+    ]
+    result = RunResult(timestamp, 2, 2, 4, 1, requests)
+    settings = ClientSettings("http://127.0.0.1:8000/", 0.5)
+    run = RunSettings(2, 2)
+    run_dir = export_run(tmp_path, settings, run, result)
+    metadata = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
+    with (run_dir / "requests.csv").open(encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    assert metadata["run_id"] == run_dir.name == result.run_id
+    assert metadata["schema_version"] == "draft-1"
+    assert metadata["settings"] == {
+        "target": settings.target, "timeout_seconds": 0.5,
+        "request_rate": 2, "duration_seconds": 2,
+    }
+    assert metadata["summary"]["attempted"] == len(rows) == 4
+    assert metadata["summary"]["successful_2xx"] == 1
+    assert metadata["summary"]["outcome_counts"] == {
+        "http_response": 2, "timeout": 1, "request_error": 1,
+    }
+    assert all(row["run_id"] == result.run_id for row in rows)
+    assert [row["request_index"] for row in rows] == ["1", "2", "3", "4"]
+    assert rows[1]["status_code"] == "503"
+    assert rows[2]["status_code"] == ""
+    assert rows[2]["error_type"] == "ReadTimeout"
+    assert float(rows[0]["elapsed_ms"]) == 10.5
+    original_json = (run_dir / "run.json").read_bytes()
+    with pytest.raises(FileExistsError):
+        export_run(tmp_path, settings, run, result)
+    assert (run_dir / "run.json").read_bytes() == original_json
+    another = RunResult(timestamp, 2, 0, 0, 0, [])
+    another_dir = export_run(tmp_path, settings, run, another)
+    assert another_dir != run_dir
+    with (another_dir / "requests.csv").open(encoding="utf-8", newline="") as handle:
+        assert list(csv.DictReader(handle)) == []
+
+
+def test_export_does_not_treat_run_id_as_arbitrary_path(tmp_path):
+    result = RunResult("2026-10-27T23:00:00Z", 1, 0, 0, 0, [], run_id="../outside")
+    with pytest.raises(ValueError):
+        export_run(tmp_path, ClientSettings("http://localhost/"), RunSettings(1, 1), result)
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_output_requires_run_options(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", [
+        "http_client", "--target", "http://localhost/", "--output", "results",
+    ])
+    with pytest.raises(SystemExit) as exc:
+        http_client.main()
+    assert exc.value.code == 2
+    assert "--output requires a paced run" in capsys.readouterr().err
