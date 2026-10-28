@@ -42,7 +42,7 @@ The `points` field is an array of measurement objects. An empty array means ther
 | Field | JSON type | Meaning and rules | Example |
 | --- | --- | --- | --- |
 | window_start | string | UTC start of the measurement interval. The interval includes its start and excludes its end. | "2026-10-22T19:00:00Z" |
-| window_seconds | number | Interval duration in seconds; must be greater than zero. Start with one-second non-overlapping windows. | 1 |
+| window_seconds | number | Interval duration in seconds; must be greater than zero. Start with one-second non-overlapping windows aligned to Unix epoch time, using floor(timestamp / window_seconds) * window_seconds. | 1 |
 | packets_per_second | number or null | Observed incoming packet count divided by window_seconds. Must be nonnegative. Zero is measured silence; null means unavailable. | 1200 |
 | bytes_per_second | number or null | Observed incoming byte count divided by window_seconds. Must be nonnegative. Use the sum of IPv4 Total Length values divided by window_seconds; it must match offline/live extraction. | 240000 |
 
@@ -76,12 +76,12 @@ These fields are all required inside a source record's `attribution` object. The
 | packets_per_second | number | Nonnegative source/protocol packet count divided by window duration |
 | syn_per_second | number or null | Nonnegative TCP SYN-only count divided by window duration; null for UDP/ICMP |
 | packet_share | number | Source/protocol packet share, from 0 to 1 inclusive, using the stated denominator |
-| share_basis | string | all_selected_packets or matching_protocol_packets; states which window count is the denominator |
+| share_basis | string | all_selected_packets only in version one: denominator is all selected inbound packets to the protected host, across supported protocols |
 | consecutive_windows | integer | Number of consecutive qualifying windows ending at this event, at least 1 |
 
 For source events, attack_score and model_version must match the referenced aggregate event. The backend must retain or resolve that reference even if it falls outside the current response page. Do not plot source and aggregate records as independent ML predictions.
 
-Rate/share thresholds, final share basis, model decision threshold, block cap, and address configuration remain pending. The sample uses all_selected_packets only to illustrate the calculation; it does not settle the policy. Three qualifying windows and a 300-second timeout are the initial defaults.
+Approved planning defaults: all_selected_packets as the share basis, three qualifying windows, 300-second blocks, and a configurable provisional cap of 20 active blocks. Use 0.5 as an experimental aggregate model-score threshold, then tune using validation data. Per-protocol rate thresholds, minimum traffic share, final model threshold, NIC, and management/gateway allowlist values still require evidence before automatic enforcement.
 
 The mock responses deliberately show automatic mode and one confirmed block to demonstrate the UI. Normal startup must default to monitor_only. The source example assumes three preceding qualifying windows, configured thresholds satisfied, an allowlist check passed, and available block capacity; the small metrics snapshot is not the entire evidence history.
 
@@ -111,9 +111,9 @@ The `blocks` field is an array of blocks confirmed active by the firewall, sorte
 
 ## Decisions still requiring review
 
-- Ayden and Vince: finalize numerical policy settings, capture normalization/window alignment, allowlist addresses, and offline/live parity evidence. The aggregate model, separate source rules, and IP-byte definition are now recorded in design.md.
-- Vince and Ali: verify dataset files, ground truth, label threshold, exclusions, and independent splits before training; see issue #3.
-- Vince: confirm the existing IPv4-only version-one scope; IPv6 support is deferred unless capture, API, and firewall contracts are updated together.
+- Ayden and Vince: validate rate/minimum-share settings, implement agreed epoch alignment and normalization, verify allowlist addresses, and provide offline/live parity evidence. The aggregate model, separate source rules, and IP-byte definition are now recorded in design.md.
+- Vince and Ali: verify dataset files, ground truth, exclusions, sensitivity to the provisional 80% label threshold, and independent splits before training; see issue #3.
+- IPv4-only scope is confirmed. IPv6 remains deferred until capture, API, and firewall contracts are updated together.
 - Ayden and Aadi: confirm the display fields, history limits, error responses, and stale-data behavior before treating version 1 as finalized.
 
 Remaining infrastructure, policy, and dataset work is tracked in [Vince's follow-up issue #5](https://github.com/aydsman/ML-DDoS-Detector/issues/5).
