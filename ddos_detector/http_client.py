@@ -8,6 +8,7 @@ import csv
 import json
 import math
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -48,6 +49,7 @@ class RequestResult:
 class RunSettings:
     request_rate: float
     duration_seconds: float
+    concurrency: int = 1
 
     def __post_init__(self):
         for name, value in (
@@ -58,6 +60,8 @@ class RunSettings:
                 raise ValueError(f"{name} must be a finite number greater than zero.")
         if not math.isfinite(1 / self.request_rate):
             raise ValueError("Request rate is too small to schedule.")
+        if type(self.concurrency) is not int or not 1 <= self.concurrency <= 32:
+            raise ValueError("Concurrency must be an integer from 1 to 32.")
 
 
 @dataclass(frozen=True)
@@ -69,6 +73,8 @@ class RunResult:
     successful_2xx: int
     requests: list[RequestResult]
     run_id: str = field(default_factory=lambda: str(uuid4()))
+    skipped_due_to_capacity: int = 0
+    skipped_at_deadline: int = 0
 
 
 def export_run(
@@ -101,6 +107,8 @@ def export_run(
         "achieved_requests_per_second": result.achieved_requests_per_second,
         "attempted": result.attempted,
         "successful_2xx": result.successful_2xx,
+        "skipped_due_to_capacity": result.skipped_due_to_capacity,
+        "skipped_at_deadline": result.skipped_at_deadline,
         "outcome_counts": dict(Counter(item.outcome for item in result.requests)),
     }
     with (run_dir / "run.json").open("x", encoding="utf-8") as handle:
@@ -116,11 +124,66 @@ def export_run(
     return run_dir
 
 
+def _concurrent_requests(client, settings, run, start, deadline):
+    """Bound submitted work as well as worker threads; discard busy slots.
+
+    HTTPX's synchronous Client is shared across workers. A worker rechecks the
+    deadline before sending, so delayed dispatch does not create late requests.
+    Keep results in dispatch order, independent of response completion order.
+    """
+    interval = 1 / run.request_rate
+    next_start = start
+    pending = {}
+    completed = {}
+    skipped_capacity = 0
+    skipped_deadline = 0
+    sequence = 0
+
+    def dispatch():
+        if perf_counter() >= deadline:
+            return None
+        return send_request(client, settings)
+
+    def collect(future):
+        nonlocal skipped_deadline
+        index = pending.pop(future)
+        result = future.result()
+        if result is None:
+            skipped_deadline += 1
+        else:
+            completed[index] = result
+
+    with ThreadPoolExecutor(max_workers=run.concurrency) as executor:
+        while True:
+            now = perf_counter()
+            if now >= deadline:
+                break
+            delay = min(next_start, deadline) - now
+            if delay > 0:
+                sleep(delay)
+            now = perf_counter()
+            if now >= deadline:
+                break
+            next_start = now + interval
+            for future in list(pending):
+                if future.done():
+                    collect(future)
+            if len(pending) >= run.concurrency:
+                skipped_capacity += 1
+                continue
+            pending[executor.submit(dispatch)] = sequence
+            sequence += 1
+        # No more submissions. Finish in-flight requests before exporting.
+        for future in list(pending):
+            collect(future)
+    return [completed[index] for index in sorted(completed)], skipped_capacity, skipped_deadline
+
+
 def run_requests(client: httpx.Client, settings: ClientSettings, run: RunSettings) -> RunResult:
-    """Pace one request at a time, with no catch-up bursts or queued requests.
+    """Pace requests with a configurable limit and no catch-up bursts.
 
     Duration limits when requests may start. A final in-flight request may
-    finish later. Slow responses reduce achieved rate below requested rate.
+    finish later. Slow responses and a full worker limit can reduce achieved rate.
     Results are held in memory for these initial small local experiments.
     """
     started_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -129,18 +192,25 @@ def run_requests(client: httpx.Client, settings: ClientSettings, run: RunSetting
     next_start = start
     interval = 1 / run.request_rate
     results = []
-    while True:
-        now = perf_counter()
-        if now >= deadline:
-            break
-        wait = min(next_start, deadline) - now
-        if wait > 0:
-            sleep(wait)
-        now = perf_counter()
-        if now >= deadline:
-            break
-        next_start = now + interval
-        results.append(send_request(client, settings))
+    skipped_capacity = 0
+    skipped_deadline = 0
+    if run.concurrency > 1:
+        results, skipped_capacity, skipped_deadline = _concurrent_requests(
+            client, settings, run, start, deadline
+        )
+    else:
+        while True:
+            now = perf_counter()
+            if now >= deadline:
+                break
+            wait = min(next_start, deadline) - now
+            if wait > 0:
+                sleep(wait)
+            now = perf_counter()
+            if now >= deadline:
+                break
+            next_start = now + interval
+            results.append(send_request(client, settings))
     elapsed = perf_counter() - start
     return RunResult(
         started_at=started_at,
@@ -152,6 +222,8 @@ def run_requests(client: httpx.Client, settings: ClientSettings, run: RunSetting
             for result in results
         ),
         requests=results,
+        skipped_due_to_capacity=skipped_capacity,
+        skipped_at_deadline=skipped_deadline,
     )
 
 
@@ -194,14 +266,17 @@ def main():
     parser.add_argument("--rate", type=float, help="Requested starts per second; requires --duration")
     parser.add_argument("--duration", type=float, help="Request-start window in seconds; requires --rate")
     parser.add_argument("--output", type=Path, help="Save paced-run JSON and CSV files under this folder")
+    parser.add_argument("--concurrency", type=int, default=1, help="Maximum active requests, 1-32 (default: 1)")
     args = parser.parse_args()
     if (args.rate is None) != (args.duration is None):
         parser.error("Supply --rate and --duration together, or omit both for one request.")
     if args.output is not None and args.rate is None:
         parser.error("--output requires a paced run with --rate and --duration.")
+    if args.concurrency != 1 and args.rate is None:
+        parser.error("--concurrency requires a paced run with --rate and --duration.")
     try:
         settings = ClientSettings(args.target, args.timeout)
-        run = RunSettings(args.rate, args.duration) if args.rate is not None else None
+        run = RunSettings(args.rate, args.duration, args.concurrency) if args.rate is not None else None
     except ValueError as exc:
         parser.error(str(exc))
     # Avoid machine-specific proxy settings affecting isolated lab requests.

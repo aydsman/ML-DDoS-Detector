@@ -46,17 +46,45 @@ single-request behavior. Output appears after the run finishes and contains the
 settings, individual request results, attempted count, 2xx count, elapsed seconds,
 and achieved requests per second. These fields are a draft for Ali to review.
 
-The first request starts immediately. At most one request is active at a time;
-start times are spaced at least `1 / rate` seconds apart. Slow responses lower the
-achieved rate; the client never queues missed requests or sends catch-up bursts.
+By default, the first request starts immediately and one request is active at a
+time; start times are spaced at least `1 / rate` seconds apart. Slow responses
+lower the achieved rate; the client never queues missed requests or sends catch-up bursts.
 Duration is the request-start window: no request begins at or after its end, but
 an in-flight request can finish afterward. Achieved rate uses the total measured
 elapsed time, including any final request completion. HTTPX timeouts remain
 per-operation rather than total deadlines. Small local runs hold results in memory;
-bounded concurrent operation and streaming exports can be considered separately.
+streaming exports can be considered separately.
 
 The command exits with code 0 only if at least one request was attempted and all
 returned 2xx responses. This is a provisional convention, not detector evaluation.
+
+## Allow overlapping requests
+
+Use `--concurrency` to allow 1-32 active requests (default 1). For example:
+
+```powershell
+.\.venv\Scripts\python.exe -m ddos_detector.http_client --target http://127.0.0.1:8000/ --timeout 5 --rate 2 --duration 5 --concurrency 4 --output results
+```
+
+This still requests two dispatches per second; four is the maximum number active,
+not four times the rate. A slow response can overlap later requests. Dispatches
+are paced on a monotonic clock, so worker startup and scheduling can introduce
+jitter in actual start times. Requests keep individual UTC start timestamps and
+latencies measured inside the worker, excluding executor scheduling delay.
+
+If all slots are occupied, the scheduled attempt is skipped and counted in
+`skipped_due_to_capacity`. It is not a failed HTTP request and has no CSV row.
+There is no unbounded pending queue and no catch-up traffic. Workers also check
+the duration deadline before starting; delayed dispatches dropped at that point
+are counted in `skipped_at_deadline`. In-flight requests are allowed to complete
+after the start window. Results remain in dispatch order even if replies arrive
+in a different order. Concurrency is recorded in settings and skipped counts in
+the summary. These additions retain the draft schema version and CSV columns.
+
+Sequential mode waits for the active response before considering another request,
+so its capacity-skip count stays zero; compare requested and achieved rate there.
+The client uses a shared thread-safe HTTPX Client, with at most 32 workers. A fast
+local server may show little difference; concurrency helps when responses are slow.
 
 ## Save run settings and results
 
@@ -77,8 +105,8 @@ results/
 ```
 
 - `run.json`: schema version `draft-1`, run ID, traffic type `legitimate_http`,
-  target, timeout, requested rate/duration, UTC start, elapsed duration, achieved
-  request rate, attempts, 2xx responses, and outcome counts.
+  target, timeout, requested rate/duration, concurrency, UTC start, elapsed duration,
+  achieved request rate, attempts, 2xx responses, outcome counts, and skipped counts.
 - `requests.csv`: one row per attempted request with `run_id`, 1-based
   `request_index`, `started_at` (UTC), `elapsed_ms`, `outcome`, `status_code`, and
   `error_type`. A missing status or error is an empty CSV field; it is not zero.
@@ -87,8 +115,8 @@ results/
 Share both files with Ali. These are independent client observations, not detector
 predictions, packet captures, or proof of detection accuracy. Ali still needs to
 approve identifiers, success criteria, and the export schema. HTTP request rates
-are not packet rates. The current generator runs sequentially and records that
-behavior here; no concurrent-load capability is claimed.
+are not packet rates. Rate, concurrency, operation timeouts, and final in-flight
+completion all affect the offered workload; retain these settings with the results.
 
 Exports happen only after normal run completion; interruption does not save a
 partial run. Existing run folders are never overwritten. `run.json` is written
@@ -111,3 +139,5 @@ Virtual-clock tests verify pacing, reduced achieved rate with slow responses,
 and completion of in-flight requests after the start window closes.
 Export tests check JSON/CSV agreement, missing statuses, run IDs, non-overwrite
 behavior, and a full CLI run against the temporary local server.
+Concurrency tests hold slow responses to prove overlap, the worker limit, skipped
+capacity, completion ordering, and the absence of queued requests after deadline.

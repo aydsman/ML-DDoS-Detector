@@ -5,7 +5,8 @@ import sys
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from threading import Thread
+from threading import Event, Lock, Thread
+from time import sleep
 
 import httpx
 import pytest
@@ -78,6 +79,7 @@ def test_real_request_to_local_server(tmp_path):
                 sys.executable, "-m", "ddos_detector.http_client",
                 "--target", settings.target, "--timeout", "2",
                 "--rate", "5", "--duration", "0.3", "--output", str(tmp_path),
+                "--concurrency", "2",
             ], capture_output=True, text=True, timeout=15)
             assert command.returncode == 0, command.stderr
             report = json.loads(command.stdout)
@@ -87,6 +89,7 @@ def test_real_request_to_local_server(tmp_path):
                 rows = list(csv.DictReader(handle))
             assert len(rows) == report["result"]["attempted"] > 0
             assert metadata["summary"]["successful_2xx"] == len(rows)
+            assert metadata["settings"]["concurrency"] == 2
             assert all(row["status_code"] == "200" for row in rows)
         finally:
             server.shutdown()
@@ -141,7 +144,10 @@ def test_exports_preserve_settings_failures_and_run_identity(tmp_path):
         RequestResult(timestamp, 500, "timeout", None, "ReadTimeout"),
         RequestResult(timestamp, 30, "request_error", None, "ConnectError"),
     ]
-    result = RunResult(timestamp, 2, 2, 4, 1, requests)
+    result = RunResult(
+        timestamp, 2, 2, 4, 1, requests,
+        skipped_due_to_capacity=3, skipped_at_deadline=1,
+    )
     settings = ClientSettings("http://127.0.0.1:8000/", 0.5)
     run = RunSettings(2, 2)
     run_dir = export_run(tmp_path, settings, run, result)
@@ -152,10 +158,12 @@ def test_exports_preserve_settings_failures_and_run_identity(tmp_path):
     assert metadata["schema_version"] == "draft-1"
     assert metadata["settings"] == {
         "target": settings.target, "timeout_seconds": 0.5,
-        "request_rate": 2, "duration_seconds": 2,
+        "request_rate": 2, "duration_seconds": 2, "concurrency": 1,
     }
     assert metadata["summary"]["attempted"] == len(rows) == 4
     assert metadata["summary"]["successful_2xx"] == 1
+    assert metadata["summary"]["skipped_due_to_capacity"] == 3
+    assert metadata["summary"]["skipped_at_deadline"] == 1
     assert metadata["summary"]["outcome_counts"] == {
         "http_response": 2, "timeout": 1, "request_error": 1,
     }
@@ -191,3 +199,113 @@ def test_output_requires_run_options(monkeypatch, capsys):
         http_client.main()
     assert exc.value.code == 2
     assert "--output requires a paced run" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("value", [0, -1, 33, 1.5, True])
+def test_invalid_concurrency_is_rejected(value):
+    with pytest.raises(ValueError):
+        RunSettings(2, 1, value)
+
+
+@pytest.mark.parametrize("exception,expected_outcome", [
+    (httpx.ConnectError, "request_error"), (httpx.ReadTimeout, "timeout"),
+])
+def test_concurrent_run_overlaps_bounds_work_and_preserves_results(exception, expected_outcome):
+    release = Event()
+    two_started = Event()
+    second_finished = Event()
+    lock = Lock()
+    state = {"active": 0, "peak": 0, "started": 0}
+    outcome = {}
+
+    def respond(request):
+        with lock:
+            state["active"] += 1
+            state["started"] += 1
+            index = state["started"]
+            state["peak"] = max(state["peak"], state["active"])
+            if state["active"] == 2:
+                two_started.set()
+        try:
+            assert release.wait(timeout=5)
+            if index == 1:
+                assert second_finished.wait(timeout=5)
+                raise exception("Controlled concurrent failure", request=request)
+            second_finished.set()
+            return httpx.Response(200)
+        finally:
+            with lock:
+                state["active"] -= 1
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        def run():
+            try:
+                outcome["result"] = run_requests(
+                    client, ClientSettings("http://localhost/"), RunSettings(20, 0.4, 2)
+                )
+            except BaseException as exc:
+                outcome["error"] = exc
+
+        thread = Thread(target=run, daemon=True)
+        thread.start()
+        try:
+            assert two_started.wait(timeout=3), "Requests did not overlap"
+            # Hold both workers through the start deadline. There must be no
+            # queued requests that run after releasing these two responses.
+            sleep(0.5)
+        finally:
+            release.set()
+            thread.join(timeout=10)
+        assert not thread.is_alive()
+        if "error" in outcome:
+            raise outcome["error"]
+    result = outcome["result"]
+    assert state["peak"] == state["started"] == result.attempted == 2
+    assert result.skipped_due_to_capacity > 0
+    assert result.elapsed_seconds >= 0.4
+    assert result.successful_2xx == 1
+    # Completion order was reversed, but records retain dispatch order.
+    assert [item.outcome for item in result.requests] == [expected_outcome, "http_response"]
+    assert result.requests[0].error_type == exception.__name__
+
+
+def test_delayed_workers_do_not_send_after_deadline(monkeypatch):
+    clock = [0.0]
+
+    def advance(seconds):
+        clock[0] += seconds
+
+    class DelayedFuture:
+        def __init__(self, action):
+            self.action = action
+
+        def done(self):
+            return False
+
+        def result(self):
+            return self.action()
+
+    class DelayedExecutor:
+        def __init__(self, max_workers):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+        def submit(self, action):
+            return DelayedFuture(action)
+
+    def unexpected_request(request):
+        pytest.fail("A delayed worker sent a request after the deadline")
+
+    monkeypatch.setattr(http_client, "ThreadPoolExecutor", DelayedExecutor)
+    monkeypatch.setattr(http_client, "perf_counter", lambda: clock[0])
+    monkeypatch.setattr(http_client, "sleep", advance)
+    with httpx.Client(transport=httpx.MockTransport(unexpected_request)) as client:
+        result = run_requests(client, ClientSettings("http://localhost/"), RunSettings(10, 1, 2))
+    assert result.attempted == 0
+    assert result.skipped_at_deadline == 2
+    assert result.skipped_due_to_capacity > 0
