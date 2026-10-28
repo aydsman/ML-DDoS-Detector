@@ -58,6 +58,11 @@ grid, with interval `1 / rate`, anchored at run start. Small late wakeups do not
 shift future slots. Whole missed slots are skipped and counted as
 `skipped_due_to_lag`; only the latest due slot can be dispatched after a delay.
 Slow responses lower achieved rate. The client does not replay missed traffic.
+At normal completion, lag includes every remaining pre-deadline slot missed by
+the final slow response or an overslept scheduler wait. For example, at 2 requests
+per second for 2 seconds, a first response taking 3 seconds produces one attempt
+and three lag skips. Two responses taking 1.2 seconds each produce indices 1 and
+3, two attempts, and two lag skips.
 Duration is the request-start window: no request begins at or after its end, but
 an in-flight request can finish afterward. Achieved rate uses the total measured
 elapsed time, including any final request completion. HTTPX timeouts remain
@@ -86,11 +91,13 @@ If all slots are occupied, the scheduled attempt is skipped and counted in
 `skipped_due_to_capacity`. It is not a failed HTTP request and has no CSV row.
 There is no unbounded pending queue and no catch-up traffic. Workers also check
 the duration deadline before starting; delayed dispatches dropped at that point
-are counted in `skipped_at_deadline` (including dispatches stopped on interrupt).
+are counted in `skipped_at_deadline`. Dispatches stopped intentionally on
+interruption are cancellations instead of deadline or lag skips.
 In-flight requests are allowed to complete
 after the start window. Results remain in dispatch order even if replies arrive
-in a different order in the console report. CSV rows are written in completion
-order; use `request_index` to recover dispatch-slot order. Concurrency is recorded
+in a different order in the console report. Live CSV rows are written in completion
+order; finalization reconciles the CSV into dispatch order before publishing the
+summary. Use `request_index` as the stable request identity. Concurrency is recorded
 in settings and skipped counts in the summary.
 
 Sequential mode waits for the active response before considering another request,
@@ -120,6 +127,7 @@ results/
 - `run.json`: schema version `draft-2`, run ID, traffic type `legitimate_http`,
   target, timeout, requested rate/duration, concurrency, UTC start, elapsed duration,
   achieved request rate, attempts, 2xx responses, outcome counts, skipped counts,
+  total `scheduled_slots`, intentionally `cancelled_slots`,
   and interruption status. `state` starts as `running`, with a null summary, then
   becomes `complete` or `interrupted`. A complete run may include HTTP failures.
 - `requests.csv`: one row per attempted request with `run_id`, 1-based
@@ -136,6 +144,21 @@ Synchronize client/server clocks before comparing measurements across machines.
 Schema `draft-2` changes the CSV and adds live-export state; older `draft-1` exports
 remain readable separately and are never rewritten.
 
+New runs reconcile the complete planned workload:
+
+```text
+scheduled_slots = attempted + skipped_due_to_lag + skipped_due_to_capacity
+                  + skipped_at_deadline + cancelled_slots
+```
+
+`scheduled_slots` counts grid points strictly before the deadline. Normal runs
+have zero cancellations. On interruption, unvisited slots and worker dispatches
+stopped before sending count as `cancelled_slots`, not ordinary lag. A request
+that actually starts and is then interrupted remains an attempt. The two new
+summary fields are additive within `draft-2`; older exports may lack them and
+may undercount tail skips. Missing fields are not measured zeros. Existing lab
+files are not modified by this fix; Ali should retain each run's code revision.
+
 Share both files with Ali. These are independent client observations, not detector
 predictions, packet captures, or proof of detection accuracy. Ali still needs to
 approve identifiers, success criteria, and the export schema. HTTP request rates
@@ -151,10 +174,20 @@ records that attempt with an `interrupted` outcome. An orderly interruption mark
 the run `interrupted` and returns exit code 130. Without `--output`, results are
 only retained in the printed console report.
 
+Before publishing any finished summary, finalization rebuilds the CSV from the
+completed records using a temporary file and atomic replacement. This recovers a
+result collected immediately before Ctrl+C even if its incremental write was
+missed, buffered, or partial. Each identity appears once; retrying finalization
+does not append duplicates. Final CSV counts and identities match the completed
+records and JSON summary. Consumers watching a live CSV should reopen it after
+the state changes, since the finalized file replaces the incremental one.
+
 A process crash can leave `state: running`, a null summary, and the rows flushed
 so far. Treat that as incomplete; a request in flight may have no completed row.
 Metadata updates use a temporary file and atomic replacement, so readers do not
-see half-written JSON. Existing run folders are never overwritten. I/O failure
+see half-written JSON. A reconciliation failure leaves the export unfinished
+instead of publishing a summary for missing rows. Existing run folders are never
+overwritten. I/O failure
 exits with code 2; previously flushed rows may remain, but an export must not be
 treated as complete unless its state says so. Runs with request failures still
 export and exit with code 1. Unexpected ordinary request exceptions are recorded
@@ -208,3 +241,6 @@ Concurrency tests hold slow responses to prove overlap, the worker limit, skippe
 capacity, completion ordering, and the absence of queued requests after deadline.
 Review-fix tests check target/rate restrictions, matching ISO/epoch times, fixed-grid
 pacing, incremental readability, crash remnants, and interrupted-run exports.
+`tests/test_http_client_accounting.py` adds issue #13 regressions for response
+overrun, scheduler oversleep, cancellation accounting, real SIGINT between result
+collection and CSV persistence, repeated finalization, and reconciliation failure.

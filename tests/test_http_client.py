@@ -373,7 +373,7 @@ def test_fixed_grid_skips_whole_missed_slots(monkeypatch):
         result = run_requests(client, ClientSettings("http://localhost/"), RunSettings(2, 2))
     assert starts == [0, 1.2]
     assert [item.request_index for item in result.requests] == [1, 3]
-    assert result.skipped_due_to_lag == 1
+    assert result.skipped_due_to_lag == 2
 
 
 def test_unexpected_request_error_is_recorded():

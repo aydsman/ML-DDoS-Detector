@@ -90,6 +90,8 @@ class RunResult:
     skipped_at_deadline: int = 0
     skipped_due_to_lag: int = 0
     interrupted: bool = False
+    scheduled_slots: int = 0
+    cancelled_slots: int = 0
 
 
 def _summary(result):
@@ -103,6 +105,8 @@ def _summary(result):
         "skipped_at_deadline": result.skipped_at_deadline,
         "skipped_due_to_lag": result.skipped_due_to_lag,
         "interrupted": result.interrupted,
+        "scheduled_slots": result.scheduled_slots,
+        "cancelled_slots": result.cancelled_slots,
         "outcome_counts": dict(Counter(item.outcome for item in result.requests)),
     }
 
@@ -133,10 +137,11 @@ class RunExport:
         }
         self._write_metadata()
         self.handle = (self.run_dir / "requests.csv").open("x", encoding="utf-8", newline="")
-        self.writer = csv.DictWriter(self.handle, fieldnames=[
+        self.fieldnames = [
             "run_id", "request_index", "started_at", "epoch_seconds",
             "elapsed_ms", "outcome", "status_code", "error_type",
-        ])
+        ]
+        self.writer = csv.DictWriter(self.handle, fieldnames=self.fieldnames)
         self.writer.writeheader()
         self.handle.flush()
 
@@ -156,9 +161,37 @@ class RunExport:
             self.handle.flush()
 
     def finish(self, result):
-        self.metadata["state"] = "interrupted" if result.interrupted else "complete"
-        self.metadata["summary"] = _summary(result)
-        self._write_metadata()
+        """Reconcile saved rows before publishing a finished summary.
+
+        SIGINT can land before record(), during a buffered row write, or after
+        it. Rebuild from completed results instead of retrying individual appends:
+        this repairs missing/partial rows and makes retries duplicate-free.
+        """
+        if result.run_id != self.metadata["run_id"]:
+            raise ValueError("Cannot finalize results from a different run.")
+        if result.attempted != len(result.requests):
+            raise ValueError("Attempted count must match completed request records.")
+        indices = [request.request_index or index for index, request in enumerate(result.requests, start=1)]
+        if len(indices) != len(set(indices)):
+            raise ValueError("Completed request indices must be unique.")
+        with self.lock:
+            temporary = self.run_dir / "requests.csv.tmp"
+            with temporary.open("w", encoding="utf-8", newline="") as handle:
+                writer = csv.DictWriter(handle, fieldnames=self.fieldnames)
+                writer.writeheader()
+                for index, request in zip(indices, result.requests):
+                    row = asdict(request)
+                    row["request_index"] = index
+                    writer.writerow({"run_id": result.run_id, **row})
+                handle.flush()
+            # Release the old handle before replacing the file on Windows.
+            # If closing/replacement fails, the running metadata stays unfinished.
+            if not self.handle.closed:
+                self.handle.close()
+            temporary.replace(self.run_dir / "requests.csv")
+            self.metadata["state"] = "interrupted" if result.interrupted else "complete"
+            self.metadata["summary"] = _summary(result)
+            self._write_metadata()
 
     def close(self):
         if self.handle is not None:
@@ -205,6 +238,20 @@ def _scheduled_slots(start, deadline, interval, counters):
         slot += 1
 
 
+def _scheduled_slot_count(start, deadline, interval):
+    """Count the same half-open fixed grid used by the scheduler.
+
+    Check boundary values against actual grid times so floating-point division
+    cannot invent an extra slot exactly at the deadline.
+    """
+    count = max(0, math.ceil((deadline - start) / interval))
+    while count and start + (count - 1) * interval >= deadline:
+        count -= 1
+    while start + count * interval < deadline:
+        count += 1
+    return count
+
+
 def _concurrent_requests(client, settings, run, start, deadline, counters, export):
     """Bound submitted work as well as worker threads; discard busy slots.
 
@@ -216,27 +263,30 @@ def _concurrent_requests(client, settings, run, start, deadline, counters, expor
     pending = {}
     completed = {}
     skipped_capacity = 0
-    skipped_deadline = 0
+    skipped_deadline = set()
     interrupted = False
     stop = Event()
 
     def dispatch(index):
-        if stop.is_set() or perf_counter() >= deadline:
-            return None
+        if stop.is_set():
+            return "cancelled"
+        if perf_counter() >= deadline:
+            return "deadline"
         result = send_request(client, settings, request_index=index)
         if export is not None:
             export.record(result)
         return result
 
     def collect(future):
-        nonlocal skipped_deadline
         index = pending[future]
         result = future.result()
-        pending.pop(future)
-        if result is None:
-            skipped_deadline += 1
-        else:
+        if result == "deadline":
+            skipped_deadline.add(index)
+        elif result != "cancelled":
             completed[index] = result
+        # Store before removing pending work: interruption can safely retry this
+        # collection without losing a completed result or double-counting a skip.
+        pending.pop(future)
 
     with ThreadPoolExecutor(max_workers=run.concurrency) as executor:
         try:
@@ -259,7 +309,7 @@ def _concurrent_requests(client, settings, run, start, deadline, counters, expor
                 except KeyboardInterrupt:
                     interrupted = True
                     stop.set()
-    return [completed[index] for index in sorted(completed)], skipped_capacity, skipped_deadline, interrupted
+    return [completed[index] for index in sorted(completed)], skipped_capacity, len(skipped_deadline), interrupted
 
 
 def run_requests(client: httpx.Client, settings: ClientSettings, run: RunSettings, export=None) -> RunResult:
@@ -276,6 +326,7 @@ def run_requests(client: httpx.Client, settings: ClientSettings, run: RunSetting
     start = perf_counter()
     deadline = start + run.duration_seconds
     interval = 1 / run.request_rate
+    scheduled_slots = _scheduled_slot_count(start, deadline, interval)
     results = []
     skipped_capacity = 0
     skipped_deadline = 0
@@ -298,6 +349,15 @@ def run_requests(client: httpx.Client, settings: ClientSettings, run: RunSetting
         except KeyboardInterrupt:
             interrupted = True
     elapsed = perf_counter() - start
+    # Include the tail the generator cannot visit after response overrun or an
+    # overslept wait. Intentionally unvisited slots on Ctrl+C are cancellations,
+    # never ordinary lag. Existing skip categories already account for their slots.
+    unaccounted = scheduled_slots - len(results) - skipped_capacity - skipped_deadline - counters["lag"]
+    if unaccounted < 0:
+        raise RuntimeError("Scheduled workload was counted more than once.")
+    cancelled_slots = unaccounted if interrupted else 0
+    if not interrupted:
+        counters["lag"] += unaccounted
     result = RunResult(
         started_at=started_at,
         elapsed_seconds=elapsed,
@@ -313,6 +373,8 @@ def run_requests(client: httpx.Client, settings: ClientSettings, run: RunSetting
         skipped_due_to_lag=counters["lag"],
         interrupted=interrupted,
         run_id=run_id,
+        scheduled_slots=scheduled_slots,
+        cancelled_slots=cancelled_slots,
     )
     if export is not None:
         export.finish(result)
