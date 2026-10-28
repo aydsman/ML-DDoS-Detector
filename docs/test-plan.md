@@ -8,9 +8,9 @@ This plan defines what to check and what evidence to keep. It is not an experime
 
 ## Scope and source of requirements
 
-Use the [design](design.md) for feature, labeling, and mitigation behavior and the [API contract](api-contract.md) for API fields. This plan does not change either contract. Record disagreements and unresolved decisions in [issue #5](https://github.com/aydsman/ML-DDoS-Detector/issues/5) before relying on them in an experiment.
+Use the [design](design.md) and [API contract](api-contract.md) together with the later approved decisions in [issue #5](https://github.com/aydsman/ML-DDoS-Detector/issues/5). In particular, [Vince’s provisional labeling decision](https://github.com/aydsman/ML-DDoS-Detector/issues/5#issuecomment-6428267359) and [Ayden’s approval](https://github.com/aydsman/ML-DDoS-Detector/issues/5#issuecomment-6428534359) settle the baseline settings listed below. This plan records those decisions without changing the API. Resolve any further disagreement in issue #5 before relying on it in an experiment.
 
-The current repository contains feature extraction, window grouping, and four feature tests. Capture adapters, training, inference, the API, firewall integration, and experiment runners are still pending. Native Python tests and this planning work can be completed on a Mac; live traffic and enforcement scenarios require the isolated Linux lab and the relevant components.
+The `development` base for this draft (`f4cd3ef`) contains feature extraction, window grouping, and four feature tests. At this revision, [PR #6](https://github.com/aydsman/ML-DDoS-Detector/pull/6) proposes the feature/dataset contracts, [PR #7](https://github.com/aydsman/ML-DDoS-Detector/pull/7) the HTTP client, and [PR #8](https://github.com/aydsman/ML-DDoS-Detector/pull/8) normalization and epoch-aligned windows. They remain unmerged; #8 targets #6’s branch. References to their fixtures describe proposed coverage, not code already available on this task branch. Capture adapters, training, inference, the API, firewall integration, and experiment runners are still pending. Native Python tests and this planning work can be completed on a Mac; live traffic and enforcement scenarios require the isolated Linux lab and the relevant components.
 
 The companion [measurement specification](measurement-formats.md) defines metric denominators, collection methods, missing-data handling, and the [run-record template](templates/run-record.template.json). That record is an experiment artifact, not a new backend API response.
 
@@ -44,7 +44,7 @@ These cases use in-memory packets and need no VM. Existing tests are in [test_fe
 | F01 | Empty supplied packet list; positive window duration | All 12 configured feature names exist and every value is zero. An empty input alone says nothing about capture health. | Existing test checks names only; exact zero-value assertions remain to be added. |
 | F02 | Three IPv4/TCP packets, each 20-byte IP header + 20-byte TCP header + 20-byte payload, within one second | Each IP length is 60 bytes; byte rate is 180 bytes/s, mean is 60 bytes, population standard deviation is 0. Ethernet bytes are excluded. | Existing Scapy serialization/feature test; retain pytest output. This does not prove adapter parity. |
 | F03 | Four normalized packets in two seconds: TCP SYN-only 60 bytes, TCP SYN+ACK 100 bytes, UDP 80 bytes, ICMP 80 bytes; two sources with two packets each | Packet rate 2 packets/s; byte rate 160 bytes/s; mean 80; population standard deviation `sqrt(200)` bytes; SYN count 1; SYN/ACK ratio 1; SYN-no-ACK share 0.5; two sources; entropy 1 bit; TCP/UDP/ICMP shares 0.5/0.25/0.25. | Proposed independent arithmetic fixture. Compare floating-point outputs with a documented tolerance; do not derive expected values by calling the extractor. |
-| F04 | Sorted timestamps `0.0, 0.999, 1.0, 2.001`, one-second windows; separate gap fixture `0.0, 3.0` | First fixture groups as 2/1/1; a timestamp at the end belongs to the next window. Gap fixture exposes the two empty intervals. Record that the current helper anchors to the first packet. | Existing split test is partial coverage. Boundary/gap assertions remain to be added. Shared offline/live origin and end-of-capture handling still need agreement. |
+| F04 | Nonzero sorted timestamps `10.9, 11.0, 11.5, 14.2`, one-second windows | Use the approved rule `start = floor(ts / window_seconds) * window_seconds`, with `[start, end)` bounds. Expected `(start, packet_count)` pairs: `(10,1), (11,2), (12,0), (13,0), (14,1)`. `11.0` belongs to the window starting at 11; a different first packet does not shift the epoch grid. | [PR #8 feature fixtures](https://github.com/aydsman/ML-DDoS-Detector/pull/8/files) cover epoch alignment, first-packet independence, boundaries, and gaps. The older helper on this branch still anchors to the first packet, so its passing tests do not establish this acceptance check. Empty helper output alone does not prove healthy capture; adapter parity and end-of-capture evidence remain pending. |
 
 Do not silently settle new behavior for negative durations, unsorted input, or malformed normalized records in a test. Agree input validation with Vince before specifying those cases as contractual behavior.
 
@@ -52,14 +52,24 @@ Do not silently settle new behavior for negative durations, unsorted input, or m
 
 | ID | Prerequisites | Acceptance check | Required evidence |
 | --- | --- | --- | --- |
-| C01 — packet normalization | Vince's adapters and agreed fragment/truncation rules | Select only configured inbound IPv4 TCP/UDP/ICMP traffic to the protected destination. Normalize IP lengths consistently; malformed, non-IP, and out-of-scope packets have explicit skip outcomes. A missing source/header field is not invented. | Inspectable packet fixtures; independently calculated accept/skip/size expectations; skip diagnostics with documented meaning. |
-| C02 — offline/live parity and labels | Both adapters, shared window origin/order, verified captures and ground truth | The same fixture produces the same ordered features and window IDs through both paths. Independently verified labels retain provenance. Unknown/mixed/boundary/empty cases follow the agreed exclusions. | Both outputs, configuration, capture checksums, label evidence, boundary examples, and comparison results. Pending label fraction X is not assumed to be 80%. |
+| C01 — packet normalization | Normalization fixtures first; both adapters for integration; remaining TCP-flag representation reviewed | Select configured inbound IPv4 TCP/UDP/ICMP traffic to `10.10.10.10`. Use IP Total Length, excluding Ethernet. Non-first fragments contribute bytes/protocol but no invented TCP flags. Keep separate skip counts for `non_ip`, `ipv6`, `truncated_header`, `bad_length`, and `unsupported_protocol`; out-of-scope traffic has its own filter accounting. | [PR #8 normalization fixtures](https://github.com/aydsman/ML-DDoS-Detector/pull/8/files), specifically `tests/test_normalize.py`, cover IP size, fragments, truncated headers, protocol selection and skip reasons. Its `None` representation for unknown flags is still proposed; fixtures do not demonstrate live/offline adapter parity. |
+| C02 — offline/live parity and labels | Both adapters using epoch alignment and feature schema `"1"`; verified captures and ground truth | The same fixture produces the same ordered features and window IDs through both paths. Apply provisional attack-packet fraction `X = 0.80` only to eligible fully labelled, nonempty, nonboundary windows. Exclude unknown, mixed-below-threshold, boundary, and empty windows; require independent benign evidence for benign labels. | Both outputs, exact feature order, capture checksums, independent labels, exclusion counts and boundary examples. Report sensitivity to the provisional 80% threshold on validation data only; exact files, splits and label provenance still need verification. |
 
 Use separate complete captures/runs for training, validation, and final testing. Verify the actual files and split membership; do not infer them from proposed dates or filenames. Tune neither model nor policy using final-test results.
 
 ## Lab and integration scenarios
 
 All cases below are **planned and not executed by this work**. They require the isolated lab described in [lab-setup.md](lab-setup.md), independently recorded generator/client activity, and the named components. Traffic rates, duration, repetitions, performance targets, and recovery criteria must be agreed and recorded before execution; this plan does not supply traffic-generation commands.
+
+Before each lab run, record a pre-run check with evidence:
+
+- Verify the recovery snapshots and record their identifiers and owners.
+- Verify NAT is disabled on the test VMs and the test network is isolated; confirm any management path with the lab owner.
+- Reset and verify the starting firewall state, legitimate-client allowlist and cleanup/stop procedure.
+- Confirm the protected target is **only `10.10.10.10`** inside the isolated lab.
+- Verify the actual capture interface/filter and clock offsets/uncertainty; a documented interface name is not runtime evidence.
+
+These are prerequisites for later execution, not claims that VM setup or lab checks have been performed here.
 
 | ID / scenario | Prerequisites | Acceptance checks | Evidence to retain |
 | --- | --- | --- | --- |
@@ -77,7 +87,7 @@ All cases below are **planned and not executed by this work**. They require the 
 
 The design specifies an acceptance example with three consecutive one-second windows: source `10.10.10.30` contributes 4,200 SYN packets/s and allowlisted `10.10.10.20` contributes 12 normal packets/s. Supply an attack decision for each window to test the policy independently of model quality. Under a configuration whose rate/share thresholds are exceeded and whose block cap has space, only the attack source becomes eligible after the third qualifying window. Monitor-only requests no block. Automatic mode may request only the eligible source after all checks.
 
-This example specifies policy-test inputs, not measured traffic or tuned deployment thresholds. Use the agreed share denominator; the approximately 99.7% example assumes all selected packets. A missing/nonqualifying middle interval resets the streak. Never treat a copied aggregate attack score as confidence that a particular source is malicious.
+This example specifies policy-test inputs, not measured traffic or tuned deployment thresholds. The approved share denominator is all selected inbound packets to the protected server, giving `4200 / (4200 + 12)`, approximately 99.7%, in this fixture. The provisional configurable lab cap is 20 active blocks; the actual allowlist and rate/share thresholds still require verified configuration. A missing/nonqualifying middle interval resets the streak. Never treat a copied aggregate attack score as confidence that a particular source is malicious.
 
 ## Experiment sequence for later weeks
 
@@ -89,16 +99,25 @@ This example specifies policy-test inputs, not measured traffic or tuned deploym
 
 ## Decisions and owner review
 
-These are requests for review, not approvals already received. Record the reviewing person and a linked PR comment or issue decision when resolved.
+The linked issue #5 decisions establish these planning baselines; they do not establish actual lab readiness or completed implementation:
+
+| Decision | Recorded baseline / remaining check |
+| --- | --- |
+| Window and feature contract | Unix-epoch alignment, start-inclusive/end-exclusive windows, feature schema `"1"`. PRs #6/#8 carry the proposed implementation; adapter parity and final interval handling still need evidence. |
+| Labelling | Provisional attack-packet fraction `0.80`; preserve exclusions and report validation-only sensitivity. Exact captures, independent labels and split membership remain unverified. |
+| Aggregate model threshold | `0.5` is an experimental baseline. Tune it using validation data only and keep final-test data untouched. It is distinct from the `0.80` label fraction and from source-attribution thresholds. |
+| Source policy | Share uses all selected inbound server packets; three qualifying windows, 300-second TTL, initial monitor-only mode, and provisional configurable cap of 20 active blocks. Missing/quiet intervals break the streak. Verify the actual allowlist, rate/share thresholds and firewall behavior before use. |
+
+The following owner reviews and evidence are still needed. Record the reviewer and linked decision when resolved; this table does not claim their approval.
 
 | Owner | Confirmation needed | Current state / effect |
 | --- | --- | --- |
-| Mujtaba + Ali | Run ID propagation; request attempts/outcomes/timeouts; independent generator intervals and actual activity; export fields and units | Pending. Shared record format cannot be called agreed yet. |
-| Vince + Ali | Capture interface and filters; counter semantics; clock offsets/uncertainty; window origin/order/end behavior; normalized fixtures and adapter parity | Pending in issue #5. Real capture coverage and delay claims require this evidence. |
-| Ayden + Vince + Ali | Model threshold versus source thresholds; share denominator/cap/allowlist; exact dataset files, split and independent label rules including X | Pending in issue #5. No arbitrary defaults or final-test tuning. |
-| Ayden + Ali | Prediction/window identifiers and event timing; model/version metadata; missing prediction reporting | Pending. Needed for reproducible evaluation joins. |
-| Aadi + Ayden + Ali | Empty/error/stale UI cases, history limits, and accessible evidence for L09 | Pending. Follow the API contract rather than adding dashboard fields to suit a metric. |
-| All component owners + Ali | Workload rates/durations/repetitions; success-status policy; quantitative acceptance targets; resource sampler and recovery definition | Pending. Proposed metric definitions can be reviewed now; performance pass/fail requires agreed targets. |
+| Mujtaba + Ali | Shared experiment/client ID mapping, success predicate, request outcomes/timeouts, complete exports, and independent generator activity | Proposed [PR #7 mapping](measurement-formats.md#mapping-the-http-client-export) is documented. Shared format and ground-truth collection agreement remain pending. |
+| Vince + Ali | Actual capture interface/filter, counter semantics, clock bounds, snapshots/isolation evidence, interval coverage and adapter parity | Lab facts are separate from approved epoch alignment. Unknown TCP flags and SYN/ACK feature behavior still need owner review before training. |
+| Ayden + Vince + Ali | Verified dataset files/splits/labels, validation sensitivity and tuning, actual source thresholds/allowlist, artifact versions | Baselines above are accepted for planning; evidence and any changes require review. No final-test tuning. |
+| Ayden + Ali | Positive/negative prediction logs, window/event identifiers and timing, missing prediction reporting | Pending; needed for reproducible evaluation joins. |
+| Aadi + Ayden + Ali | Empty/error/stale UI cases, history limits, and accessible L09 evidence | Pending; follow the API contract. |
+| All component owners + Ali | Workload rates/durations/repetitions, quantitative acceptance targets, resource sampler and recovery definition | Pending; performance pass/fail requires agreed targets and collection evidence. |
 
 ## Local validation and handoff
 
