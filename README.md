@@ -167,7 +167,7 @@ From the repository root:
 ./.venv/bin/python -m pytest -q
 ```
 
-The current tests cover the feature extractor and window grouping, the version-one feature contract checks, and packet normalization. Passing them does not validate live detection, model quality, or firewall mitigation. Dependency versions are not locked yet, so installations can resolve different package versions.
+The current tests cover the feature extractor and window grouping, the version-one feature contract checks, packet normalization, and offline checks for the bounded SYN/UDP scenario runner. Passing them does not validate live scenario delivery, detection, model quality, or firewall mitigation. Dependency versions are not locked yet, so installations can resolve different package versions.
 
 ### Automated checks
 
@@ -187,6 +187,8 @@ Start here if you are not sure where your work belongs. The "Main owner" column 
 | `ddos_detector/normalize.py` | Shared raw-packet normalization (IPv4 only) for offline PCAP and live capture; skip reasons are counted. | Vince |
 | `ddos_detector/contracts.py` | Version-one feature input checks: exact names, order, finite nonnegative values. | Ayden |
 | `ddos_detector/config.py` | Shared settings (window length, data folder) and the feature name list. | Vince |
+| `ddos_detector/scenarios.py` | Bounded SYN/UDP lab scenarios, offline preview, paced sending, interruption handling and run records. | Mujtaba |
+| `docs/scenarios.md` | Scenario commands, record schema and pending isolated-lab acceptance checks. | Mujtaba, Ali (evaluation review) |
 | `tests/` | pytest suite. `tests/test_features.py` covers the feature extractor and window grouping, `tests/test_normalize.py` packet normalization, and `tests/test_contracts.py` the feature contract checks. | Ali (QA), everyone adds tests for their own code |
 | `docs/design.md` | Design decisions: dataset, 1 second window, feature list, leakage rules, open items. | Ayden, Vince |
 | `docs/lab-setup.md` | How to build the isolated three-VM lab, verify capture, and move it to another PC. | Vince |
@@ -210,6 +212,7 @@ Not in the repository yet: packet capture, model training, the backend API, fire
 There is no end-to-end pipeline to run yet. What you can do today:
 
 * Run the feature-extraction tests (see [Run the tests](#run-the-tests)).
+* Preview the [bounded SYN/UDP scenarios](docs/scenarios.md) offline. Live sending is restricted to the isolated Linux attacker VM; repeatability and evaluation-format review remain pending.
 * Build the isolated lab and verify packet capture with [the lab setup notes](docs/lab-setup.md).
 * Build the dashboard against the mock responses in [`docs/api-examples.json`](docs/api-examples.json), starting from [Aadi's handoff](docs/aadi-handoff.md). See also the [backend and frontend planning draft](docs/dashboard-plan.md) and the [API field contract](docs/api-contract.md).
 
@@ -224,6 +227,7 @@ Usage examples for capture, training, and mitigation will be added as those part
 - [x] Shared feature extractor with tests, and CI
 - [x] Isolated three-VM lab with verified packet capture
 - [ ] Legitimate-traffic generator on the client VM
+- [ ] Bounded SYN/UDP scenarios verified in the lab (runner and offline tests implemented)
 - [ ] PCAP reader and labelling
 - [ ] Offline Random Forest model, then MLP comparison
 - [ ] Live capture on the protected server
