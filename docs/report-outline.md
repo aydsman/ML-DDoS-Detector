@@ -1,4 +1,4 @@
-# Final report outline â€” ML-DDoS-Detector
+# Final report outline — ML-DDoS-Detector
 
 Coordinator/editor: Aadi. Week 1 draft, October 26, 2026. Confirm the instructor's rubric, length, format, and citation requirements before final assembly. Each member writes their own component; Aadi consolidates and edits.
 

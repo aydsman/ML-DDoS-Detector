@@ -167,7 +167,7 @@ From the repository root:
 ./.venv/bin/python -m pytest -q
 ```
 
-The current tests cover the initial feature extractor and window grouping. Passing them does not validate live detection, model quality, or firewall mitigation. Dependency versions are not locked yet, so installations can resolve different package versions.
+The current tests cover the feature extractor and window grouping, the version-one feature contract checks, and packet normalization. Passing them does not validate live detection, model quality, or firewall mitigation. Dependency versions are not locked yet, so installations can resolve different package versions.
 
 ### Automated checks
 
@@ -184,8 +184,10 @@ Start here if you are not sure where your work belongs. The "Main owner" column 
 | --- | --- | --- |
 | `ddos_detector/` | Python package. Shared code for offline training and live capture. | Vince (feature extraction), Ayden (training, inference, API) |
 | `ddos_detector/features.py` | The single feature extractor and window grouping. Offline and live processing must both use it. | Vince |
+| `ddos_detector/normalize.py` | Shared raw-packet normalization (IPv4 only) for offline PCAP and live capture; skip reasons are counted. | Vince |
+| `ddos_detector/contracts.py` | Version-one feature input checks: exact names, order, finite nonnegative values. | Ayden |
 | `ddos_detector/config.py` | Shared settings (window length, data folder) and the feature name list. | Vince |
-| `tests/` | pytest suite. `tests/test_features.py` covers the feature extractor and window grouping. | Ali (QA), everyone adds tests for their own code |
+| `tests/` | pytest suite. `tests/test_features.py` covers the feature extractor and window grouping, `tests/test_normalize.py` packet normalization, and `tests/test_contracts.py` the feature contract checks. | Ali (QA), everyone adds tests for their own code |
 | `docs/design.md` | Design decisions: dataset, 1 second window, feature list, leakage rules, open items. | Ayden, Vince |
 | `docs/lab-setup.md` | How to build the isolated three-VM lab, verify capture, and move it to another PC. | Vince |
 | `docs/aadi-handoff.md` | Where Aadi starts on the dashboard and documentation. | Aadi |

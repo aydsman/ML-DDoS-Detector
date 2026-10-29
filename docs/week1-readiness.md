@@ -1,4 +1,4 @@
-# Aadi â€” Week 1 readiness
+# Aadi — Week 1 readiness
 
 Checked October 28, 2026 against `aadi-handoff.md` and the Week 1 card previously retrieved from Trello. Scope: Aadi's report outline and mock dashboard, not the team's entire Week 1 milestone.
 
