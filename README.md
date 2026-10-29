@@ -11,7 +11,7 @@
     COMP-3670 team project
     <br />
     <br />
-    <a href="docs/design.md"><strong>Explore the design docs »</strong></a>
+    <a href="docs/design.md"><strong>Explore the design docs &raquo;</strong></a>
     <br />
     <br />
     <a href="docs/lab-setup.md">VM lab setup</a>
@@ -167,7 +167,7 @@ From the repository root:
 ./.venv/bin/python -m pytest -q
 ```
 
-The current tests cover the initial feature extractor, window grouping, and legitimate HTTP client, including pacing, error handling, and exports. Passing them does not validate live detection, model quality, lab integration, or firewall mitigation. Dependency versions are not locked yet, so installations can resolve different package versions.
+The current tests cover the feature extractor and window grouping, the version-one feature contract checks, packet normalization, and the legitimate HTTP client, including pacing, error handling, and exports. Passing them does not validate live detection, model quality, lab integration, or firewall mitigation. Dependency versions are not locked yet, so installations can resolve different package versions.
 
 ### Automated checks
 
@@ -184,16 +184,19 @@ Start here if you are not sure where your work belongs. The "Main owner" column 
 | --- | --- | --- |
 | `ddos_detector/` | Python package. Shared code for offline training and live capture. | Vince (feature extraction), Ayden (training, inference, API) |
 | `ddos_detector/features.py` | The single feature extractor and window grouping. Offline and live processing must both use it. | Vince |
+| `ddos_detector/normalize.py` | Shared raw-packet normalization (IPv4 only) for offline PCAP and live capture; skip reasons are counted. | Vince |
+| `ddos_detector/contracts.py` | Version-one feature input checks: exact names, order, finite nonnegative values. | Ayden |
 | `ddos_detector/config.py` | Shared settings (window length, data folder) and the feature name list. | Vince |
 | `ddos_detector/http_client.py` | Legitimate HTTP client: capped rates, local/lab targets, bounded concurrency, epoch timestamps, and incremental draft JSON/CSV exports. See [client instructions](docs/http-client.md). | Mujtaba |
-| `tests/` | pytest suite. `test_features.py` covers feature extraction; `test_http_client.py` covers the legitimate HTTP client and exports. | Ali (QA), everyone adds tests for their own code |
+| `tests/` | pytest suite. `test_features.py` covers the feature extractor and window grouping, `test_normalize.py` packet normalization, `test_contracts.py` the feature contract checks, and `test_http_client.py` / `test_http_client_accounting.py` the HTTP client and exports. | Ali (QA), everyone adds tests for their own code |
 | `docs/design.md` | Design decisions: dataset, 1 second window, feature list, leakage rules, open items. | Ayden, Vince |
 | `docs/lab-setup.md` | How to build the isolated three-VM lab, verify capture, and move it to another PC. | Vince |
 | `docs/aadi-handoff.md` | Where Aadi starts on the dashboard and documentation. | Aadi |
 | `docs/dashboard-plan.md` | Backend and dashboard planning agreement. | Ayden, Aadi |
 | `docs/api-contract.md` | Proposed API field contract. Takes precedence over older examples. | Ayden |
 | `docs/api-examples.json` | Mock JSON responses for building the dashboard. | Ayden, Aadi |
-| `frontend/` | Dashboard source. Not created yet; Aadi adds it (see the handoff). | Aadi |
+| `frontend/` | Local mock dashboard; see [startup and checks](frontend/README.md). | Aadi |
+| `docs/report-outline.md` | Report outline, contributor responsibilities, and evidence checklist. | Aadi, all contributors |
 | `.github/workflows/ci.yml` | GitHub Actions CI. | Whole team |
 | `requirements.txt` | Python dependencies. `.python-version` records Python 3.12. | Whole team |
 | `data/` | Local datasets and captures. Gitignored, so it will not appear in a fresh clone. | Local only |
@@ -290,3 +293,9 @@ Traffic generation and mitigation experiments are intended for the isolated proj
 <!-- MARKDOWN LINKS & IMAGES -->
 [Python-badge]: https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white
 [Python-url]: https://www.python.org/
+
+## Feature contract
+
+See [the version-one ML feature contract](docs/feature-contract.md) and [ordered machine-readable feature definitions](docs/feature-contract.json) for component boundaries, feature order/types/units, and missing-data rules. This is a design draft pending the capture/dataset checks in issue #5 and Aadi's frontend review.
+
+See [Ayden's week-one status](docs/week1-status.md) for prepared deliverables and explicit remaining dependencies, and [dataset selection/label rules](docs/dataset-plan.md) before starting training.

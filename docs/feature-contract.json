@@ -1,0 +1,118 @@
+{
+  "feature_schema_version": "1",
+  "status": "week-one-baseline-specification",
+  "scope": "protected_server_inbound_ipv4_tcp_udp_icmp",
+  "default_window_seconds": 1.0,
+  "window_alignment": "unix_epoch",
+  "model_input_dtype": "float64",
+  "feature_names": [
+    "packet_rate",
+    "byte_rate",
+    "syn_count",
+    "syn_ack_ratio",
+    "syn_no_ack_share",
+    "pkt_size_mean",
+    "pkt_size_std",
+    "unique_src_ips",
+    "src_ip_entropy",
+    "tcp_share",
+    "udp_share",
+    "icmp_share"
+  ],
+  "features": [
+    {
+      "name": "packet_rate",
+      "unit": "packets/s",
+      "record_type": "number",
+      "minimum": 0,
+      "definition": "Selected packet count / window_seconds"
+    },
+    {
+      "name": "byte_rate",
+      "unit": "bytes/s",
+      "record_type": "number",
+      "minimum": 0,
+      "definition": "Sum of IPv4 Total Length / window_seconds"
+    },
+    {
+      "name": "syn_count",
+      "unit": "packets",
+      "record_type": "integer",
+      "minimum": 0,
+      "definition": "Observed TCP SYN set and ACK unset"
+    },
+    {
+      "name": "syn_ack_ratio",
+      "unit": "ratio",
+      "record_type": "number",
+      "minimum": 0,
+      "definition": "SYN-only / max(observed SYN+ACK count, 1)"
+    },
+    {
+      "name": "syn_no_ack_share",
+      "unit": "fraction",
+      "record_type": "number",
+      "minimum": 0,
+      "definition": "SYN-only / max(SYN-only + observed ACK-set count, 1)",
+      "maximum": 1
+    },
+    {
+      "name": "pkt_size_mean",
+      "unit": "bytes",
+      "record_type": "number",
+      "minimum": 0,
+      "definition": "Mean selected IPv4 packet length"
+    },
+    {
+      "name": "pkt_size_std",
+      "unit": "bytes",
+      "record_type": "number",
+      "minimum": 0,
+      "definition": "Population standard deviation of selected IPv4 packet lengths"
+    },
+    {
+      "name": "unique_src_ips",
+      "unit": "addresses",
+      "record_type": "integer",
+      "minimum": 0,
+      "definition": "Distinct source IPv4 addresses"
+    },
+    {
+      "name": "src_ip_entropy",
+      "unit": "bits",
+      "record_type": "number",
+      "minimum": 0,
+      "definition": "Base-2 Shannon entropy of source packet counts"
+    },
+    {
+      "name": "tcp_share",
+      "unit": "fraction",
+      "record_type": "number",
+      "minimum": 0,
+      "definition": "TCP count / all selected packet count",
+      "maximum": 1
+    },
+    {
+      "name": "udp_share",
+      "unit": "fraction",
+      "record_type": "number",
+      "minimum": 0,
+      "definition": "UDP count / all selected packet count",
+      "maximum": 1
+    },
+    {
+      "name": "icmp_share",
+      "unit": "fraction",
+      "record_type": "number",
+      "minimum": 0,
+      "definition": "ICMP count / all selected packet count",
+      "maximum": 1
+    }
+  ],
+  "missing_values": "Reject missing, extra, null, NaN, infinity, or out-of-range feature values; never impute capture failure as zero. Empty measured windows are zeros for display/diagnostics, excluded from training and inference by the planned pipeline.",
+  "unresolved": [
+    "Before training: verify actual dataset files, metadata, splits, labels and feature compatibility under issue #5.",
+    "Before live use: verify offline/live adapters, capture coverage, runtime allowlist and policy values.",
+    "Evaluate inbound-only SYN-related feature usefulness on validation data; removal or redefinition requires a new schema version."
+  ]
+}

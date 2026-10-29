@@ -1,5 +1,5 @@
 from ddos_detector.config import FEATURE_NAMES
-from ddos_detector.features import Packet, extract_features, windows
+from ddos_detector.features import Packet, extract_features, window_start, windows
 
 
 def test_empty_window_has_all_features():
@@ -32,3 +32,22 @@ def test_known_ipv4_packet_byte_statistics():
     assert features["byte_rate"] == 180
     assert features["pkt_size_mean"] == 60
     assert features["pkt_size_std"] == 0
+
+
+def test_window_start_is_epoch_aligned():
+    assert window_start(1700000000.7, 1.0) == 1700000000
+    assert window_start(7.5, 5.0) == 5.0
+    assert window_start(10.0, 5.0) == 10.0  # start-inclusive
+
+
+def test_windows_aligned_to_epoch_not_first_packet():
+    pkts = [Packet(t, "a", "udp", 100) for t in (10.9, 11.0, 11.5, 14.2)]
+    got = [(s, len(b)) for s, b in windows(pkts, 1.0)]
+    assert got == [(10, 1), (11, 2), (12, 0), (13, 0), (14, 1)]
+
+
+def test_window_end_is_exclusive_and_alignment_is_origin_independent():
+    a = [Packet(t, "a", "udp", 100) for t in (0.0, 0.999, 1.0)]
+    b = a[1:]  # same packets, different first packet
+    assert [(s, len(x)) for s, x in windows(a, 1.0)] == [(0, 2), (1, 1)]
+    assert [(s, len(x)) for s, x in windows(b, 1.0)] == [(0, 1), (1, 1)]

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ML-DDoS-Detector · Lab dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header><a class="brand" href="#">◈ <span>ML-DDoS-Detector</span></a><span class="tag">COMP-3670 / LAB</span></header>
+  <main>
+    <div class="heading"><div><p class="eyebrow">NETWORK OBSERVABILITY</p><h1>Lab overview</h1><p class="subtitle">Inbound traffic, detection evidence, and confirmed firewall actions.</p></div><span class="sample">● SAMPLE DATA</span></div>
+    <section class="toolbar" aria-label="Mock demonstration controls"><div><label for="scenario">Demo scenario</label><select id="scenario"><option value="sample">Representative activity</option><option value="empty">No measurements or events</option><option value="zero">Measured zero traffic</option><option value="unavailable">Capture unavailable</option><option value="stale">Stale snapshot</option><option value="error">Connection failure</option></select><button id="reload">Reload sample</button></div><span>Display only · America/Toronto</span></section>
+    <p id="notice" role="status" aria-live="polite">Loading sample data…</p>
+    <section aria-labelledby="health-title"><div class="section-heading"><h2 id="health-title">System health</h2><span id="updated">Awaiting snapshot</span></div><div id="health" class="health-grid"></div></section>
+    <section class="panel" aria-labelledby="traffic-title"><div class="section-heading"><div><p class="eyebrow">01 / TRAFFIC</p><h2 id="traffic-title">Aggregate inbound traffic</h2></div><span>IPv4 · TCP / UDP / ICMP</span></div><p class="muted">One-second windows. IP bytes include IP and transport headers; Ethernet headers are excluded.</p><div id="charts" class="charts"></div></section>
+    <section class="panel" aria-labelledby="detections-title"><div class="section-heading"><div><p class="eyebrow">02 / DETECTION</p><h2 id="detections-title">Detection events</h2></div><span id="detection-count"></span></div><p class="muted">Scores describe aggregate windows. Source events reuse that score and carry separate attribution evidence.</p><div id="detections" class="table-wrap"></div></section>
+    <section class="panel" aria-labelledby="blocks-title"><div class="section-heading"><div><p class="eyebrow">03 / MITIGATION</p><h2 id="blocks-title">Confirmed blocks in snapshot</h2></div><span id="block-count"></span></div><p class="muted">A block request is not confirmation. These fixed examples do not describe current firewall state.</p><div id="blocks" class="table-wrap"></div></section>
+    <footer>Week 1 prototype · Aadi / Frontend & documentation <span>API schema v1 · Fixed example snapshot</span></footer>
+  </main>
+</body>
+</html>

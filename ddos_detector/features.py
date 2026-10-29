@@ -16,7 +16,7 @@ class Packet:
     src: str
     proto: str  # "tcp", "udp" or "icmp"
     size: int  # IP packet length in bytes, including IP headers; excludes link-layer headers
-    flags: int = 0  # TCP flags, 0 for non-TCP
+    flags: int | None = 0  # TCP flags; 0 for non-TCP; None when unknown (e.g. non-first fragment)
 
 
 def _entropy(counts):
@@ -36,9 +36,12 @@ def extract_features(packets, window_seconds):
         return {name: 0.0 for name in FEATURE_NAMES}
 
     sizes = [p.size for p in packets]
-    syn = sum(1 for p in packets if p.proto == "tcp" and p.flags & SYN and not p.flags & ACK)
-    synack = sum(1 for p in packets if p.proto == "tcp" and p.flags & SYN and p.flags & ACK)
-    ack = sum(1 for p in packets if p.proto == "tcp" and p.flags & ACK)
+    # Packets with unknown flags (None) still count for size, protocol and source
+    # features, but never as SYN, SYN-ACK or ACK evidence.
+    tcp = [p for p in packets if p.proto == "tcp" and p.flags is not None]
+    syn = sum(1 for p in tcp if p.flags & SYN and not p.flags & ACK)
+    synack = sum(1 for p in tcp if p.flags & SYN and p.flags & ACK)
+    ack = sum(1 for p in tcp if p.flags & ACK)
     protos = Counter(p.proto for p in packets)
     srcs = Counter(p.src for p in packets)
 
@@ -58,16 +61,26 @@ def extract_features(packets, window_seconds):
     }
 
 
+def window_start(ts, window_seconds):
+    """Epoch-aligned window start: floor(ts / window_seconds) * window_seconds."""
+    return math.floor(ts / window_seconds) * window_seconds
+
+
 def windows(packets, window_seconds):
-    """Group time-sorted packets into non-overlapping windows."""
+    """Group time-sorted packets into epoch-aligned, non-overlapping windows.
+
+    Windows include their start and exclude their end. Windows between the
+    first and last packet with no packets are yielded empty.
+    """
     if not packets:
         return
-    start = packets[0].ts
+    index = math.floor(packets[0].ts / window_seconds)
     bucket = []
     for p in packets:
-        while p.ts >= start + window_seconds:
-            yield start, bucket
-            start += window_seconds
+        target = math.floor(p.ts / window_seconds)
+        while target > index:
+            yield index * window_seconds, bucket
+            index += 1
             bucket = []
         bucket.append(p)
-    yield start, bucket
+    yield index * window_seconds, bucket
