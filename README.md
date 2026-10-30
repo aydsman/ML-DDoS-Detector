@@ -188,6 +188,7 @@ Start here if you are not sure where your work belongs. The "Main owner" column 
 | `ddos_detector/contracts.py` | Version-one feature input checks: exact names, order, finite nonnegative values. | Ayden |
 | `ddos_detector/config.py` | Shared settings (window length, data folder) and the feature name list. | Vince |
 | `ddos_detector/pcap.py`, `frames.py`, `aggregate.py`, `offline.py` | Classic pcap reader, Ethernet/inbound frame parser, streaming window aggregator, and the offline command-line entry point. | Vince |
+| `ddos_detector/live.py`, `capture.py` | Live pipeline (frames in, window records out, with an unavailable status on capture failure), its replay/live command line, and the Linux AF_PACKET frame source. | Vince |
 | `tools/verify_pcap_features.py` | Recomputes every window's features from tshark or scapy output and compares them with the package. | Vince |
 | `tests/` | pytest suite. `tests/test_features.py` covers the feature extractor and window grouping, `tests/test_normalize.py` packet normalization, and `tests/test_contracts.py` the feature contract checks. | Ali (QA), everyone adds tests for their own code |
 | `docs/design.md` | Design decisions: dataset, 1 second window, feature list, leakage rules, open items. | Ayden, Vince |
@@ -233,6 +234,26 @@ To check the output against an independent computation (tshark by default; set `
 ```
 
 Raw captures stay under the gitignored `data/` folder and are never committed; tests that need real captures or tshark skip themselves when they are absent.
+
+### Live capture
+
+`ddos_detector/live.py` feeds raw Ethernet frames through the same frame parser, skip counters and window aggregator as the offline command, so identical frames give identical records (checked by `tests/test_live.py` on the synthetic and lab pcaps).
+
+Replay a saved pcap through the live pipeline (works on Windows, needs no privileges or network):
+
+```powershell
+.\.venv\Scripts\python.exe -m ddos_detector.live --replay data\lab-runs\pr16-syn-run1\syn1.pcap --out records.jsonl
+```
+
+Capture on a Linux VM (AF_PACKET, standard library only; needs root or CAP_NET_RAW, and the repository copied into a Python 3.12+ environment). This has not been run live yet:
+
+```sh
+sudo ./.venv/bin/python -m ddos_detector.live --interface enp0s8 --victim 10.10.10.10 --duration 60 --out records.jsonl
+```
+
+Windows close once a packet or the clock passes their end plus `grace_seconds`, so a quiet link still closes windows. Records are written as they close, only when `--out` is given. On stop, the window still in progress is dropped rather than emitted half-measured.
+
+If the frame source fails, the status becomes `unavailable`: windows with incomplete coverage are discarded, nothing is zero-filled, and the gap (start, reason, discarded windows) is reported. The command then exits with code 1. Unavailable data is not the same as measured zero traffic; see the feature contract.
 
 Usage examples for live capture, training, and mitigation will be added as those parts land.
 
