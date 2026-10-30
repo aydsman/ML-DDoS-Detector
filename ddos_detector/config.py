@@ -7,6 +7,8 @@ class Config:
     window_seconds: float = 1.0
     data_dir: str = "data"
     victim_ip: str = "10.10.10.10"  # inbound traffic is traffic addressed to this host
+    grace_seconds: float = 1.0  # a window closes this long after its end; later packets are dropped
+    max_sources_per_window: int = 10000  # distinct source IPs tracked per window
 
 
 FEATURE_NAMES = [
