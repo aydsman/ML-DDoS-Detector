@@ -187,6 +187,8 @@ Start here if you are not sure where your work belongs. The "Main owner" column 
 | `ddos_detector/normalize.py` | Shared raw-packet normalization (IPv4 only) for offline PCAP and live capture; skip reasons are counted. | Vince |
 | `ddos_detector/contracts.py` | Version-one feature input checks: exact names, order, finite nonnegative values. | Ayden |
 | `ddos_detector/config.py` | Shared settings (window length, data folder) and the feature name list. | Vince |
+| `ddos_detector/pcap.py`, `frames.py`, `aggregate.py`, `offline.py` | Classic pcap reader, Ethernet/inbound frame parser, streaming window aggregator, and the offline command-line entry point. | Vince |
+| `tools/verify_pcap_features.py` | Recomputes every window's features from tshark or scapy output and compares them with the package. | Vince |
 | `tests/` | pytest suite. `tests/test_features.py` covers the feature extractor and window grouping, `tests/test_normalize.py` packet normalization, and `tests/test_contracts.py` the feature contract checks. | Ali (QA), everyone adds tests for their own code |
 | `docs/design.md` | Design decisions: dataset, 1 second window, feature list, leakage rules, open items. | Ayden, Vince |
 | `docs/lab-setup.md` | How to build the isolated three-VM lab, verify capture, and move it to another PC. | Vince |
@@ -200,7 +202,7 @@ Start here if you are not sure where your work belongs. The "Main owner" column 
 | `requirements.txt` | Python dependencies. `.python-version` records Python 3.12. | Whole team |
 | `data/` | Local datasets and captures. Gitignored, so it will not appear in a fresh clone. | Local only |
 
-Not in the repository yet: packet capture, model training, the backend API, firewall mitigation, and experiment scripts. Add new code under `ddos_detector/` unless the team agrees otherwise, and mention the new file in this table.
+Not in the repository yet: live packet capture, model training, the backend API, firewall mitigation, and experiment scripts. Add new code under `ddos_detector/` unless the team agrees otherwise, and mention the new file in this table.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -213,7 +215,26 @@ There is no end-to-end pipeline to run yet. What you can do today:
 * Build the isolated lab and verify packet capture with [the lab setup notes](docs/lab-setup.md).
 * Build the dashboard against the mock responses in [`docs/api-examples.json`](docs/api-examples.json), starting from [Aadi's handoff](docs/aadi-handoff.md). See also the [backend and frontend planning draft](docs/dashboard-plan.md) and the [API field contract](docs/api-contract.md).
 
-Usage examples for capture, training, and mitigation will be added as those parts land.
+### Offline extraction and verification
+
+Extract per-window features from a saved classic Ethernet pcap (pcapng must be converted first, e.g. `editcap -F pcap in.pcapng out.pcap`):
+
+```powershell
+.\.venv\Scripts\python.exe -m ddos_detector.offline capture.pcap --victim 10.10.10.10 --window 1 --out records.csv
+```
+
+It prints windows, packets, skip counts by reason and `late_dropped`; `--out` (`.csv` or `.jsonl`) is optional and nothing is written without it. Columns: `window_start`, `window_end` (epoch seconds), the 12 features in contract order, `packet_count`, `capped`, `untracked_source_packets`. Only IPv4 packets addressed to the victim count. A bad pcap exits with code 2. Empty windows are not written, because the aggregator cannot tell a quiet link from a capture gap.
+
+To check the output against an independent computation (tshark by default; set `TSHARK` or pass `--tshark` if it is not in `C:\Program Files\Wireshark`):
+
+```powershell
+.\.venv\Scripts\python.exe -m tools.verify_pcap_features capture.pcap
+.\.venv\Scripts\python.exe -m tools.verify_pcap_features --engine scapy capture.pcap
+```
+
+Raw captures stay under the gitignored `data/` folder and are never committed; tests that need real captures or tshark skip themselves when they are absent.
+
+Usage examples for live capture, training, and mitigation will be added as those parts land.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
