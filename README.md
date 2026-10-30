@@ -248,6 +248,10 @@ Each task has one accountable owner, a deadline, a deliverable, dependencies, an
 
 Work and integration happen on `development`. Once changes have been tested and reviewed, promote them to `main` through a pull request. `main` contains the tested version.
 
+**Promotion schedule:** At each weekly milestone, open a `development` -> `main` pull request once the milestone's required task PRs are reviewed and merged and the combined checks pass. A date alone does not trigger a merge: unresolved required work or failing checks postpones promotion. Keep incomplete features on their task branches and record later-scope work explicitly. Promotion requires review and passing CI; it is not an automatic deployment. Keep both permanent branches.
+
+Policy selected by Ayden in [issue #14](https://github.com/aydsman/ML-DDoS-Detector/issues/14).
+
 1. Pull the latest `development`
 2. Create your feature branch (`git switch -c feature/short-name`)
 3. Commit your changes with a clear message
