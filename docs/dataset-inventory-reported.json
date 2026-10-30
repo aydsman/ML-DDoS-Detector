@@ -1,0 +1,75 @@
+{
+  "status": "collaborator-reported-csv-inventory-not-independent-verification",
+  "dataset": "CIC-DDoS2019",
+  "reported_by": "iamnobody0101",
+  "reported_access_date": "2026-10-29",
+  "recorded_date": "2026-10-30",
+  "evidence_url": "https://github.com/aydsman/ML-DDoS-Detector/issues/3#issuecomment-6502234272",
+  "source_page_url": "https://cicresearch.ca/CICDataset/CICDDoS2019/",
+  "reported_storage_root": "C:\\Users\\iamno\\datasets\\cic-ddos2019",
+  "checksum_origin": "Locally computed by Vince; not publisher-provided or independently recomputed here",
+  "pcap_status": "No PCAP download reported; exact members, sizes and selection pending",
+  "archives": [
+    {
+      "filename": "CSV-01-12.zip",
+      "size_bytes": 2330434641,
+      "sha256": "D5224F73B59F2BE783B620BC7046F4BF467C1FE226CFDBC036359AB40F32930D",
+      "download_url": null,
+      "verified_split": null,
+      "candidate_role": "training/validation pending metadata and independent runs"
+    },
+    {
+      "filename": "CSV-03-11.zip",
+      "size_bytes": 918815761,
+      "sha256": "A81D8CE59A819D13E6BFEA4E4812D6D144D0572B6D2C42D8E0C0A8CF1C26C263",
+      "download_url": null,
+      "verified_split": null,
+      "candidate_role": "final test pending metadata verification"
+    }
+  ],
+  "candidate_csvs": [
+    {
+      "collection": "01-12",
+      "filename": "Syn.csv",
+      "flows": 1582681,
+      "labels": {
+        "Syn": 1582289,
+        "BENIGN": 392
+      }
+    },
+    {
+      "collection": "01-12",
+      "filename": "DrDoS_UDP.csv",
+      "flows": 3136802,
+      "labels": {
+        "DrDoS_UDP": 3134645,
+        "BENIGN": 2157
+      }
+    },
+    {
+      "collection": "03-11",
+      "filename": "Syn.csv",
+      "flows": 4320541,
+      "labels": {
+        "Syn": 4284751,
+        "BENIGN": 35790
+      }
+    },
+    {
+      "collection": "03-11",
+      "filename": "UDP.csv",
+      "flows": 3782206,
+      "labels": {
+        "UDP": 3754680,
+        "MSSQL": 24392,
+        "BENIGN": 3134
+      }
+    }
+  ],
+  "limitations": [
+    "Flow-level labels are not packet labels or the project feature table.",
+    "Calendar dates, timezone, victim/filter metadata and independent runs remain unverified.",
+    "MSSQL is outside project scope.",
+    "No independently verified labelled packet-window sample exists in this inventory."
+  ]
+}
