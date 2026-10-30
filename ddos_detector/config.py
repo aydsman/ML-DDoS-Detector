@@ -6,6 +6,7 @@ from dataclasses import dataclass
 class Config:
     window_seconds: float = 1.0
     data_dir: str = "data"
+    victim_ip: str = "10.10.10.10"  # inbound traffic is traffic addressed to this host
 
 
 FEATURE_NAMES = [
