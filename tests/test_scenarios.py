@@ -164,6 +164,105 @@ def test_export_setup_failure_prevents_sending(tmp_path, monkeypatch):
     assert error.value.code == 2
 
 
+@pytest.mark.parametrize("protocol", ["syn", "udp"])
+@pytest.mark.parametrize("failure", [
+    ValueError("bad interface"), ValueError("no ARP response"),
+    PermissionError("socket permission denied"), RuntimeError("socket setup failed"),
+    KeyboardInterrupt(),
+])
+def test_setup_failure_saves_terminal_zero_attempt_record(tmp_path, monkeypatch, capsys, protocol, failure):
+    def fail_setup(settings):
+        raise failure
+
+    monkeypatch.setattr(scenarios, "open_lab_sender", fail_setup)
+    monkeypatch.setattr(scenarios, "run_scenario", lambda *args: pytest.fail("scenario started after setup failure"))
+    arguments = ["--protocol", protocol, "--rate", "10", "--duration", "5",
+                 "--execute", "--output", str(tmp_path)]
+    interrupted = isinstance(failure, KeyboardInterrupt)
+    if interrupted:
+        assert scenarios.main(arguments) == 130
+    else:
+        with pytest.raises(SystemExit) as error:
+            scenarios.main(arguments)
+        assert error.value.code == 2
+    directory, = tmp_path.iterdir()
+    metadata = json.loads((directory / "run.json").read_text())
+    from datetime import datetime
+    assert datetime.fromisoformat(metadata["stopped_at"]).utcoffset().total_seconds() == 0
+    assert metadata["started_at"] is None
+    assert metadata["state"] == ("interrupted" if interrupted else "failed")
+    assert metadata["error"]["phase"] == "setup"
+    assert metadata["error"]["type"] == type(failure).__name__
+    assert metadata["error"]["message"]
+    summary = metadata["summary"]
+    assert summary["scheduled_slots"] == summary["cancelled_slots"] == 50
+    assert all(summary[name] == 0 for name in (
+        "attempted", "sent", "send_errors", "unknown", "skipped_due_to_lag",
+        "elapsed_seconds", "achieved_packets_per_second",
+    ))
+    assert summary["interrupted"] is interrupted
+    with (directory / "activity.csv").open(newline="") as handle:
+        assert list(csv.DictReader(handle)) == []
+    report = json.loads(capsys.readouterr().out)
+    assert report["state"] == metadata["state"]
+    assert report["summary"] == summary
+    assert report["export_directory"] == str(directory.resolve())
+
+
+def test_setup_record_write_failure_remains_incomplete(tmp_path, monkeypatch):
+    def fail_setup(settings):
+        raise ValueError("no ARP response")
+
+    original_replace = scenarios.Path.replace
+
+    def fail_reconciliation(path, target):
+        if path.name == "activity.csv.tmp":
+            raise OSError("disk failure")
+        return original_replace(path, target)
+
+    monkeypatch.setattr(scenarios, "open_lab_sender", fail_setup)
+    monkeypatch.setattr(scenarios.Path, "replace", fail_reconciliation)
+    with pytest.raises(SystemExit) as error:
+        scenarios.main(["--protocol", "syn", "--execute", "--output", str(tmp_path)])
+    assert error.value.code == 2
+    directory, = tmp_path.iterdir()
+    metadata = json.loads((directory / "run.json").read_text())
+    assert metadata["state"] == "running"
+    assert metadata["summary"] is None
+
+
+def test_export_failure_after_start_never_relabels_run_as_zero_attempts(tmp_path, monkeypatch):
+    class Sender:
+        closed = False
+
+        def close(self):
+            self.closed = True
+
+    sender = Sender()
+
+    def fail_after_start(settings, sender, export):
+        export.metadata["started_at"] = scenarios.utc_now()
+        export.write_metadata()
+        export.record({"packet_index": 1, "outcome": "sent"})
+        raise OSError("export interrupted after sending")
+
+    monkeypatch.setattr(scenarios, "open_lab_sender", lambda settings: sender)
+    monkeypatch.setattr(scenarios, "run_scenario", fail_after_start)
+    with pytest.raises(SystemExit) as error:
+        scenarios.main(["--protocol", "udp", "--execute", "--output", str(tmp_path)])
+    assert error.value.code == 2
+    assert sender.closed
+    directory, = tmp_path.iterdir()
+    metadata = json.loads((directory / "run.json").read_text())
+    assert metadata["state"] == "running"
+    assert metadata["started_at"] is not None
+    assert metadata["summary"] is None
+    with (directory / "activity.csv").open(newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    assert len(rows) == 1
+    assert rows[0]["outcome"] == "sent"
+
+
 def test_failed_csv_finalization_leaves_metadata_incomplete(tmp_path, clock, monkeypatch):
     export = scenarios.ScenarioExport(tmp_path, scenarios.ScenarioSettings("syn"))
     original_replace = scenarios.Path.replace

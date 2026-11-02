@@ -2,8 +2,9 @@
 
 Owner: Mujtaba. W2 task: [bounded lab scenarios](https://trello.com/c/0zxzMJOm).
 This module implements the sending component, not detection or a benchmark.
-Live VM repeatability and Ali's export review remain pending. No live scenario
-was executed during development of this change.
+Vince reported repeatable live VM runs at `f5c75a5`; see the evidence below.
+The setup-failure fix still needs his recheck, and experiment-format review
+remains pending. No additional live scenario was executed for this fix.
 
 ## Offline preview
 
@@ -77,7 +78,8 @@ Each execution creates a new UUID directory under `--output`, containing:
 - `run.json`: `scenario-draft-1`, run ID, controlled protocol, target/port,
   interface, real source IP, rate/duration settings, UTC start/stop, state and
   summary. State begins as `running` with a null summary. Terminal states are
-  `complete`, `interrupted` or `failed`.
+  `complete`, `interrupted` or `failed`. The additive `error` field is normally
+  null; a setup failure records its `phase`, exception `type` and `message`.
 - `activity.csv`: run ID, 1-based scheduled packet index, UTC `started_at`,
   matching Unix `epoch_seconds`, send duration in `elapsed_ms`, IPv4 byte length,
   outcome and exception class. Slot gaps are skipped/cancelled work. Rows are
@@ -102,10 +104,22 @@ from collected records before atomically publishing the JSON summary, recovering
 rows interrupted before or during their incremental write. A write/reconciliation
 failure leaves the export incomplete. Run directories are never reused.
 
-Startup route/ARP/socket failure can leave `running` with null start/summary and
-no activity. This indicates setup did not finish, not a successful zero-load run.
-If the process crashes, retain its incomplete files for diagnosis. The `results/`
-directory is gitignored; do not commit captures or measurement artifacts.
+Startup route/ARP/socket or platform failure now finalizes as `failed`, with a
+UTC `stopped_at`, an `error` with `phase: setup`, and a zero-attempt summary.
+`started_at` remains null because the scenario never began. Every scheduled slot
+is cancelled; send-error and lag counters remain zero. CSV contains its header
+and no attempt rows. The zero elapsed time/rate describe a scenario that did not
+start, not measured traffic over the requested duration. Setup ARP probes are
+not scenario packet attempts. Ctrl+C during setup records `interrupted`, the same
+zero-attempt/cancellation accounting and a KeyboardInterrupt error, with exit 130.
+The CLI prints the export path and returns 2 for other setup failures.
+
+This terminal record is written only when export initialization succeeded and
+pre-send setup failed. Invalid command settings are rejected before creating a
+directory. Export initialization, finalization or metadata I/O failure, a process
+crash, or forced termination can still leave an incomplete export. Such files
+must not be presented as a verified zero-attempt run. Existing unfinished exports
+are never rewritten by this fix. The `results/` directory is gitignored.
 
 This is a separate **draft** scenario schema, not a silent revision of the HTTP
 client's `draft-2` format or Ali's proposed experiment schema. Ali should map each
@@ -115,7 +129,18 @@ times in the experiment manifest. A detector prediction must not supply the
 scenario's ground-truth label. Timing an intended scenario alone does not prove
 which packets arrived, nor does it label all packets in an overlapping window.
 
-## Lab acceptance checklist (pending)
+## Reported lab evidence and remaining checks
+
+Vince's [PR #16 review](https://github.com/aydsman/ML-DDoS-Detector/pull/16#pullrequestreview-5718448394)
+reports two SYN and two UDP runs at `f5c75a5`, 10 packets/s for 5 seconds, each
+with 50 local sends matching the server capture and zero capture drops. He also
+reports Ctrl+C checks for both protocols, reconciled 96-attempt/204-cancelled
+records and no sender packets after `stopped_at`, plus wrong-target and
+bad-interface rejection. These are reported results for that revision; the raw
+captures are not in this repository. Higher rates and VM timer stalls were not
+covered. His setup-failure finding is addressed by the new terminal record above.
+
+Use this checklist for re-verification and the remaining evaluation review:
 
 1. Agree schema mapping, ports and independent ground truth with Ali; synchronize
    VM clocks and record the source revision and lab configuration.
@@ -129,6 +154,9 @@ which packets arrived, nor does it label all packets in an overlapping window.
 5. Interrupt each protocol during a run, verify exit 130 and reconciled files,
    then verify no further scenario sends in the capture. Also check unreachable
    target and invalid-interface behavior without relaxing the route check.
+   Specifically recheck ARP and interface setup failures: exit 2, `state: failed`,
+   non-null stop time/error, null scenario start, zero attempts/CSV rows, all
+   planned slots cancelled. Retain their UUID directories and code revision.
 6. Request team review before marking the Trello task Done. Firewall adapter,
    policy integration and automatic expiry belong to later W3/W4 tasks.
 
@@ -141,5 +169,8 @@ which packets arrived, nor does it label all packets in an overlapping window.
 The scenario tests construct/parse packets offline and use mocked senders,
 routes and clocks. They cover finite pacing, lag/overrun, cancellation, failed
 sends, interruption at the CSV boundary, timestamp/identity consistency,
-plan-only behavior and route validation. They do not validate Linux privileges,
+plan-only behavior, route validation, and setup failure/interruption records.
+They also verify that a failed export remains incomplete and that failures after
+sending starts never replace real activity with a zero-attempt setup summary.
+They do not validate Linux privileges,
 actual VM isolation, live socket delivery or repeatability under load.

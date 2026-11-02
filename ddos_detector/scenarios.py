@@ -52,6 +52,17 @@ class ScenarioSettings:
             raise ValueError("Supply the isolated lab interface name.")
 
 
+def scheduled_slot_count(settings):
+    """Count the half-open grid consistently for live and cancelled workloads."""
+    interval = 1 / settings.rate
+    planned = math.ceil(settings.duration * settings.rate)
+    while planned and (planned - 1) * interval >= settings.duration:
+        planned -= 1
+    while planned * interval < settings.duration:
+        planned += 1
+    return planned
+
+
 def build_packet(settings, index):
     """Construct IPv4 packets without transmitting anything or spoofing sources."""
     from scapy.all import IP, TCP, UDP, Raw
@@ -106,7 +117,7 @@ class ScenarioExport:
             "traffic_type": f"controlled_{settings.protocol}",
             "settings": asdict(settings), "source_ip": LAB_SOURCE,
             "state": "running", "started_at": None, "stopped_at": None,
-            "summary": None, "activity_file": "activity.csv",
+            "summary": None, "activity_file": "activity.csv", "error": None,
         }
         self.write_metadata()
         self.handle = (self.directory / "activity.csv").open("x", encoding="utf-8", newline="")
@@ -141,6 +152,26 @@ class ScenarioExport:
     def close(self):
         self.handle.close()
 
+    def finish_setup_failure(self, settings, error):
+        """Finalize only a failed pre-send setup, never an already started run."""
+        if self.metadata["started_at"] is not None:
+            raise ValueError("Cannot record a setup failure after the scenario starts.")
+        interrupted = isinstance(error, KeyboardInterrupt)
+        planned = scheduled_slot_count(settings)
+        summary = {
+            "scheduled_slots": planned, "attempted": 0, "sent": 0,
+            "send_errors": 0, "unknown": 0, "skipped_due_to_lag": 0,
+            "cancelled_slots": planned, "elapsed_seconds": 0.0,
+            "achieved_packets_per_second": 0.0, "interrupted": interrupted,
+        }
+        self.metadata["error"] = {
+            "phase": "setup", "type": type(error).__name__,
+            "message": str(error) or "Interrupted before the scenario started.",
+        }
+        state = "interrupted" if interrupted else "failed"
+        self.finish([], summary, state)
+        return state, summary
+
 
 def run_scenario(settings, sender, export):
     """One fixed-grid sender, no catch-up bursts; drain no background work."""
@@ -149,12 +180,7 @@ def run_scenario(settings, sender, export):
     export.write_metadata()
     start = perf_counter()
     interval = 1 / settings.rate
-    planned = math.ceil(settings.duration * settings.rate)
-    # Correct rounded multiplication at a half-open grid boundary.
-    while planned and (planned - 1) * interval >= settings.duration:
-        planned -= 1
-    while planned * interval < settings.duration:
-        planned += 1
+    planned = scheduled_slot_count(settings)
     slot = 0
     interrupted = False
     failed = False
@@ -245,13 +271,24 @@ def main(argv=None):
         parser.error(str(exc))
     if not args.execute:
         print(json.dumps({"mode": "plan_only", "settings": asdict(settings),
-                          "source_ip": LAB_SOURCE, "packet_budget": math.ceil(settings.rate * settings.duration)}, indent=2))
+                          "source_ip": LAB_SOURCE, "packet_budget": scheduled_slot_count(settings)}, indent=2))
         return 0
     export = None
     sender = None
     try:
         export = ScenarioExport(args.output, settings)
-        sender = open_lab_sender(settings)
+        try:
+            sender = open_lab_sender(settings)
+        except (Exception, KeyboardInterrupt) as exc:
+            # This handler is deliberately limited to pre-send setup. A later
+            # export failure must retain actual activity, not publish zero sends.
+            state, summary = export.finish_setup_failure(settings, exc)
+            print(json.dumps({"run_id": export.run_id, "state": state,
+                              "export_directory": str(export.directory.resolve()),
+                              "summary": summary, "error": export.metadata["error"]}, indent=2))
+            if state == "interrupted":
+                return 130
+            parser.exit(2, f"Scenario setup failed: {exc}. Saved failure record in {export.directory.resolve()}\n")
         state, summary = run_scenario(settings, sender, export)
         print(json.dumps({"run_id": export.run_id, "state": state,
                           "export_directory": str(export.directory.resolve()), "summary": summary}, indent=2))
