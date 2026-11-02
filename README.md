@@ -167,7 +167,7 @@ From the repository root:
 ./.venv/bin/python -m pytest -q
 ```
 
-The current tests cover the feature extractor and window grouping, the version-one feature contract checks, packet normalization, and offline checks for the bounded SYN/UDP scenario runner. Passing them does not validate live scenario delivery, detection, model quality, or firewall mitigation. Dependency versions are not locked yet, so installations can resolve different package versions.
+The current tests cover the feature extractor and window grouping, the version-one feature contract checks, packet normalization, the legitimate HTTP client (pacing, error handling and exports), and offline checks for the bounded SYN/UDP scenario runner. Passing them does not validate live scenario delivery, detection, model quality, lab integration, or firewall mitigation. Dependency versions are not locked yet, so installations can resolve different package versions.
 
 ### Automated checks
 
@@ -189,7 +189,8 @@ Start here if you are not sure where your work belongs. The "Main owner" column 
 | `ddos_detector/config.py` | Shared settings (window length, data folder) and the feature name list. | Vince |
 | `ddos_detector/scenarios.py` | Bounded SYN/UDP lab scenarios, offline preview, paced sending, interruption handling and run records. | Mujtaba |
 | `docs/scenarios.md` | Scenario commands, record schema and pending isolated-lab acceptance checks. | Mujtaba, Ali (evaluation review) |
-| `tests/` | pytest suite. `tests/test_features.py` covers the feature extractor and window grouping, `tests/test_normalize.py` packet normalization, and `tests/test_contracts.py` the feature contract checks. | Ali (QA), everyone adds tests for their own code |
+| `ddos_detector/http_client.py` | Legitimate HTTP client: capped rates, local/lab targets, bounded concurrency, epoch timestamps, and incremental draft JSON/CSV exports. See [client instructions](docs/http-client.md). | Mujtaba |
+| `tests/` | pytest suite. Feature extraction, packet normalization, feature contract checks, HTTP client accounting/exports, and offline scenario checks. | Ali (QA), everyone adds tests for their own code |
 | `docs/design.md` | Design decisions: dataset, 1 second window, feature list, leakage rules, open items. | Ayden, Vince |
 | `docs/lab-setup.md` | How to build the isolated three-VM lab, verify capture, and move it to another PC. | Vince |
 | `docs/aadi-handoff.md` | Where Aadi starts on the dashboard and documentation. | Aadi |
@@ -213,6 +214,7 @@ There is no end-to-end pipeline to run yet. What you can do today:
 
 * Run the feature-extraction tests (see [Run the tests](#run-the-tests)).
 * Preview the [bounded SYN/UDP scenarios](docs/scenarios.md) offline. Live sending is restricted to the isolated Linux attacker VM; repeatability and evaluation-format review remain pending.
+* Try the [HTTP client locally](docs/http-client.md), with a configurable request rate and duration and optional JSON/CSV exports. Lab integration and Ali's export-format review are still pending.
 * Build the isolated lab and verify packet capture with [the lab setup notes](docs/lab-setup.md).
 * Build the dashboard against the mock responses in [`docs/api-examples.json`](docs/api-examples.json), starting from [Aadi's handoff](docs/aadi-handoff.md). See also the [backend and frontend planning draft](docs/dashboard-plan.md) and the [API field contract](docs/api-contract.md).
 
@@ -251,6 +253,10 @@ Use Trello to assign and track tasks, and GitHub Issues for technical decisions 
 Each task has one accountable owner, a deadline, a deliverable, dependencies, and a verifiable completion condition. Aim for one to three working sessions per task and review the board twice a week.
 
 Work and integration happen on `development`. Once changes have been tested and reviewed, promote them to `main` through a pull request. `main` contains the tested version.
+
+**Promotion schedule:** At each weekly milestone, open a `development` -> `main` pull request once the milestone's required task PRs are reviewed and merged and the combined checks pass. A date alone does not trigger a merge: unresolved required work or failing checks postpones promotion. Keep incomplete features on their task branches and record later-scope work explicitly. Promotion requires review and passing CI; it is not an automatic deployment. Keep both permanent branches.
+
+Policy selected by Ayden in [issue #14](https://github.com/aydsman/ML-DDoS-Detector/issues/14).
 
 1. Pull the latest `development`
 2. Create your feature branch (`git switch -c feature/short-name`)
