@@ -303,3 +303,7 @@ Traffic generation and mitigation experiments are intended for the isolated proj
 See [the version-one ML feature contract](docs/feature-contract.md) and [ordered machine-readable feature definitions](docs/feature-contract.json) for component boundaries, feature order/types/units, and missing-data rules. This is a design draft pending the capture/dataset checks in issue #5 and Aadi's frontend review.
 
 See [Ayden's week-one status](docs/week1-status.md) for prepared deliverables and explicit remaining dependencies, and [dataset selection/label rules](docs/dataset-plan.md) before starting training.
+
+### Offline baseline training (Week 2)
+
+See [the training guide](docs/training.md) for labelled-window preparation, deterministic Random Forest training, validation metrics and model save/reload. A synthetic demo checks the code without downloading data. Verified data/labels/splits and extraction evidence are still required before real training or accuracy claims.
