@@ -11,7 +11,7 @@
     COMP-3670 team project
     <br />
     <br />
-    <a href="docs/design.md"><strong>Explore the design docs »</strong></a>
+    <a href="docs/design.md"><strong>Explore the design docs &raquo;</strong></a>
     <br />
     <br />
     <a href="docs/lab-setup.md">VM lab setup</a>
@@ -167,7 +167,7 @@ From the repository root:
 ./.venv/bin/python -m pytest -q
 ```
 
-The current tests cover the initial feature extractor and window grouping. Passing them does not validate live detection, model quality, or firewall mitigation. Dependency versions are not locked yet, so installations can resolve different package versions.
+The current tests cover the feature extractor and window grouping, the version-one feature contract checks, packet normalization, and the legitimate HTTP client, including pacing, error handling, and exports. Passing them does not validate live detection, model quality, lab integration, or firewall mitigation. Dependency versions are not locked yet, so installations can resolve different package versions.
 
 ### Automated checks
 
@@ -184,8 +184,11 @@ Start here if you are not sure where your work belongs. The "Main owner" column 
 | --- | --- | --- |
 | `ddos_detector/` | Python package. Shared code for offline training and live capture. | Vince (feature extraction), Ayden (training, inference, API) |
 | `ddos_detector/features.py` | The single feature extractor and window grouping. Offline and live processing must both use it. | Vince |
+| `ddos_detector/normalize.py` | Shared raw-packet normalization (IPv4 only) for offline PCAP and live capture; skip reasons are counted. | Vince |
+| `ddos_detector/contracts.py` | Version-one feature input checks: exact names, order, finite nonnegative values. | Ayden |
 | `ddos_detector/config.py` | Shared settings (window length, data folder) and the feature name list. | Vince |
-| `tests/` | pytest suite. `tests/test_features.py` covers the feature extractor and window grouping. | Ali (QA), everyone adds tests for their own code |
+| `ddos_detector/http_client.py` | Legitimate HTTP client: capped rates, local/lab targets, bounded concurrency, epoch timestamps, and incremental draft JSON/CSV exports. See [client instructions](docs/http-client.md). | Mujtaba |
+| `tests/` | pytest suite. `test_features.py` covers the feature extractor and window grouping, `test_normalize.py` packet normalization, `test_contracts.py` the feature contract checks, and `test_http_client.py` / `test_http_client_accounting.py` the HTTP client and exports. | Ali (QA), everyone adds tests for their own code |
 | `docs/design.md` | Design decisions: dataset, 1 second window, feature list, leakage rules, open items. | Ayden, Vince |
 | `docs/test-plan.md` | Week 1 QA scenarios, acceptance checks, prerequisites, and owner review decisions. | Ali |
 | `docs/measurement-formats.md` | Proposed metric definitions, collection methods, and experiment record format. | Ali, component owners review |
@@ -195,7 +198,8 @@ Start here if you are not sure where your work belongs. The "Main owner" column 
 | `docs/dashboard-plan.md` | Backend and dashboard planning agreement. | Ayden, Aadi |
 | `docs/api-contract.md` | Proposed API field contract. Takes precedence over older examples. | Ayden |
 | `docs/api-examples.json` | Mock JSON responses for building the dashboard. | Ayden, Aadi |
-| `frontend/` | Dashboard source. Not created yet; Aadi adds it (see the handoff). | Aadi |
+| `frontend/` | Local mock dashboard; see [startup and checks](frontend/README.md). | Aadi |
+| `docs/report-outline.md` | Report outline, contributor responsibilities, and evidence checklist. | Aadi, all contributors |
 | `.github/workflows/ci.yml` | GitHub Actions CI. | Whole team |
 | `requirements.txt` | Python dependencies. `.python-version` records Python 3.12. | Whole team |
 | `data/` | Local datasets and captures. Gitignored, so it will not appear in a fresh clone. | Local only |
@@ -210,7 +214,8 @@ Not in the repository yet: packet capture, model training, the backend API, fire
 There is no end-to-end pipeline to run yet. What you can do today:
 
 * Run the feature-extraction tests (see [Run the tests](#run-the-tests)).
-* Review the [QA test plan](docs/test-plan.md) and [measurement formats](docs/measurement-formats.md) before recording experiment results. Owner agreement and lab evidence are still pending.
+* Review the [QA test plan](docs/test-plan.md) and [measurement formats](docs/measurement-formats.md) before recording experiment results. Later collection decisions and lab evidence remain pending.
+* Try the [HTTP client locally](docs/http-client.md), with a configurable request rate and duration and optional JSON/CSV exports. PR #7 is merged after review; retain each lab run's tested revision and evidence.
 * Build the isolated lab and verify packet capture with [the lab setup notes](docs/lab-setup.md).
 * Build the dashboard against the mock responses in [`docs/api-examples.json`](docs/api-examples.json), starting from [Aadi's handoff](docs/aadi-handoff.md). See also the [backend and frontend planning draft](docs/dashboard-plan.md) and the [API field contract](docs/api-contract.md).
 
@@ -248,6 +253,10 @@ Use Trello to assign and track tasks, and GitHub Issues for technical decisions 
 Each task has one accountable owner, a deadline, a deliverable, dependencies, and a verifiable completion condition. Aim for one to three working sessions per task and review the board twice a week.
 
 Work and integration happen on `development`. Once changes have been tested and reviewed, promote them to `main` through a pull request. `main` contains the tested version.
+
+**Promotion schedule:** At each weekly milestone, open a `development` -> `main` pull request once the milestone's required task PRs are reviewed and merged and the combined checks pass. A date alone does not trigger a merge: unresolved required work or failing checks postpones promotion. Keep incomplete features on their task branches and record later-scope work explicitly. Promotion requires review and passing CI; it is not an automatic deployment. Keep both permanent branches.
+
+Policy selected by Ayden in [issue #14](https://github.com/aydsman/ML-DDoS-Detector/issues/14).
 
 1. Pull the latest `development`
 2. Create your feature branch (`git switch -c feature/short-name`)
@@ -292,3 +301,9 @@ Traffic generation and mitigation experiments are intended for the isolated proj
 <!-- MARKDOWN LINKS & IMAGES -->
 [Python-badge]: https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white
 [Python-url]: https://www.python.org/
+
+## Feature contract
+
+See [the version-one ML feature contract](docs/feature-contract.md) and [ordered machine-readable feature definitions](docs/feature-contract.json) for component boundaries, feature order/types/units, and missing-data rules. This is a design draft pending the capture/dataset checks in issue #5 and Aadi's frontend review.
+
+See [Ayden's week-one status](docs/week1-status.md) for prepared deliverables and explicit remaining dependencies, and [dataset selection/label rules](docs/dataset-plan.md) before starting training.
