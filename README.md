@@ -167,7 +167,7 @@ From the repository root:
 ./.venv/bin/python -m pytest -q
 ```
 
-The current tests cover the feature extractor and window grouping, the version-one feature contract checks, and packet normalization. Passing them does not validate live detection, model quality, or firewall mitigation. Dependency versions are not locked yet, so installations can resolve different package versions.
+The current tests cover the feature extractor and window grouping, the version-one feature contract checks, packet normalization, and the legitimate HTTP client, including pacing, error handling, and exports. Passing them does not validate live detection, model quality, lab integration, or firewall mitigation. Dependency versions are not locked yet, so installations can resolve different package versions.
 
 ### Automated checks
 
@@ -187,7 +187,8 @@ Start here if you are not sure where your work belongs. The "Main owner" column 
 | `ddos_detector/normalize.py` | Shared raw-packet normalization (IPv4 only) for offline PCAP and live capture; skip reasons are counted. | Vince |
 | `ddos_detector/contracts.py` | Version-one feature input checks: exact names, order, finite nonnegative values. | Ayden |
 | `ddos_detector/config.py` | Shared settings (window length, data folder) and the feature name list. | Vince |
-| `tests/` | pytest suite. `tests/test_features.py` covers the feature extractor and window grouping, `tests/test_normalize.py` packet normalization, and `tests/test_contracts.py` the feature contract checks. | Ali (QA), everyone adds tests for their own code |
+| `ddos_detector/http_client.py` | Legitimate HTTP client: capped rates, local/lab targets, bounded concurrency, epoch timestamps, and incremental draft JSON/CSV exports. See [client instructions](docs/http-client.md). | Mujtaba |
+| `tests/` | pytest suite. `test_features.py` covers the feature extractor and window grouping, `test_normalize.py` packet normalization, `test_contracts.py` the feature contract checks, and `test_http_client.py` / `test_http_client_accounting.py` the HTTP client and exports. | Ali (QA), everyone adds tests for their own code |
 | `docs/design.md` | Design decisions: dataset, 1 second window, feature list, leakage rules, open items. | Ayden, Vince |
 | `docs/lab-setup.md` | How to build the isolated three-VM lab, verify capture, and move it to another PC. | Vince |
 | `docs/aadi-handoff.md` | Where Aadi starts on the dashboard and documentation. | Aadi |
@@ -210,6 +211,7 @@ Not in the repository yet: packet capture, model training, the backend API, fire
 There is no end-to-end pipeline to run yet. What you can do today:
 
 * Run the feature-extraction tests (see [Run the tests](#run-the-tests)).
+* Try the [HTTP client locally](docs/http-client.md), with a configurable request rate and duration and optional JSON/CSV exports. Lab integration and Ali's export-format review are still pending.
 * Build the isolated lab and verify packet capture with [the lab setup notes](docs/lab-setup.md).
 * Build the dashboard against the mock responses in [`docs/api-examples.json`](docs/api-examples.json), starting from [Aadi's handoff](docs/aadi-handoff.md). See also the [backend and frontend planning draft](docs/dashboard-plan.md) and the [API field contract](docs/api-contract.md).
 
