@@ -2,8 +2,12 @@
 
 Owner: Mujtaba. The client sends one GET request or a paced run and prints draft
 JSON results. Paced runs have unique run IDs and optional incremental JSON/CSV exports.
-Protected-service integration is still pending, so the W1 task is not complete.
-Ali still needs to review result fields and success criteria.
+PR #7 is merged after Ayden took over the outstanding review on November 2.
+Vince reported protected-service runs at the older ba6a521 revision; those artifacts
+retain that provenance. The initial status-only 2xx convention and result mapping
+are recorded in [measurement-formats.md](measurement-formats.md). Updated-version
+lab measurements and full pipeline acceptance remain later evidence, not results
+claimed by the merge.
 
 ## Try it locally on Windows
 
@@ -24,7 +28,8 @@ The output records `started_at` (UTC), `epoch_seconds` (Unix seconds), `elapsed_
 `request_index` is 0 for single-request mode. A 404 or 503 remains an
 `http_response`; a timeout or transport failure has no status code. Exit code 0
 means a 2xx response, 1 means another result, and 2 means invalid command settings.
-The 2xx success convention is provisional until agreed with Ali.
+The initial named status-only predicate is `http_get_status_2xx_v1`, accepted in
+Ayden's PR #7 review following Mujtaba's component-side agreement.
 
 The timeout is HTTPX's per-operation timeout, not a total request deadline.
 Redirects are not followed and environment proxies are disabled. Normal TLS
@@ -51,7 +56,7 @@ With the local server running, request twice per second for five seconds:
 Supply both `--rate` and `--duration` for a run. Omit both for the original
 single-request behavior. Output appears after the run finishes and contains the
 settings, individual request results, attempted count, 2xx count, elapsed seconds,
-and achieved requests per second. These fields are a draft for Ali to review.
+and achieved requests per second. The W1 field mapping is recorded in the measurement specification.
 
 By default, one request is active at a time. Dispatches use a fixed monotonic
 grid, with interval `1 / rate`, anchored at run start. Small late wakeups do not
@@ -70,7 +75,7 @@ per-operation rather than total deadlines. Results remain in memory for the
 console report and are also flushed to CSV as they complete when `--output` is set.
 
 The command exits with code 0 only if at least one request was attempted and all
-returned 2xx responses. This is a provisional convention, not detector evaluation.
+returned 2xx responses. This CLI exit convention does not evaluate the detector.
 
 ## Allow overlapping requests
 
@@ -138,8 +143,8 @@ results/
 
 Both timestamp formats describe the same instant. `epoch_seconds` is a UTC Unix
 timestamp; `floor(epoch_seconds)` maps it to an epoch-aligned one-second interval
-`[second, second + 1)`. This does not by itself align Vince's current first-packet
-anchored helper: offline/live adapters must still agree their window origin.
+`[second, second + 1)`. The merged window helper uses this epoch grid; actual offline/live adapters
+must still demonstrate matching alignment and coverage.
 Synchronize client/server clocks before comparing measurements across machines.
 Schema `draft-2` changes the CSV and adds live-export state; older `draft-1` exports
 remain readable separately and are never rewritten.
@@ -160,8 +165,8 @@ may undercount tail skips. Missing fields are not measured zeros. Existing lab
 files are not modified by this fix; Ali should retain each run's code revision.
 
 Share both files with Ali. These are independent client observations, not detector
-predictions, packet captures, or proof of detection accuracy. Ali still needs to
-approve identifiers, success criteria, and the export schema. HTTP request rates
+predictions, packet captures, or proof of detection accuracy. The W1 identifiers, initial success predicate and export mapping are
+recorded in the measurement specification; preserve its limits on interpretation. HTTP request rates
 are not packet rates. Rate, concurrency, operation timeouts, and final in-flight
 completion all affect the offered workload; retain these settings with the results.
 
@@ -193,8 +198,8 @@ treated as complete unless its state says so. Runs with request failures still
 export and exit with code 1. Unexpected ordinary request exceptions are recorded
 as `unexpected_error` with their exception class and no status code.
 
-Skipped slots are counters in JSON, not HTTP attempts or CSV rows. Ali still
-needs to confirm this representation for ground truth. Counts cannot reconstruct
+Skipped slots are counters in JSON, not HTTP attempts or CSV rows. The measurement specification accepts this representation as workload
+accounting; it is not packet-level ground truth. Counts cannot reconstruct
 the exact timestamp of every skipped slot, and client logs do not prove which
 packets arrived at the server.
 The `results/` folder is already gitignored. Without `--output`, the client prints

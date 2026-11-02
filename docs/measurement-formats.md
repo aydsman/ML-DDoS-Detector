@@ -1,6 +1,6 @@
 # Measurement definitions and run records
 
-Status: W1 draft for component-owner review. Owner: Ali. This document defines proposed experiment records and calculations; it contains no experiment results or agreed performance targets. See the [test plan](test-plan.md), [design](design.md), [API contract](api-contract.md), and unresolved decisions in [issue #5](https://github.com/aydsman/ML-DDoS-Detector/issues/5). Use the design together with the later [provisional label decision](https://github.com/aydsman/ML-DDoS-Detector/issues/5#issuecomment-6428267359) and [approved baseline settings](https://github.com/aydsman/ML-DDoS-Detector/issues/5#issuecomment-6428534359). The test plan separates those decisions from unmerged implementations and still-unverified lab facts.
+Status: W1 draft for component-owner review. Owner: Ali. This document defines proposed experiment records and calculations; it contains no experiment results or agreed performance targets. See the [test plan](test-plan.md), [design](design.md), [API contract](api-contract.md), and unresolved decisions in [issue #5](https://github.com/aydsman/ML-DDoS-Detector/issues/5). Use the design together with the later [provisional label decision](https://github.com/aydsman/ML-DDoS-Detector/issues/5#issuecomment-6428267359) and [approved baseline settings](https://github.com/aydsman/ML-DDoS-Detector/issues/5#issuecomment-6428534359). The test plan separates merged support code from still-unverified lab facts and pending integration.
 
 ## Collection rules
 
@@ -47,7 +47,7 @@ Record every attack interval as `detected`, `not_detected`, or `unobservable`. `
 
 The independent legitimate client must account for every actual request attempt. If retries are introduced, keep separate attempt IDs linked by `logical_request_id`; the current PR #7 client has no application retry loop. Record scheduled-but-unsent slots separately as workload gaps, not server failures. Define the endpoint, method, acceptable response codes, any payload check, timeout semantics and success predicate before a run. The [HTTP export mapping](#mapping-the-http-client-export) documents the existing client's limits.
 
-- Availability = successful legitimate attempts / all legitimate attempts started in the reporting interval. Resolve those attempts to completion or an observed terminal outcome, including ones finishing after the interval ends. A real total-deadline policy additionally requires completion before that deadline; an HTTPX per-operation timeout does not establish a total deadline. PR #7's status-only 2xx convention is provisional and cannot prove payload validation or a total response-time limit.
+- Availability = successful legitimate attempts / all legitimate attempts started in the reporting interval. Resolve those attempts to completion or an observed terminal outcome, including ones finishing after the interval ends. A real total-deadline policy additionally requires completion before that deadline; an HTTPX per-operation timeout does not establish a total deadline. The named initial predicate `http_get_status_2xx_v1` accepts a complete HTTP response with status 200-299; it cannot prove payload validation or a total response-time limit. Mujtaba confirmed this convention and Ayden accepted it during PR #7 review; see the mapping below.
 - Evaluation outcomes are `success`, `timeout`, `connection_error`, `transport_error`, `invalid_response`, or `unknown`. Preserve raw outcomes separately. Unknown outcomes with a known attempted denominator make availability partial: report the unknown count and bounds `success/attempted` to `(success+unknown)/attempted`; the primary value stays null until outcomes are complete. If the attempted denominator itself is unknown, neither availability nor these bounds is established.
 - Measure latency on the client's monotonic clock from actual request start to complete response. Use only attempts satisfying the reviewed success predicate; if it requires payload validation, the evidence must support that check. Report p50 and p95 plus success count. Report timeout, connection/other transport error and invalid-response counts/rates separately over all attempted requests. Failure duration is not successful-response latency.
 - Proposed percentile method: nearest rank, sorted value at one-based index `ceil(p*n)` for `p=0.50` or `0.95`. Zero samples gives null; always show `n`. Use the same method across modes. Report pre-attack, attack, and post-attack intervals separately; interval lengths are TBD.
@@ -119,14 +119,16 @@ Before accepting a record, check JSON parsing, unique IDs and reference resoluti
 
 ## Mapping the HTTP client export
 
-This proposed mapping was checked against [PR #7](https://github.com/aydsman/ML-DDoS-Detector/pull/7), commit `ba6a5213ba970a960033bcb849f9634d99b74c21`, in `docs/http-client.md` and `ddos_detector/http_client.py`. PR #7 remains unmerged at this revision. Mujtaba and Ali still need to agree the mapping, success predicate and missing evidence; documenting it does not establish agreement or an executed experiment.
+This mapping was checked against [PR #7](https://github.com/aydsman/ML-DDoS-Detector/pull/7), head `430a629ed849d3ea6cbe9f4d7c66d2f651535910`, now merged into `development`. Its issue #13 changes first appeared in `4bcb64a`; `ba6a521` is the older review/lab revision, not the current mapping baseline. Preserve the generating commit for each artifact because additive fields changed within `draft-2`.
+
+[Mujtaba's component-side agreement](https://github.com/aydsman/ML-DDoS-Detector/pull/9#issuecomment-6478498003) confirms the client/experiment ID association, `http:<client_run_id>:<request_index>` identity, status-only 2xx predicate, milliseconds-to-seconds conversion, operation-timeout semantics and independent ground truth. Ayden took over Ali's outstanding review on November 2, independently checked the current client and accepted these W1 conventions in [PR #7](https://github.com/aydsman/ML-DDoS-Detector/pull/7). This is Ayden's review, not a claim that Ali personally reviewed it. Final review of the refreshed PR #9 remains requested. Actual generator logs, source/clock evidence, trial settings and later performance criteria remain pending.
 
 Paced mode exports `run.json` with schema `draft-2` and `requests.csv`. Keep both unchanged as hashed artifacts. The exact CSV columns are `run_id,request_index,started_at,epoch_seconds,elapsed_ms,outcome,status_code,error_type`. Parse empty status/error fields as null, never zero. Single-request mode cannot produce these exports. Preserve older `draft-1` exports under their own schema.
 
 | Export field | Run-record mapping | Meaning / limit |
 | --- | --- | --- |
 | `run_id` | Preserve as `client_run_id`; record its association with the enclosing experiment `run_id` in the workload artifact. | The client generates its own UUID and has no shared-ID CLI argument. Do not assume detector/client IDs match. A single-client experiment can deliberately adopt this UUID, with that choice recorded. |
-| `request_index` | Preserve it; derive `request_id = http:<client_run_id>:<request_index>`. For this client, `logical_request_id = request_id`. | One-based scheduled-slot index, not a contiguous attempt count. Gaps may be skipped slots; rows are written in completion order. One GET per attempt, no application retry loop. |
+| `request_index` | Preserve it; derive `request_id = http:<client_run_id>:<request_index>`. For this client, `logical_request_id = request_id`. | One-based scheduled-slot index, not a contiguous attempt count. Gaps may be skipped/cancelled slots. Live rows are completion-ordered; orderly finalization rebuilds them in dispatch order. Use identities, never row position. One GET per attempt, no application retry loop. |
 | `started_at`, `epoch_seconds` | Copy both; verify consistency. | Both describe the same UTC request start sampled inside the worker. Epoch seconds are parsed from `started_at`, not independent timing evidence. They support the approved epoch grid but cannot establish cross-host synchronization. |
 | `elapsed_ms` | `elapsed_attempt_seconds = elapsed_ms / 1000`; use as `latency_seconds` only for successful attempts under the reviewed predicate. | Monotonic duration around the GET, through body receipt or caught failure. Excludes executor scheduling delay. Failure duration is not successful-response latency. |
 | `status_code` | `response_code` | 404/503 remain HTTP responses in the raw log; a missing code is not status 0. |
@@ -134,26 +136,38 @@ Paced mode exports `run.json` with schema `draft-2` and `requests.csv`. Keep bot
 | `settings.target` | Record endpoint and method GET in the workload/predicate artifact. | No content-check evidence or success-predicate ID is exported. Redirects are not followed. |
 | `settings.timeout_seconds` | `configuration.request_operation_timeout_seconds`, with `request_timeout_semantics: "httpx_per_operation"` | Applies to connect/read/write/pool operations. It is not a total deadline: leave `request_total_deadline_seconds` and request `deadline_at` null unless a separate real policy supplies them. |
 | `settings.request_rate`, `duration_seconds`, `concurrency` | Preserve exact settings in the workload artifact. | Rate is scheduled requests/s, not packet rate; duration limits request starts, while in-flight requests may finish later. Concurrency limits active requests and does not multiply the configured rate. |
+| `summary.scheduled_slots`, `attempted`, `skipped_due_to_lag`, `skipped_due_to_capacity`, `skipped_at_deadline`, `cancelled_slots` | Preserve the full workload ledger with generating commit in the workload artifact. | Scheduled slots equal attempts plus the three skip categories plus cancellations. Missing counters in older exports are unknown, never zero. |
 | JSON `state`, `summary` | Retain as completeness evidence, distinct from test status. | `complete` can include HTTP failures. `running` with null summary may be a crash remnant; `interrupted` is not a completed intended-duration run. |
 
 ### Raw outcomes and the success predicate
 
 | Raw client outcome | Evaluation treatment |
 | --- | --- |
-| `http_response`, status 200-299 | Candidate `success` under a reviewed status-only predicate. The client's provisional `successful_2xx` count does not prove payload validation or a total deadline. If those are required, this export alone leaves success unknown. |
-| `http_response`, other status | `invalid_response` under the proposed 2xx predicate; retain the actual status. A redirect is not a followed successful response. |
+| `http_response`, status 200-299 | `success` under the initial `http_get_status_2xx_v1` predicate. The client's `successful_2xx` count does not prove payload validation or a total deadline. If stronger criteria are required, this export alone leaves that success unknown. |
+| `http_response`, other status | `invalid_response` under the initial 2xx predicate; retain the actual status. A redirect is not a followed successful response. |
 | `timeout` | `timeout`; retain the HTTPX exception class. Total elapsed time may exceed the operation-timeout setting. |
 | `request_error` | `transport_error`; retain the class. HTTPX request errors include more than connection failures, so use `connection_error` only when the specific evidence establishes that subtype. |
 | `interrupted` | `unknown`, reason `client_interrupted`; this is not a verified server failure or timeout. |
 | `unexpected_error` | `unknown`, retaining the exception class; an instrumentation/client error does not establish service success or failure. |
 
-Until the success predicate is reviewed, report `successful_2xx` only as the client's provisional count. A named status-only availability metric and latency for its successful responses could be evaluated from complete exports after agreement. Any stronger content/deadline-based service metric requires additional evidence. These definitions do not add columns or validation to the client itself.
+Use `success_predicate_id: "http_get_status_2xx_v1"` only when the experiment explicitly adopts this initial legitimate-GET convention, and retain the endpoint/method and review references. Availability and successful-response latency still require reconciled request evidence, source/clock context and missing-data accounting. Any stronger content/deadline-based metric requires additional evidence. These definitions do not add columns or validation to the client itself.
 
 ### Skips, completeness and missing evidence
 
-The scheduler records `skipped_due_to_lag`, `skipped_due_to_capacity`, and `skipped_at_deadline`. These are unsent slots, not failed HTTP attempts, and have no CSV rows. Retain the counters separately. They do not reconstruct exact per-slot timestamps or all nominal slots remaining after interruption. Concurrent execution and worker start jitter also prevent deriving actual dispatch times from the index alone.
+Current exports retain the complete workload ledger:
 
-`summary.attempted` counts completed result records at orderly finalization. Its achieved rate divides that count by actual elapsed run time including in-flight completion, which differs from dividing by the configured request-start duration. CSV rows are flushed on completion; a crash may leave started attempts without rows and an unknown attempted denominator. Before full-run availability, reconcile state, summary, row count, unique indices and outcome counts. For incomplete exports, report observed rows and missing coverage; do not equate row count with every actual attempt.
+```text
+scheduled_slots = attempted + skipped_due_to_lag + skipped_due_to_capacity
+                  + skipped_at_deadline + cancelled_slots
+```
+
+`scheduled_slots` counts half-open fixed-grid points before the deadline. On normal completion, all missed tail slots from response overrun or scheduler oversleep count as lag; cancellations are zero. On intentional interruption, unsent/unvisited remaining slots count as cancellations, distinct from ordinary lag and delayed-worker deadline skips. A request that starts and is interrupted is still an attempt with an unknown outcome. Skips/cancellations have no request CSV row and never enter the service-failure denominator. Retain the separate counters; they do not reconstruct every slot's actual dispatch time or per-window offered load.
+
+The `scheduled_slots` and `cancelled_slots` fields are additive within `draft-2`. Older exports may lack them and may undercount tail skips. Preserve schema plus generating commit; leave missing fields unknown with a reason, never substitute zero or silently rewrite old lab artifacts.
+
+`summary.attempted` counts completed result records at orderly finalization. Achieved rate divides that count by actual elapsed run time including in-flight completion, not the configured request-start duration. Before a finished JSON summary is published, finalization rebuilds CSV from completed records into a temporary file, closes the old handle and atomically replaces the CSV. This repairs missed/partial incremental writes at the interruption boundary and remains duplicate-free on repeated finalization. Live consumers must reopen the CSV after finalization; identify requests by `(client_run_id, request_index)`.
+
+Reconcile state, summary attempt count, unique indices, row identities, outcomes and the workload ledger before using results. An orderly `interrupted` export can reconcile completed attempts without representing the full intended-duration trial. A crash, failed reconciliation or `running`/null-summary artifact remains incomplete: flushed rows do not establish every actual attempt or a known full-run denominator. Report observed rows and missing coverage honestly.
 
 The experiment collector must additionally obtain:
 
@@ -169,8 +183,8 @@ Leave missing imported `source_id`, `clock_id`, `success_predicate_id`, completi
 
 | Reviewer | Decision/evidence needed |
 | --- | --- |
-| Mujtaba + Ali | Shared run/source IDs; actual generator start/end logs; request success predicate, retries/timeouts and outcomes; workload schedule; trial duration/order/repetitions; recovery intervals and legitimate-client evidence. |
-| Vince + Ali | Actual capture interface/filter and interval coverage on the approved epoch grid; counters by reason and clock bounds; normalization/unknown flags and adapter parity; verified dataset metadata/checksums/splits, boundary exclusions, independent labels and sensitivity to provisional X = 0.80. |
+| Mujtaba + Ali | W1 client/experiment mapping and initial 2xx predicate are recorded above (Mujtaba agreement, Ayden review). Still needed for live collection: source IDs, actual generator start/end logs, workload schedule, trial duration/order/repetitions, recovery intervals and complete legitimate-client evidence. |
+| Vince + Ali | Actual capture interface/filter and interval coverage on the approved epoch grid; counters by reason and clock bounds; adapter parity and coverage using the merged normalization/None-flags baseline; verified dataset metadata/checksums/splits, boundary exclusions, independent labels and sensitivity to provisional X = 0.80. |
 | Ayden + Ali | Per-window positive and negative inference logs and window IDs; model/threshold provenance; attribution links; firewall confirmation/removal evidence; policy settings; measurable acceptance and recovery targets. |
 | Aadi + Ayden | UI history limits, stale/error/empty states and polling overhead; evidence that displayed values reference the retained backend records. Dashboard screenshots supplement raw logs but cannot supply metric denominators. |
 
