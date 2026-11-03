@@ -39,3 +39,6 @@ Validation for this update: eight status-logic tests (`node --test tests/fronten
 
 
 Follow-up: reduced general glass opacity another 14 percentage points (62–66% to 48–52%), applied the shared glass to the sample badge/standard notice and softened warning/table-header fills. Removed the height-only top-navigation breakpoint that incorrectly moved the rail above content in short desktop browser panes.
+
+
+Demo history refinement: docs/api-examples.json now includes 30 contiguous one-second measurements with low-volume variation, a short burst and a sustained rise. Original final readings, event/block records and snapshot timestamps are preserved. The extra history is explicitly fabricated; it is not a measured attack or evidence of successful blocking. The existing zero/empty/unavailable/stale/failure scenarios still apply to the shared snapshot.

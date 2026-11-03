@@ -12,6 +12,174 @@
     "updated_at": "2026-10-22T19:00:02Z",
     "points": [
       {
+        "window_start": "2026-10-22T18:59:32Z",
+        "window_seconds": 1,
+        "packets_per_second": 18,
+        "bytes_per_second": 9360
+      },
+      {
+        "window_start": "2026-10-22T18:59:33Z",
+        "window_seconds": 1,
+        "packets_per_second": 22,
+        "bytes_per_second": 10560
+      },
+      {
+        "window_start": "2026-10-22T18:59:34Z",
+        "window_seconds": 1,
+        "packets_per_second": 16,
+        "bytes_per_second": 8960
+      },
+      {
+        "window_start": "2026-10-22T18:59:35Z",
+        "window_seconds": 1,
+        "packets_per_second": 25,
+        "bytes_per_second": 11000
+      },
+      {
+        "window_start": "2026-10-22T18:59:36Z",
+        "window_seconds": 1,
+        "packets_per_second": 31,
+        "bytes_per_second": 15810
+      },
+      {
+        "window_start": "2026-10-22T18:59:37Z",
+        "window_seconds": 1,
+        "packets_per_second": 24,
+        "bytes_per_second": 11280
+      },
+      {
+        "window_start": "2026-10-22T18:59:38Z",
+        "window_seconds": 1,
+        "packets_per_second": 20,
+        "bytes_per_second": 10600
+      },
+      {
+        "window_start": "2026-10-22T18:59:39Z",
+        "window_seconds": 1,
+        "packets_per_second": 28,
+        "bytes_per_second": 13720
+      },
+      {
+        "window_start": "2026-10-22T18:59:40Z",
+        "window_seconds": 1,
+        "packets_per_second": 34,
+        "bytes_per_second": 15640
+      },
+      {
+        "window_start": "2026-10-22T18:59:41Z",
+        "window_seconds": 1,
+        "packets_per_second": 26,
+        "bytes_per_second": 14300
+      },
+      {
+        "window_start": "2026-10-22T18:59:42Z",
+        "window_seconds": 1,
+        "packets_per_second": 38,
+        "bytes_per_second": 15960
+      },
+      {
+        "window_start": "2026-10-22T18:59:43Z",
+        "window_seconds": 1,
+        "packets_per_second": 32,
+        "bytes_per_second": 16000
+      },
+      {
+        "window_start": "2026-10-22T18:59:44Z",
+        "window_seconds": 1,
+        "packets_per_second": 180,
+        "bytes_per_second": 72000
+      },
+      {
+        "window_start": "2026-10-22T18:59:45Z",
+        "window_seconds": 1,
+        "packets_per_second": 420,
+        "bytes_per_second": 142800
+      },
+      {
+        "window_start": "2026-10-22T18:59:46Z",
+        "window_seconds": 1,
+        "packets_per_second": 680,
+        "bytes_per_second": 204000
+      },
+      {
+        "window_start": "2026-10-22T18:59:47Z",
+        "window_seconds": 1,
+        "packets_per_second": 350,
+        "bytes_per_second": 126000
+      },
+      {
+        "window_start": "2026-10-22T18:59:48Z",
+        "window_seconds": 1,
+        "packets_per_second": 90,
+        "bytes_per_second": 40500
+      },
+      {
+        "window_start": "2026-10-22T18:59:49Z",
+        "window_seconds": 1,
+        "packets_per_second": 36,
+        "bytes_per_second": 18360
+      },
+      {
+        "window_start": "2026-10-22T18:59:50Z",
+        "window_seconds": 1,
+        "packets_per_second": 24,
+        "bytes_per_second": 12960
+      },
+      {
+        "window_start": "2026-10-22T18:59:51Z",
+        "window_seconds": 1,
+        "packets_per_second": 30,
+        "bytes_per_second": 14100
+      },
+      {
+        "window_start": "2026-10-22T18:59:52Z",
+        "window_seconds": 1,
+        "packets_per_second": 45,
+        "bytes_per_second": 19350
+      },
+      {
+        "window_start": "2026-10-22T18:59:53Z",
+        "window_seconds": 1,
+        "packets_per_second": 160,
+        "bytes_per_second": 38400
+      },
+      {
+        "window_start": "2026-10-22T18:59:54Z",
+        "window_seconds": 1,
+        "packets_per_second": 540,
+        "bytes_per_second": 70200
+      },
+      {
+        "window_start": "2026-10-22T18:59:55Z",
+        "window_seconds": 1,
+        "packets_per_second": 1200,
+        "bytes_per_second": 108000
+      },
+      {
+        "window_start": "2026-10-22T18:59:56Z",
+        "window_seconds": 1,
+        "packets_per_second": 2400,
+        "bytes_per_second": 172800
+      },
+      {
+        "window_start": "2026-10-22T18:59:57Z",
+        "window_seconds": 1,
+        "packets_per_second": 3600,
+        "bytes_per_second": 230400
+      },
+      {
+        "window_start": "2026-10-22T18:59:58Z",
+        "window_seconds": 1,
+        "packets_per_second": 4212,
+        "bytes_per_second": 252720
+      },
+      {
+        "window_start": "2026-10-22T18:59:59Z",
+        "window_seconds": 1,
+        "packets_per_second": 4212,
+        "bytes_per_second": 252720
+      },
+      {
         "window_start": "2026-10-22T19:00:00Z",
         "window_seconds": 1,
         "packets_per_second": 4212,
