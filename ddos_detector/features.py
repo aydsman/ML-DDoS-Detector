@@ -2,7 +2,7 @@
 import math
 from collections import Counter
 from dataclasses import dataclass
-from statistics import mean, pstdev
+from fractions import Fraction
 
 from .config import FEATURE_NAMES
 
@@ -66,19 +66,31 @@ class WindowAccumulator:
             if p.flags & ACK:
                 self.ack += 1
 
+    def _size_stats(self):
+        """Byte sum and population standard deviation from the size histogram.
+
+        Integer arithmetic over the histogram entries, so time and memory depend
+        on distinct sizes, not packet count, and the variance is exact.
+        """
+        n = self.n
+        total = sum(size * count for size, count in self.sizes.items())
+        square_sum = sum(size * size * count for size, count in self.sizes.items())
+        variance = Fraction(n * square_sum - total * total, n * n)
+        return total, math.sqrt(variance)
+
     def features(self, window_seconds):
         n = self.n
         if n == 0:
             return {name: 0.0 for name in FEATURE_NAMES}
-        sizes = list(self.sizes.elements())
+        size_sum, size_std = self._size_stats()
         return {
             "packet_rate": n / window_seconds,
-            "byte_rate": sum(sizes) / window_seconds,
+            "byte_rate": size_sum / window_seconds,
             "syn_count": self.syn,
             "syn_ack_ratio": self.syn / max(self.synack, 1),
             "syn_no_ack_share": self.syn / max(self.syn + self.ack, 1),
-            "pkt_size_mean": mean(sizes),
-            "pkt_size_std": pstdev(sizes),
+            "pkt_size_mean": size_sum / n,
+            "pkt_size_std": size_std,
             "unique_src_ips": len(self.srcs),
             "src_ip_entropy": _entropy(self.srcs.values()),
             "tcp_share": self.protos["tcp"] / n,
