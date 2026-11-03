@@ -53,3 +53,6 @@ Each graph has one latest-valid marker. Null and absent windows break lines; iso
 The rail expands/reflows over 300ms; labels fade without stretching; a separate hover/focus highlight moves between links while selected-page styling persists. Flyouts render outside the scrollable inner rail to avoid clipping in short desktop windows. Narrow screens retain top navigation and readable status descriptions. No data contract, backend, scenario, detection/block detail or status semantics change.
 
 Verification: `node --test tests/frontend-graphs.mjs tests/frontend-status.mjs`; contract pytest checks; browser keyboard inspection/dismissal, sidebar expansion/reflow, unavailable and zero scenarios, and 390px, 1366px, 1920px short-height and 3440px layouts. Physical touch and a screen reader still merit human review.
+
+
+Sidebar follow-up: the desktop capsule stays vertically centred at every window height, including while expanded. The inner rail permits vertical scrolling only when needed and never shows a horizontal scrollbar. Fixed status-row heights keep icons stable as descriptions appear. A separate frosted selection surface now glides between destinations over 300ms, alongside the hover highlight and label reveal.

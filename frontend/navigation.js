@@ -53,6 +53,14 @@ showPage(true);
 // A single moving hover surface stays separate from the selected-page surface.
 const links=[...nav.querySelectorAll('nav a')];
 const navigation=nav.querySelector('nav');
+const selection=document.createElement('span');selection.className='nav-selection';selection.setAttribute('aria-hidden','true');navigation.prepend(selection);
+function moveSelection(){
+  const link=links.find(link=>link.classList.contains('selected'));if(!link)return;
+  selection.style.width=`${link.offsetWidth}px`;selection.style.height=`${link.offsetHeight}px`;selection.style.transform=`translate(${link.offsetLeft}px,${link.offsetTop}px)`;
+}
+window.addEventListener('dashboard-view-change',moveSelection);
+new ResizeObserver(moveSelection).observe(navigation);
+moveSelection();
 const highlight=document.createElement('span');highlight.className='nav-hover';highlight.setAttribute('aria-hidden','true');navigation.prepend(highlight);
 let hovered=null;
 function moveHighlight(link){

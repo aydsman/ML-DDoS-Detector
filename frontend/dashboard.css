@@ -144,7 +144,7 @@ thead th{background:rgba(64,55,51,.68);backdrop-filter:blur(12px)}
 
 /* Short desktop windows retain the left rail; only genuinely narrow screens use top navigation. */
 .sample{background:var(--glass)}
-@media(min-width:851px) and (max-height:420px){.glass-nav{top:12px;transform:none;max-height:calc(100dvh - 24px);overflow:visible}}
+
 @supports not (backdrop-filter:blur(1px)){#notice,.sample{background:#302b2a}}
 @media(forced-colors:active){#notice,.sample,thead th{background:Canvas;color:CanvasText}}
 
@@ -171,7 +171,7 @@ thead th{background:rgba(64,55,51,.68);backdrop-filter:blur(12px)}
 .sidebar-expanded .status-copy{max-width:230px;max-height:110px;opacity:1;visibility:visible;transition-delay:90ms}
 .status-item{flex-shrink:0}.status-item:focus-visible,.glass-nav a:focus-visible,.sidebar-toggle:focus-visible{outline:2px solid #fff1d9;outline-offset:3px}
 @media(min-width:851px){.sidebar-expanded .glass-nav a{overflow:hidden}.glass-nav nav{flex:none}}
-@media(min-width:851px) and (max-height:620px){.glass-nav{top:16px;transform:none;max-height:calc(100dvh - 32px)}.rail-scroll{max-height:calc(100dvh - 54px);overflow:auto;scrollbar-width:thin;padding:0 1px 4px}.glass-nav nav{margin-top:14px}.sidebar-statuses{margin-top:12px}.status-item{padding-top:7px;padding-bottom:7px}}
+
 @media(max-width:850px){.status-copy{max-width:none;max-height:none;opacity:1;visibility:visible}.sidebar-expanded .status-copy{max-width:none;max-height:none}.sidebar-expanded .glass-nav .nav-label{min-width:0}}
 @media(prefers-reduced-motion:reduce){.sidebar-flyout,.sidebar-expanded .glass-nav .nav-label{animation:none}.nav-hover,.status-copy{transition:none}}
 @media(forced-colors:active){.graph-tooltip,.sidebar-flyout{background:Canvas;color:CanvasText;border-color:CanvasText}.chart svg{color:CanvasText}.nav-hover{border-color:Highlight}}
@@ -182,3 +182,30 @@ thead th{background:rgba(64,55,51,.68);backdrop-filter:blur(12px)}
 
 .graph-tooltip,.sidebar-flyout{pointer-events:auto}
 .chart svg path.recorded-point{stroke:currentColor}
+
+/* The outer capsule always stays centred; only its inner content can scroll vertically. */
+@media(min-width:851px){
+ .glass-nav{top:50%;transform:translateY(-50%);max-height:calc(100dvh - 32px);overflow:visible}
+ .rail-scroll{max-height:calc(100dvh - 54px);min-width:0;overflow-x:hidden;overflow-y:auto;scrollbar-width:none}
+ .rail-scroll::-webkit-scrollbar{width:0;height:0}
+ .glass-nav nav{margin-top:20px;overflow:hidden}
+ .glass-nav a{overflow:hidden;position:relative;z-index:1}
+ .glass-nav .nav-label{min-width:0;flex:1}
+ .status-item{width:100%;min-width:0;min-height:64px;gap:0;overflow:hidden}
+ .status-copy,.sidebar-expanded .status-copy{position:absolute;left:48px;right:8px;width:auto;max-width:none;max-height:none;overflow:hidden;transform:translateX(-5px);transition:opacity 160ms ease,transform 220ms ease,visibility 160ms;transition-delay:0ms}
+ .sidebar-expanded .status-copy{transform:none;transition-delay:100ms}
+ .status-copy strong{overflow-wrap:anywhere}
+ .sidebar-statuses{margin-top:16px}
+ .status-caption,.sidebar-expanded .status-caption{text-align:left;padding-left:8px}
+ .sidebar-expanded .glass-nav .nav-label{animation:rail-label-slide 180ms 90ms both}
+}
+@media(min-width:1800px){.status-item{min-height:76px}.status-copy,.sidebar-expanded .status-copy{left:58px}}
+@keyframes rail-label-slide{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:translateX(0)}}
+/* Selection glides independently of hover, like the reference navigation. */
+.nav-selection{position:absolute;top:0;left:0;pointer-events:none;z-index:0;border-radius:24px;background:linear-gradient(135deg,#dce8ff55,#bdcbe12b);box-shadow:inset 0 1px #ffffff70,0 3px 12px #0003;transition:transform 300ms cubic-bezier(.2,.7,.2,1),width 300ms cubic-bezier(.2,.7,.2,1),height 300ms cubic-bezier(.2,.7,.2,1),border-radius 300ms}
+body:not(.sidebar-expanded) .nav-selection{border-radius:50%}
+.glass-nav a.selected,.glass-nav a.selected:hover{background:transparent;box-shadow:none}
+.nav-hover{z-index:0;transition:transform 220ms cubic-bezier(.2,.7,.2,1),width 300ms,height 220ms,opacity 140ms}
+@media(max-width:850px){body:not(.sidebar-expanded) .nav-selection{border-radius:22px}}
+@media(prefers-reduced-motion:reduce){.nav-selection,.nav-hover,.status-copy{transition:none!important}.sidebar-expanded .glass-nav .nav-label{animation:none}}
+@media(forced-colors:active){.nav-selection{border:2px solid Highlight;background:Canvas}.glass-nav a.selected{color:Highlight}}
