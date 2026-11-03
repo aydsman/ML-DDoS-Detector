@@ -42,3 +42,14 @@ Follow-up: reduced general glass opacity another 14 percentage points (62–66% 
 
 
 Demo history refinement: docs/api-examples.json now includes 30 contiguous one-second measurements with low-volume variation, a short burst and a sustained rise. Original final readings, event/block records and snapshot timestamps are preserved. The extra history is explicitly fabricated; it is not a measured attack or evidence of successful blocking. The existing zero/empty/unavailable/stale/failure scenarios still apply to the shared snapshot.
+
+
+### Graph inspection and sidebar motion (November 3)
+
+Graph entrances animate only recorded plot coordinates and the last valid marker from the fixed zero baseline for 500ms with cubic ease-out. This is presentation, not recorded traffic rising from zero. Axes, scale, values and exact tables stay fixed. Entrances replay on Overview/Traffic entry, never on reload or rail resize. Leaving, resizing, reduced motion or hiding the document finishes/cancels the animation. Refresh replaces measurements immediately; future live integration must interpolate from prior data, not invoke the entrance.
+
+Each graph has one latest-valid marker. Null and absent windows break lines; isolated readings use short ticks. Trailing unavailable windows keep an unavailable headline and identify the older marker as last available. Pointer inspection snaps to recorded windows and does not cross missing intervals. Keyboard: Tab to the graph, Left/Right, Home/End, Escape. Touch: tap a reading; tap outside or scroll to dismiss. Exact tooltips are viewport-clamped, and inspection starts after the entrance. Refresh retains chart focus and open exact tables.
+
+The rail expands/reflows over 300ms; labels fade without stretching; a separate hover/focus highlight moves between links while selected-page styling persists. Flyouts render outside the scrollable inner rail to avoid clipping in short desktop windows. Narrow screens retain top navigation and readable status descriptions. No data contract, backend, scenario, detection/block detail or status semantics change.
+
+Verification: `node --test tests/frontend-graphs.mjs tests/frontend-status.mjs`; contract pytest checks; browser keyboard inspection/dismissal, sidebar expansion/reflow, unavailable and zero scenarios, and 390px, 1366px, 1920px short-height and 3440px layouts. Physical touch and a screen reader still merit human review.

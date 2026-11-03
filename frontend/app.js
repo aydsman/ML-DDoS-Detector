@@ -1,6 +1,6 @@
 import { loadSnapshot } from './data.js';
 import { updateStatusIndicators } from './status.js';
-import { animateRates } from './value-animation.js';
+import { mountCharts, captureChartState } from './graphs.js';
 
 const $ = id => document.getElementById(id);
 const escape = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -15,24 +15,18 @@ function chart(points, field, title, unit, color) {
   if (!points.length) return `<div class="chart"><h3>${title}</h3>${empty('No measurements in this snapshot')}</div>`;
   const values = points.map(p => p[field]);
   const maximum = Math.max(1, ...values.filter(v => v != null));
-  const times = points.map(p => Date.parse(p.window_start));
-  const duration = Math.max(1, times.at(-1) - times[0]);
-  const coordinates = values.map((v,i) => v == null ? null : [20 + (times[i]-times[0])/duration*460, 130 - v/maximum*100]);
-  let segments = [], current = [];
-  for (const point of coordinates) { if (point) current.push(point.join(',')); else { if(current.length) segments.push(current); current=[]; } }
-  if(current.length) segments.push(current);
-  const plot = segments.map(s=>`<polyline points="${s.join(' ')}" fill="none" stroke="${color}" stroke-width="3"/>`).join('') + coordinates.filter(Boolean).map(([x,y])=>`<circle cx="${x}" cy="${y}" r="4" fill="${color}"/>`).join('');
   const rows = points.map(p=>`<tr><td>${escape(time(p.window_start))}</td><td>${number(p[field])}</td></tr>`);
-  return `<div class="chart"><div class="chart-title"><div><h3>${title}</h3><span>${unit} · latest window</span></div><strong><span class="sr-only">${number(values.at(-1))}</span><span aria-hidden="true" ${values.at(-1) == null ? '' : `data-rate="${field}" data-value="${values.at(-1)}"`}>${number(values.at(-1))}</span></strong></div>${values.every(v=>v==null) ? empty('Measurements unavailable — capture failed') : `<svg viewBox="0 0 500 155" role="img" aria-label="${title}; vertical scale zero to ${maximum} ${unit}. Exact values in table below."><path d="M20 30H480 M20 80H480 M20 130H480" stroke="#e4ecef" fill="none"/><text x="20" y="19" font-size="10" fill="#617582">${number(maximum)} ${unit}</text><text x="20" y="148" font-size="10" fill="#617582">0</text>${plot}</svg><div class="axis"><span>${escape(time(points[0].window_start))}</span><span>${escape(time(points.at(-1).window_start))}</span></div>`}<details class="measurement-table"><summary>View exact measurements</summary>${table(['Window start (Toronto)',unit],rows)}</details></div>`;
+  return `<div class="chart"><div class="chart-title"><div><h3>${title}</h3><span>${unit} · latest window</span></div><strong><span class="sr-only">${number(values.at(-1))}</span><span aria-hidden="true" ${values.at(-1) == null ? '' : `data-rate="${field}" data-value="${values.at(-1)}"`}>${number(values.at(-1))}</span></strong></div>${values.every(v=>v==null) ? empty('Measurements unavailable — capture failed') : `<svg data-series="${escape(JSON.stringify(points.map(p=>({time:Date.parse(p.window_start),seconds:p.window_seconds,value:p[field]}))))}" data-unit="${unit}" viewBox="0 0 500 155" role="img" aria-label="${title}; vertical scale zero to ${maximum} ${unit}. Exact values in table below."><path d="M20 30H480 M20 80H480 M20 130H480" stroke="#e4ecef" fill="none"/><text x="20" y="19" font-size="10" fill="#617582">${number(maximum)} ${unit}</text><text x="20" y="148" font-size="10" fill="#617582">0</text></svg><div class="axis"><span>${escape(time(points[0].window_start))}</span><span>${escape(time(points.at(-1).window_start))}</span></div>`}<details class="measurement-table"><summary>View exact measurements</summary>${table(['Window start (Toronto)',unit],rows)}</details></div>`;
 }
 
 function render(data) {
+  const chartState=captureChartState();
   $('updated').textContent = `Snapshot: ${time(data.health.updated_at)}`;
   $('health').innerHTML = [['Capture',data.health.capture_status],['Model',data.health.model_status],['Firewall',data.health.firewall_status],['Mitigation mode',data.health.mitigation_mode]].map(([name,value])=>`<div class="health-card"><small>${name}</small><strong class="${['running','loaded','available'].includes(value)?'good':'warn'}">${escape(label(value))}</strong></div>`).join('');
   const points = [...data.metrics.points].sort((a,b)=>Date.parse(a.window_start)-Date.parse(b.window_start));
   $('charts').innerHTML = chart(points,'packets_per_second','Packet rate','packets/s','#087f83') + chart(points,'bytes_per_second','Byte rate','bytes/s','#516cb0');
   if ($('overview-charts')) $('overview-charts').innerHTML = $('charts').innerHTML.replaceAll('Exact values in table below.', 'Exact values available on the Traffic page.');
-  requestAnimationFrame(resizeCharts);
+  mountCharts(chartState);
   const detections = [...data.detections.detections].sort((a,b)=>Date.parse(b.detected_at)-Date.parse(a.detected_at)||a.id.localeCompare(b.id));
   $('detection-count').textContent = `${detections.length} records`;
   $('detections').innerHTML = detections.length ? table(['Time / event','Scope / source','Aggregate model score','Source-rule evidence','Decision'],detections.map(d=>{
@@ -51,10 +45,7 @@ async function refresh() {
   $('notice').className=''; $('notice').textContent='Loading sample data…';
   try {
     const nextSnapshot=await loadSnapshot(scenario);
-    const latest = data => data?.metrics.points.slice().sort((a,b)=>Date.parse(a.window_start)-Date.parse(b.window_start)).at(-1);
-    const previousRates = latest(snapshot);
     render(nextSnapshot);
-    animateRates(previousRates, latest(nextSnapshot) ?? {});
     snapshot=nextSnapshot;
     updateStatusIndicators(snapshot, scenario);
     $('notice').className=['stale','unavailable'].includes(scenario)?'warning':'';
@@ -69,31 +60,3 @@ async function refresh() {
 $('reload').addEventListener('click',refresh);
 $('scenario').addEventListener('change',refresh);
 refresh();
-
-// Reflow plots in screen pixels so SVG labels retain their readable size.
-function resizeCharts() {
-  document.querySelectorAll('.chart svg').forEach(svg => {
-    const width = svg.clientWidth, height = svg.clientHeight;
-    if(width < 1 || height < 1) return;
-    const prior = svg.dataset.layoutWidth;
-    if(prior === `${width}:${height}`) return;
-    svg.dataset.layoutWidth = `${width}:${height}`;
-    svg.setAttribute('viewBox',`0 0 ${width} ${height}`);
-    const x = value => 20 + (value-20)/460 * Math.max(1,width-40);
-    const y = value => 30 + (value-30)/100 * Math.max(1,height-55);
-    svg.querySelectorAll('polyline').forEach(line => {
-      line.dataset.original ??= line.getAttribute('points');
-      line.setAttribute('points',line.dataset.original.split(' ').map(pair => {const [a,b]=pair.split(',').map(Number);return `${x(a)},${y(b)}`;}).join(' '));
-    });
-    svg.querySelectorAll('circle').forEach(dot => {
-      dot.dataset.x ??= dot.getAttribute('cx'); dot.dataset.y ??= dot.getAttribute('cy');
-      dot.setAttribute('cx',x(Number(dot.dataset.x)));dot.setAttribute('cy',y(Number(dot.dataset.y)));
-    });
-    svg.querySelector('path')?.setAttribute('d',`M20 30H${width-20} M20 ${y(80)}H${width-20} M20 ${y(130)}H${width-20}`);
-    const labels=svg.querySelectorAll('text');
-    if(labels[1]) labels[1].setAttribute('y',height-5);
-  });
-}
-const chartResize = new ResizeObserver(resizeCharts);
-for(const id of ['charts','overview-charts']) if($(id)) chartResize.observe($(id));
-window.addEventListener('dashboard-view-change',() => requestAnimationFrame(resizeCharts));
