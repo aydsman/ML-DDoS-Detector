@@ -86,7 +86,7 @@ def open_lab_sender(settings):
     if (interface != settings.interface or source != LAB_SOURCE
             or gateway != "0.0.0.0" or get_if_addr(settings.interface) != LAB_SOURCE):
         raise ValueError("Expected a direct lab route on the selected interface with source 10.10.10.30.")
-    destination_mac = getmacbyip(settings.target)
+    destination_mac = getmacbyip(settings.target, chainCC=1)
     if not destination_mac:
         raise ValueError("The protected server did not answer lab ARP; no scenario started.")
     ethernet = Ether(src=get_if_hwaddr(settings.interface), dst=destination_mac)

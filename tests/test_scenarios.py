@@ -305,6 +305,36 @@ def test_bad_route_rejected_before_arp_or_socket(monkeypatch, route):
         scenarios.open_lab_sender(scenarios.ScenarioSettings("syn"))
 
 
+def test_ctrl_c_during_arp_records_interrupted_setup(tmp_path, monkeypatch):
+    import scapy.all as scapy
+    import scapy.layers.l2 as l2
+
+    def interrupt_arp(*args, chainCC, **kwargs):
+        if chainCC:
+            raise KeyboardInterrupt
+        return None
+
+    monkeypatch.setattr(scenarios.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(scapy.conf.route, "route", lambda target: ("enp0s8", "10.10.10.30", "0.0.0.0"))
+    monkeypatch.setattr(scapy.conf.route, "get_if_bcast", lambda interface: [])
+    monkeypatch.setattr(scapy, "get_if_addr", lambda interface: "10.10.10.30")
+    monkeypatch.setattr(l2, "_arp_cache", {})
+    monkeypatch.setattr(l2, "srp1", interrupt_arp)
+    monkeypatch.setattr(scapy.conf, "L2socket", lambda **kwargs: pytest.fail("opened scenario socket"))
+
+    assert scenarios.main([
+        "--protocol", "syn", "--rate", "10", "--duration", "5",
+        "--execute", "--output", str(tmp_path),
+    ]) == 130
+    directory, = tmp_path.iterdir()
+    metadata = json.loads((directory / "run.json").read_text())
+    assert metadata["state"] == "interrupted"
+    assert metadata["error"]["phase"] == "setup"
+    assert metadata["error"]["type"] == "KeyboardInterrupt"
+    assert metadata["summary"]["attempted"] == 0
+    assert metadata["summary"]["scheduled_slots"] == metadata["summary"]["cancelled_slots"] == 50
+
+
 def test_live_sender_uses_validated_interface_and_closes_socket(monkeypatch):
     import scapy.all as scapy
 
@@ -325,7 +355,7 @@ def test_live_sender_uses_validated_interface_and_closes_socket(monkeypatch):
     monkeypatch.setattr(scapy.conf.route, "route", lambda target: ("enp0s8", "10.10.10.30", "0.0.0.0"))
     monkeypatch.setattr(scapy, "get_if_addr", lambda interface: "10.10.10.30")
     monkeypatch.setattr(scapy, "get_if_hwaddr", lambda interface: "02:00:00:00:00:30")
-    monkeypatch.setattr(scapy, "getmacbyip", lambda target: "02:00:00:00:00:10")
+    monkeypatch.setattr(scapy, "getmacbyip", lambda target, *, chainCC: "02:00:00:00:00:10")
     interfaces = []
     monkeypatch.setattr(scapy.conf, "L2socket", lambda iface: (interfaces.append(iface), socket)[1])
     settings = scenarios.ScenarioSettings("syn")
