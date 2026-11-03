@@ -81,8 +81,8 @@ Implemented by `normalize_ip_packet()` in `ddos_detector/normalize.py` and `wind
 
 See [the bounded subset and labeling plan](dataset-plan.md) and [manifest template](dataset-manifest.example.json). The source/download-access check is recorded there; a template is not a verified inventory.
 
-- Train offline on a small raw-PCAP subset of CIC-DDoS2019, initially SYN, UDP, and benign traffic only. DNS/NTP are outside the initial scope. Exact filenames, sizes, checksums, official download URLs, disk needs, and storage location are still unverified.
-- Keep captures under gitignored `data/`; never commit captures or generated datasets to Git.
+- Train offline on a small raw-PCAP subset of CIC-DDoS2019, initially SYN, UDP, and benign traffic only. DNS/NTP are outside the initial scope. Vince has reported a CSV inventory and local storage location, recorded in [dataset-plan.md](dataset-plan.md) and [the reported inventory](dataset-inventory-reported.json). Actual PCAP names/member URLs, sizes, ground truth, disk needs and selected splits remain unverified.
+- Keep raw captures/CSV archives outside Git, preferably outside synced project folders; a gitignored local `data/` is optional. Vince reports `C:\Users\iamno\datasets\cic-ddos2019\`. Commit manifests and small reviewed samples only, never full captures or generated datasets.
 - Verify whether official metadata supplies the necessary attack types, attacker/victim identities, and time intervals. An attack schedule alone must not be assumed to identify individual attack packets, especially with spoofed sources.
 - A candidate packet label requires verified attack-interval and attacker-to-victim evidence. Traffic lacking trustworthy ground truth stays unlabelled; do not automatically call it benign.
 - Use aggregate windows, consistent with stage 1. The per-source alternative in the earlier issue discussion does not apply to this design.
@@ -100,7 +100,7 @@ Do not feed raw IPs, ports, flow IDs, or timestamps into the model. Keep provena
 
 ### Dataset completion evidence
 
-Vince and Ali must produce a small inspectable sample (for example five minutes benign and five minutes attack), with feature records, label provenance, mixed/boundary examples, and shared offline/live normalization checks. No dataset access or validity is claimed until this evidence exists.
+Vince and Ali must produce a small inspectable sample (for example five minutes benign and five minutes attack), with feature records, label provenance, mixed/boundary examples, and shared offline/live normalization checks. CSV access is reported by Vince; PCAP access and valid packet-window labels are not established by that report. Dataset validity remains pending the evidence above.
 
 ## Remaining decisions and workflow
 
@@ -109,3 +109,14 @@ Follow-up [issue #5](https://github.com/aydsman/ML-DDoS-Detector/issues/5), assi
 Approved decisions are recorded in [Ayden's issue #5 reply](https://github.com/aydsman/ML-DDoS-Detector/issues/5#issuecomment-6428534359). Documenting them does not complete the outstanding acceptance evidence.
 
 Work and integration happen on `development`. Promote tested and reviewed changes to `main` through a pull request.
+
+## October 30 issue review and remaining evidence
+
+| Issue | Ayden decision / existing evidence | Required next evidence and owner |
+| --- | --- | --- |
+| #3 dataset | SYN/UDP/benign scope; MSSQL excluded; provisional folder-based split; reported CSV inventory linked above | Vince: PCAP selection, metadata/timezone and independent runs, reproducible labels and sample. Ali: independent label/exclusion review. Ayden: approve verified split before training. |
+| #2 packet size | IPv4 Total Length, no Ethernet; unknown flags None; normalizer and 60-byte arithmetic fixtures merged in #8 | Vince: same fixture through actual offline and live-style adapters, inbound filter, skip reasons and coverage evidence. Ali: verify expected results. Helper tests alone do not prove adapter parity. |
+| #1 attribution | Aggregate model plus deterministic source/protocol policy, all-inbound share denominator, three windows, allowlist, monitor-only, confirmed-only active blocks; acceptance example above | Ali: review acceptance example. Vince: validation/lab threshold/share evidence and verified runtime allowlist. Ayden: approve settings. Live mitigation remains pending implementation, independent of this planning decision. |
+| #5 integration | Retain version-one feature formulas and None flags; storage approved; #15 promotion policy merged | Vince: runtime NIC/allowlist, adapter parity/coverage, lab/validation policy measurements and dataset evidence; Ali reviews fixtures/labels. Track missing evidence explicitly rather than closing the tracker. |
+
+These decisions do not claim a working model, packet adapters or firewall integration. Issues remain open while their acceptance evidence or associated documentation review is pending.

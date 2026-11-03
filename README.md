@@ -190,8 +190,14 @@ Start here if you are not sure where your work belongs. The "Main owner" column 
 | `ddos_detector/scenarios.py` | Bounded SYN/UDP lab scenarios, offline preview, paced sending, interruption handling and run records. | Mujtaba |
 | `docs/scenarios.md` | Scenario commands, record schema and pending isolated-lab acceptance checks. | Mujtaba, Ali (evaluation review) |
 | `ddos_detector/http_client.py` | Legitimate HTTP client: capped rates, local/lab targets, bounded concurrency, epoch timestamps, and incremental draft JSON/CSV exports. See [client instructions](docs/http-client.md). | Mujtaba |
-| `tests/` | pytest suite. Feature extraction, packet normalization, feature contract checks, HTTP client accounting/exports, and offline scenario checks. | Ali (QA), everyone adds tests for their own code |
+| `ddos_detector/pcap.py`, `frames.py`, `aggregate.py`, `offline.py` | Classic pcap reader, Ethernet/inbound frame parser, streaming window aggregator, and the offline command-line entry point. | Vince |
+| `ddos_detector/live.py`, `capture.py` | Live pipeline (frames in, window records out, with an unavailable status on capture failure), its replay/live command line, and the Linux AF_PACKET frame source. | Vince |
+| `tools/verify_pcap_features.py` | Recomputes every window's features from tshark or scapy output and compares them with the package. | Vince |
+| `tests/` | pytest suite covering feature extraction, window grouping, packet normalization, feature contracts, live and offline capture, HTTP client accounting and exports, and offline scenario checks. | Ali (QA), everyone adds tests for their own code |
 | `docs/design.md` | Design decisions: dataset, 1 second window, feature list, leakage rules, open items. | Ayden, Vince |
+| `docs/test-plan.md` | Week 1 QA scenarios, acceptance checks, prerequisites, and owner review decisions. | Ali |
+| `docs/measurement-formats.md` | Proposed metric definitions, collection methods, and experiment record format. | Ali, component owners review |
+| `docs/templates/run-record.template.json` | Empty experiment record template; real run artifacts remain local and ignored. | Ali |
 | `docs/lab-setup.md` | How to build the isolated three-VM lab, verify capture, and move it to another PC. | Vince |
 | `docs/aadi-handoff.md` | Where Aadi starts on the dashboard and documentation. | Aadi |
 | `docs/dashboard-plan.md` | Backend and dashboard planning agreement. | Ayden, Aadi |
@@ -203,7 +209,7 @@ Start here if you are not sure where your work belongs. The "Main owner" column 
 | `requirements.txt` | Python dependencies. `.python-version` records Python 3.12. | Whole team |
 | `data/` | Local datasets and captures. Gitignored, so it will not appear in a fresh clone. | Local only |
 
-Not in the repository yet: packet capture, model training, the backend API, firewall mitigation, and experiment scripts. Add new code under `ddos_detector/` unless the team agrees otherwise, and mention the new file in this table.
+Not in the repository yet: live packet capture, model training, the backend API, firewall mitigation, and experiment scripts. Add new code under `ddos_detector/` unless the team agrees otherwise, and mention the new file in this table.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -213,12 +219,52 @@ Not in the repository yet: packet capture, model training, the backend API, fire
 There is no end-to-end pipeline to run yet. What you can do today:
 
 * Run the feature-extraction tests (see [Run the tests](#run-the-tests)).
-* Preview the [bounded SYN/UDP scenarios](docs/scenarios.md) offline. Live sending is restricted to the isolated Linux attacker VM. The docs record Vince's initial lab results; setup-failure re-verification and evaluation-format review remain pending.
-* Try the [HTTP client locally](docs/http-client.md), with a configurable request rate and duration and optional JSON/CSV exports. Lab integration and Ali's export-format review are still pending.
+* Preview the [bounded SYN/UDP scenarios](docs/scenarios.md) offline. Live sending is restricted to the isolated Linux attacker VM. Vince's lab recheck of Ctrl+C during ARP and the evaluation-format review remain pending.
+* Review the [QA test plan](docs/test-plan.md) and [measurement formats](docs/measurement-formats.md) before recording experiment results. Later collection decisions and lab evidence remain pending.
+* Try the [HTTP client locally](docs/http-client.md), with a configurable request rate and duration and optional JSON/CSV exports. PR #7 is merged after review; retain each lab run's tested revision and evidence.
 * Build the isolated lab and verify packet capture with [the lab setup notes](docs/lab-setup.md).
 * Build the dashboard against the mock responses in [`docs/api-examples.json`](docs/api-examples.json), starting from [Aadi's handoff](docs/aadi-handoff.md). See also the [backend and frontend planning draft](docs/dashboard-plan.md) and the [API field contract](docs/api-contract.md).
 
-Usage examples for capture, training, and mitigation will be added as those parts land.
+### Offline extraction and verification
+
+Extract per-window features from a saved classic Ethernet pcap (pcapng must be converted first, e.g. `editcap -F pcap in.pcapng out.pcap`):
+
+```powershell
+.\.venv\Scripts\python.exe -m ddos_detector.offline capture.pcap --victim 10.10.10.10 --window 1 --out records.csv
+```
+
+It prints windows, packets, skip counts by reason and `late_dropped`; `--out` (`.csv` or `.jsonl`) is optional and nothing is written without it. Columns: `window_start`, `window_end` (epoch seconds), the 12 features in contract order, `packet_count`, `capped`, `untracked_source_packets`. Only IPv4 packets addressed to the victim count. A bad pcap exits with code 2. Empty windows are not written, because the aggregator cannot tell a quiet link from a capture gap.
+
+To check the output against an independent computation (tshark by default; set `TSHARK` or pass `--tshark` if it is not in `C:\Program Files\Wireshark`):
+
+```powershell
+.\.venv\Scripts\python.exe -m tools.verify_pcap_features capture.pcap
+.\.venv\Scripts\python.exe -m tools.verify_pcap_features --engine scapy capture.pcap
+```
+
+Raw captures stay under the gitignored `data/` folder and are never committed; tests that need real captures or tshark skip themselves when they are absent.
+
+### Live capture
+
+`ddos_detector/live.py` feeds raw Ethernet frames through the same frame parser, skip counters and window aggregator as the offline command, so identical frames give identical records (checked by `tests/test_live.py` on the synthetic and lab pcaps).
+
+Replay a saved pcap through the live pipeline (works on Windows, needs no privileges or network):
+
+```powershell
+.\.venv\Scripts\python.exe -m ddos_detector.live --replay data\lab-runs\pr16-syn-run1\syn1.pcap --out records.jsonl
+```
+
+Capture on a Linux VM (AF_PACKET, standard library only; needs root or CAP_NET_RAW, and the repository copied into a Python 3.12+ environment). This has not been run live yet:
+
+```sh
+sudo ./.venv/bin/python -m ddos_detector.live --interface enp0s8 --victim 10.10.10.10 --duration 60 --out records.jsonl
+```
+
+Windows close once a packet or the clock passes their end plus `grace_seconds`, so a quiet link still closes windows. Records are written as they close, only when `--out` is given. On stop, the window still in progress is dropped rather than emitted half-measured.
+
+If the frame source fails, the status becomes `unavailable`: windows with incomplete coverage are discarded, nothing is zero-filled, and the gap (start, reason, discarded windows) is reported. The command then exits with code 1. Unavailable data is not the same as measured zero traffic; see the feature contract.
+
+Usage examples for live capture, training, and mitigation will be added as those parts land.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
