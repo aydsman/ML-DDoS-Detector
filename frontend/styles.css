@@ -159,7 +159,7 @@ button:disabled { opacity: .6; cursor: wait; }
 .chart-title { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .chart-title strong { font-size: clamp(23px, 2.8vw, 32px); line-height: 1.2; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -1px; }
 .chart-title span { font-size: 11px; color: var(--muted); }
-svg { width: 100%; height: 145px; display: block; margin-top: 10px; }
+.chart svg { width: 100%; height: 145px; display: block; margin-top: 10px; }
 .chart svg path { stroke: rgba(170,194,234,.13); }
 .chart svg text { fill: #a5b3cc; }
 .chart:first-child svg polyline { stroke: #83b7ff; }

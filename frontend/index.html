@@ -3,21 +3,11 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ML-DDoS-Detector · Dashboard</title>
-  <link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="dashboard.css?v=1">
-  <script type="module" src="app.js?v=3"></script><script type="module" src="navigation.js"></script>
+  <link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="dashboard.css?v=4">
+  <script type="module" src="app.js?v=4"></script><script type="module" src="navigation.js?v=4"></script>
 </head>
 <body><a class="skip-link" href="#page-title">Skip to content</a>
-  <aside class="glass-nav" aria-label="Preview navigation">
-    <a class="nav-brand" href="#overview" aria-label="Dashboard">◈<span>ML-DDoS-Detector</span></a>
-    <button class="nav-pin" aria-label="Pin sidebar open" aria-expanded="false"><span class="nav-icon">☰</span><span class="nav-label">Keep menu open</span></button>
-    <nav>
-      <a class="selected" aria-current="page" aria-label="Overview" href="#overview"><span class="nav-icon">▦</span><span class="nav-label">Overview</span></a>
-      <a href="#traffic" aria-label="Traffic"><span class="nav-icon" aria-hidden="true">⌁</span><span class="nav-label">Traffic</span></a>
-      <a href="#detections" aria-label="Detections"><span class="nav-icon" aria-hidden="true">◎</span><span class="nav-label">Detections</span></a>
-      <a href="#blocks" aria-label="Blocks"><span class="nav-icon" aria-hidden="true">◇</span><span class="nav-label">Blocks</span></a>
-    </nav>
-
-  </aside>
+<aside class="glass-nav"><nav aria-label="Main navigation"><a href="#overview" aria-label="Overview" aria-describedby="tip-overview"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span class="nav-label" id="tip-overview" role="tooltip">Overview</span></a><a href="#traffic" aria-label="Traffic" aria-describedby="tip-traffic"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l3-8 5 16 3-8h5"/></svg><span class="nav-label" id="tip-traffic" role="tooltip">Traffic</span></a><a href="#detections" aria-label="Detections" aria-describedby="tip-detections"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="m12 12 7-7"/></svg><span class="nav-label" id="tip-detections" role="tooltip">Detections</span></a><a href="#blocks" aria-label="Blocks" aria-describedby="tip-blocks"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6z"/><path d="m8 12 3 3 5-6"/></svg><span class="nav-label" id="tip-blocks" role="tooltip">Blocks</span></a></nav></aside>
   <main class="workspace">
     <div class="heading"><div><p class="eyebrow">ML-DDOS-DETECTOR / LAB</p><h1 id="page-title" tabindex="-1">Overview</h1></div><span class="sample">● SAMPLE DATA</span></div>
     <section class="toolbar" aria-label="Mock demonstration controls"><div><label for="scenario">Demo scenario</label><select id="scenario"><option value="sample">Representative activity</option><option value="empty">No measurements or events</option><option value="zero">Measured zero traffic</option><option value="unavailable">Capture unavailable</option><option value="stale">Stale snapshot</option><option value="error">Connection failure</option></select><button id="reload">Reload sample</button></div><span class="shared-meta">Display only · America/Toronto<br><span id="updated">Awaiting snapshot</span></span></section>
@@ -26,7 +16,7 @@
     <section class="panel" aria-labelledby="traffic-title"><div class="section-heading"><div><p class="eyebrow">01 / TRAFFIC</p><h2 id="traffic-title">Aggregate inbound traffic</h2></div><span>IPv4 · TCP / UDP / ICMP</span></div><p class="muted">One-second windows. IP bytes include IP and transport headers; Ethernet headers are excluded.</p><div id="overview-charts" class="charts"></div></section>
     </div><section class="panel view" id="view-traffic" hidden aria-labelledby="traffic-page-title"><div class="section-heading"><h2 id="traffic-page-title">Aggregate inbound traffic</h2><span>IPv4 · TCP / UDP / ICMP</span></div><p class="muted">One-second windows. IP bytes include IP and transport headers; Ethernet headers are excluded.</p><div id="charts" class="charts"></div></section><section class="panel view" id="view-detections" hidden aria-labelledby="detections-title"><div class="section-heading"><div><p class="eyebrow">02 / DETECTION</p><h2 id="detections-title">Detection events</h2></div><span id="detection-count"></span></div><p class="muted">Scores describe aggregate windows. Source events reuse that score and carry separate attribution evidence.</p><div id="detections" class="table-wrap"></div></section>
     <section class="panel view" id="view-blocks" hidden aria-labelledby="blocks-title"><div class="section-heading"><div><p class="eyebrow">03 / MITIGATION</p><h2 id="blocks-title">Confirmed blocks in snapshot</h2></div><span id="block-count"></span></div><p class="muted">A block request is not confirmation. These fixed examples do not describe current firewall state.</p><div id="blocks" class="table-wrap"></div></section>
-    </div><footer>Dashboard · Other views open the existing dashboard <span>Fixed sample data · No live connection</span></footer>
+    <footer>Week 1 prototype · Aadi / Frontend &amp; documentation <span>API schema v1 · Fixed example snapshot</span></footer>
   </main>
 </body>
 </html>

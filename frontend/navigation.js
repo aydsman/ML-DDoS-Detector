@@ -1,6 +1,5 @@
 const names = {overview:'Overview',traffic:'Traffic',detections:'Detections',blocks:'Blocks'};
 const views = [...document.querySelectorAll('.view')];
-const pin = document.querySelector('.nav-pin');
 const nav = document.querySelector('.glass-nav');
 let active = null;
 let pending;
@@ -23,20 +22,17 @@ function showPage(initial = false) {
       if(selected) link.setAttribute('aria-current','page'); else link.removeAttribute('aria-current');
     });
     active = page;
+    window.dispatchEvent(new Event('dashboard-view-change'));
     if(!initial) document.getElementById('page-title').focus({preventScroll:true});
   };
   if(initial || matchMedia('(prefers-reduced-motion: reduce)').matches) change();
   else { previous?.classList.add('leaving'); pending = setTimeout(change,100); }
 }
-pin.addEventListener('click',() => {
-  const open = nav.classList.toggle('pinned');
-  document.body.classList.toggle('nav-pinned',open);
-  pin.setAttribute('aria-expanded',String(open));
-  pin.setAttribute('aria-label',open?'Unpin sidebar':'Pin sidebar open');
-});
 nav.addEventListener('keydown',event => {
-  if(event.key === 'Escape' && nav.classList.contains('pinned')) pin.click();
+  if(event.key === 'Escape') nav.classList.add('labels-dismissed');
 });
+nav.addEventListener('focusin',() => nav.classList.remove('labels-dismissed'));
+nav.addEventListener('pointerover',() => nav.classList.remove('labels-dismissed'));
 window.addEventListener('hashchange',() => showPage());
 document.querySelector('.workspace').classList.add('initial');
 setTimeout(() => document.querySelector('.workspace').classList.remove('initial'),500);

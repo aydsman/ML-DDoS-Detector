@@ -30,6 +30,7 @@ function render(data) {
   const points = [...data.metrics.points].sort((a,b)=>Date.parse(a.window_start)-Date.parse(b.window_start));
   $('charts').innerHTML = chart(points,'packets_per_second','Packet rate','packets/s','#087f83') + chart(points,'bytes_per_second','Byte rate','bytes/s','#516cb0');
   if ($('overview-charts')) $('overview-charts').innerHTML = $('charts').innerHTML.replaceAll('Exact values in table below.', 'Exact values available on the Traffic page.');
+  requestAnimationFrame(resizeCharts);
   const detections = [...data.detections.detections].sort((a,b)=>Date.parse(b.detected_at)-Date.parse(a.detected_at)||a.id.localeCompare(b.id));
   $('detection-count').textContent = `${detections.length} records`;
   $('detections').innerHTML = detections.length ? table(['Time / event','Scope / source','Aggregate model score','Source-rule evidence','Decision'],detections.map(d=>{
@@ -61,3 +62,31 @@ async function refresh() {
 $('reload').addEventListener('click',refresh);
 $('scenario').addEventListener('change',refresh);
 refresh();
+
+// Reflow plots in screen pixels so SVG labels retain their readable size.
+function resizeCharts() {
+  document.querySelectorAll('.chart svg').forEach(svg => {
+    const width = svg.clientWidth, height = svg.clientHeight;
+    if(width < 1 || height < 1) return;
+    const prior = svg.dataset.layoutWidth;
+    if(prior === `${width}:${height}`) return;
+    svg.dataset.layoutWidth = `${width}:${height}`;
+    svg.setAttribute('viewBox',`0 0 ${width} ${height}`);
+    const x = value => 20 + (value-20)/460 * Math.max(1,width-40);
+    const y = value => 30 + (value-30)/100 * Math.max(1,height-55);
+    svg.querySelectorAll('polyline').forEach(line => {
+      line.dataset.original ??= line.getAttribute('points');
+      line.setAttribute('points',line.dataset.original.split(' ').map(pair => {const [a,b]=pair.split(',').map(Number);return `${x(a)},${y(b)}`;}).join(' '));
+    });
+    svg.querySelectorAll('circle').forEach(dot => {
+      dot.dataset.x ??= dot.getAttribute('cx'); dot.dataset.y ??= dot.getAttribute('cy');
+      dot.setAttribute('cx',x(Number(dot.dataset.x)));dot.setAttribute('cy',y(Number(dot.dataset.y)));
+    });
+    svg.querySelector('path')?.setAttribute('d',`M20 30H${width-20} M20 ${y(80)}H${width-20} M20 ${y(130)}H${width-20}`);
+    const labels=svg.querySelectorAll('text');
+    if(labels[1]) labels[1].setAttribute('y',height-5);
+  });
+}
+const chartResize = new ResizeObserver(resizeCharts);
+for(const id of ['charts','overview-charts']) if($(id)) chartResize.observe($(id));
+window.addEventListener('dashboard-view-change',() => requestAnimationFrame(resizeCharts));

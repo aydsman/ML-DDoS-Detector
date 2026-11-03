@@ -1,7 +1,7 @@
-# Selected background
+# Frontend assets
 
-`city-dusk.jpg` is image #2 supplied and selected by Ayden for the next frontend redesign: a muted dusk skyline with a pink-orange sky. It is saved as a reference/asset; the dashboard uses it as its fixed background.
+`city-sunset.jpg`: 3840x2160 image supplied and selected by Ayden (wp9023728.jpg). Used as the shared dashboard background. Original source/redistribution permission was not supplied; confirm before public distribution.
 
-Next layout: stronger smoky glass, compact expanding sidebar, and separate Overview, Traffic, Detections and Blocks views. Preserve all existing mock data, controls, fields and states. Approve an Overview composition before applying the design to all views.
+`city-dusk.jpg`: earlier selected preview image, retained for the standalone Overview composition reference.
 
-Original photographer/source and usage permission were not supplied. Selection does not establish a redistribution license; confirm those details before public distribution. A higher-resolution licensed original may replace this preview asset later.
+`fonts/Manrope.ttf`: variable font from google/fonts, bundled locally with its SIL Open Font License in fonts/OFL.txt.
