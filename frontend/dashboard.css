@@ -80,7 +80,7 @@ button:active:not(:disabled){transform:scale(.97)}details[open] table{animation:
 @media(min-width:1800px){.workspace{min-height:calc(100dvh - 59px)}}
 @media(min-width:1800px) and (max-height:950px){.workspace{min-height:calc(100dvh - 46px)}}
 /* Shared glass and responsive sidebar: one tint across all surfaces. */
-:root{--glass:linear-gradient(125deg,rgba(51,44,41,.62),rgba(36,31,30,.66));--rail:60px}
+:root{--glass:linear-gradient(125deg,rgba(51,44,41,.48),rgba(36,31,30,.52));--rail:60px}
 body{padding-left:calc(var(--rail) + 40px);transition:padding-left 250ms ease}
 body.sidebar-expanded{--rail:252px}
 .workspace{width:calc(100% - 48px);max-width:1560px;transform:none;margin-left:auto;margin-right:auto}
@@ -102,8 +102,8 @@ body.sidebar-expanded{--rail:252px}
 .sidebar-expanded .status-copy{display:block}.sidebar-expanded .status-caption{text-align:left;padding-left:10px}
 .status-tooltip{position:absolute;z-index:40;left:calc(100% + 16px);top:50%;transform:translateY(-50%);width:260px;padding:12px;border:1px solid #ffffff40;border-radius:14px;background:#292321f2;color:#f3eeea;font-size:12px;line-height:1.6;opacity:0;visibility:hidden;pointer-events:none}
 .status-item:hover .status-tooltip,.status-item:focus-visible .status-tooltip{opacity:1;visibility:visible}
-#notice{background:linear-gradient(125deg,#38312ecc,#272221d6)}#notice.warning{background:#443419d6}#notice.error{background:#54212bd6}
-thead th{background:#403733ed}
+#notice{background:var(--glass)}#notice.warning{background:rgba(68,52,25,.60)}#notice.error{background:rgba(84,33,43,.64)}
+thead th{background:rgba(64,55,51,.68);backdrop-filter:blur(12px)}
 .panel,.health-card,.toolbar{transition:border-color 160ms,box-shadow 160ms}
 .panel:hover,.health-card:hover,.toolbar:hover{border-color:#ffffff65;box-shadow:inset 0 1px #ffffff25,0 12px 30px #050a2033}
 .health-card{transition:transform 160ms,border-color 160ms,box-shadow 160ms}.health-card:hover{transform:translateY(-2px)}
@@ -120,7 +120,7 @@ thead th{background:#403733ed}
 ::-webkit-scrollbar{width:9px;height:9px;background:transparent}::-webkit-scrollbar-track,::-webkit-scrollbar-corner{background:transparent}::-webkit-scrollbar-thumb{background:#c3b4aa88;border:2px solid transparent;background-clip:padding-box;border-radius:20px}::-webkit-scrollbar-thumb:hover{background-color:#ded1c7bb}::-webkit-scrollbar-button{display:none;width:0;height:0}
 .table-wrap{scrollbar-color:#c3b4aa88 transparent}
 @media(min-width:1800px){:root{--rail:75px}body.sidebar-expanded{--rail:300px}.workspace{max-width:1950px;width:calc(100% - 70px)}.glass-nav{width:var(--rail)}.glass-nav a{padding-left:14px;gap:18px}.sidebar-expanded .nav-label{font-size:17px}.status-item{padding:14px;min-height:55px}.status-item svg{width:26px;height:26px}.status-copy small{font-size:12px}.status-copy strong{font-size:14px}.status-tooltip{font-size:14px;width:300px}.sidebar-toggle{width:32px;height:32px;min-height:32px}}
-@media(max-width:850px),(max-height:540px){
+@media(max-width:850px){
  body,body.sidebar-expanded{padding-left:0}
  .glass-nav{position:relative;left:auto;top:auto;transform:none;width:calc(100% - 32px);max-height:none;margin:20px 16px 0;padding:10px;border-radius:24px}
  .glass-nav nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;margin:0;padding-right:30px}
@@ -141,3 +141,9 @@ thead th{background:#403733ed}
 .glass-nav.labels-dismissed .status-item .status-tooltip,.glass-nav.labels-dismissed nav a .nav-label{visibility:hidden;opacity:0;transition:none}
 .sidebar-expanded .glass-nav.labels-dismissed nav a .nav-label{visibility:visible;opacity:1}
 .view.entering .health-card{animation-fill-mode:backwards}
+
+/* Short desktop windows retain the left rail; only genuinely narrow screens use top navigation. */
+.sample{background:var(--glass)}
+@media(min-width:851px) and (max-height:420px){.glass-nav{top:12px;transform:none;max-height:calc(100dvh - 24px);overflow:auto}}
+@supports not (backdrop-filter:blur(1px)){#notice,.sample{background:#302b2a}}
+@media(forced-colors:active){#notice,.sample,thead th{background:Canvas;color:CanvasText}}
