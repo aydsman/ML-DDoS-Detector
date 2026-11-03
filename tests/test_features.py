@@ -1,5 +1,7 @@
+import pytest
+
 from ddos_detector.config import FEATURE_NAMES
-from ddos_detector.features import Packet, extract_features, window_start, windows
+from ddos_detector.features import Packet, WindowAccumulator, extract_features, window_start, windows
 
 
 def test_empty_window_has_all_features():
@@ -32,6 +34,38 @@ def test_known_ipv4_packet_byte_statistics():
     assert features["byte_rate"] == 180
     assert features["pkt_size_mean"] == 60
     assert features["pkt_size_std"] == 0
+
+
+def test_size_statistics_match_expanded_population_statistics():
+    import random
+    import statistics
+
+    rng = random.Random(7)
+    sizes = [rng.choice((40, 49, 60, 100, 576, 1500)) for _ in range(5000)]
+    features = extract_features([Packet(0.0, "a", "udp", s) for s in sizes], 2.0)
+    assert features["byte_rate"] == sum(sizes) / 2.0
+    assert features["pkt_size_mean"] == statistics.mean(sizes)
+    assert features["pkt_size_std"] == pytest.approx(statistics.pstdev(sizes), rel=1e-12)
+
+
+def test_finalization_memory_does_not_grow_with_packet_count():
+    import tracemalloc
+
+    def peak_bytes(count):
+        acc = WindowAccumulator(max_sources=2)
+        p = Packet(0.0, "10.0.0.1", "tcp", 60, 0x02)
+        for _ in range(count):
+            acc.add(p)
+        tracemalloc.start()
+        try:
+            acc.features(1.0)
+            return tracemalloc.get_traced_memory()[1]
+        finally:
+            tracemalloc.stop()
+
+    small, large = peak_bytes(10_000), peak_bytes(100_000)
+    assert large < 16_384  # histogram has one entry; old code needed ~800 KB at 100k
+    assert large <= small * 2 + 4096
 
 
 def test_window_start_is_epoch_aligned():

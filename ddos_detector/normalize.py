@@ -15,6 +15,12 @@ SKIP_REASONS = (
     "truncated_header",
     "bad_length",
     "unsupported_protocol",
+    # link-layer / direction reasons, used by frames.py
+    "vlan_tagged",
+    "not_inbound",
+    "broadcast",
+    "multicast",
+    "truncated_frame",
 )
 
 
