@@ -23,3 +23,11 @@ git switch -c compare/aadi-original frontend-aadi-before-glass-20261102
 ```
 
 Do not reset or force-push shared history. If the redesign is merged later and needs undoing, revert its merge/change through the normal reviewed workflow. This preview does not merge the redesign into development or main.
+
+## City-glass Overview concept
+
+Open http://127.0.0.1:8001/frontend/overview-preview.html for the separate Overview composition. It uses the selected city-dusk image, stronger frosted panels, and an icon sidebar that expands on hover, keyboard focus, or the pin button. The original dashboard remains available at /frontend/.
+
+This is an Overview-only visual review. Traffic, Detections, and Blocks links currently open their existing dashboard sections; their separate redesigned views are pending visual feedback. All six demo scenarios and the existing rendering logic are reused. The original HTML, application JavaScript, and data files are unchanged.
+
+Browser verification covered all six scenarios, failure recovery, and the sidebar pin toggle. At 1366×768 the Overview has no outer page scrolling and both exact-measurement disclosures fit within the chart area. Expanded measurement tables scroll inside that area. Smaller screens may scroll for readability.
