@@ -7,9 +7,9 @@ from dataclasses import replace
 
 from .aggregate import WindowAggregator
 from .config import FEATURE_NAMES, Config
-from .frames import iter_packets
+from .frames import frame_to_packet
 from .normalize import SkipCounter
-from .pcap import PcapError
+from .pcap import PcapError, read_pcap
 
 COLUMNS = ["window_start", "window_end", *FEATURE_NAMES,
            "packet_count", "capped", "untracked_source_packets"]
@@ -25,8 +25,9 @@ def _extract(path, config):
     skips = SkipCounter()
     aggregator = WindowAggregator(config)
     records = []
-    for packet in iter_packets(path, config.victim_ip, skips):
-        records += aggregator.add(packet)
+    for ts, frame in read_pcap(path):
+        packet = frame_to_packet(frame, ts, config.victim_ip, skips).packet
+        records += aggregator.advance(ts) if packet is None else aggregator.add(packet)
     records += aggregator.flush()
     return records, skips, aggregator.late_dropped
 

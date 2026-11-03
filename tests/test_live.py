@@ -230,3 +230,38 @@ def test_capture_timestamp_parsing():
     data = struct.pack("@ll", 1700000000, 500000000)
     assert capture._timestamp([(socket.SOL_SOCKET, capture.SO_TIMESTAMPNS, data)]) == 1700000000.5
     assert capture._timestamp([]) > 1e9  # falls back to the wall clock
+
+
+def test_filtered_frames_advance_time_and_close_windows():
+    pipeline = LivePipeline()
+    assert pipeline.feed(100.5, eth(0x0800, ipv4())) == []
+    assert pipeline.feed(101.0, eth(0x0806, bytes(28))) == []  # ARP
+    assert pipeline.feed(101.999, eth(0x0800, ipv4(dst="10.10.10.99"))) == []  # other destination
+    (record,) = pipeline.feed(102.0, eth(0x0806, bytes(28)))
+    assert (record.window_start, record.packet_count) == (100.0, 1)
+
+
+def test_window_closes_during_continuous_unselected_traffic():
+    # The source never goes idle (no None timeouts), so only filtered frames move time.
+    pipeline = LivePipeline()
+    records = list(pipeline.feed(100.5, eth(0x0800, ipv4())))
+    for i in range(10):
+        records += pipeline.feed(101.0 + i * 0.5, eth(0x0806, bytes(28)))
+    assert [(r.window_start, r.packet_count) for r in records] == [(100.0, 1)]
+
+
+def test_packet_late_after_a_filtered_frame_is_dropped_and_counted():
+    pipeline = LivePipeline()
+    pipeline.feed(100.5, eth(0x0800, ipv4()))
+    pipeline.feed(102.0, eth(0x0806, bytes(28)))  # closes window 100
+    assert pipeline.feed(100.7, eth(0x0800, ipv4())) == []
+    assert pipeline.late_dropped == 1
+
+
+def test_offline_and_live_agree_when_filtered_frames_close_windows(tmp_path):
+    frames = [(100.5, eth(0x0800, ipv4())), (102.0, eth(0x0806, bytes(28))),
+              (100.7, eth(0x0800, ipv4()))]
+    path = build_pcap(tmp_path / "late.pcap", records=frames)
+    offline, _ = extract_pcap(path)
+    live, pipeline = replay(frames)
+    assert offline == live and pipeline.late_dropped == 1

@@ -53,7 +53,11 @@ class LivePipeline:
             raise RuntimeError("capture is unavailable; the pipeline accepts no more frames")
         self._last_ts = ts if self._last_ts is None else max(self._last_ts, ts)
         result = frame_to_packet(frame, ts, self.config.victim_ip, self.skips)
-        return [] if result.packet is None else self.aggregator.add(result.packet)
+        if result.packet is None:
+            # A filtered frame (ARP, outbound, other destinations) still shows time has
+            # reached ts, so finished windows close even while unselected traffic keeps the link busy.
+            return self.aggregator.advance(ts)
+        return self.aggregator.add(result.packet)
 
     def tick(self, now=None):
         """Advance time without a frame; return the windows now past their grace."""
