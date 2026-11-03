@@ -56,3 +56,6 @@ Verification: `node --test tests/frontend-graphs.mjs tests/frontend-status.mjs`;
 
 
 Sidebar follow-up: the desktop capsule stays vertically centred at every window height, including while expanded. The inner rail permits vertical scrolling only when needed and never shows a horizontal scrollbar. Fixed status-row heights keep icons stable as descriptions appear. A separate frosted selection surface now glides between destinations over 300ms, alongside the hover highlight and label reveal.
+
+
+Glass/selection follow-up: shared glass opacity is now 40–44% (eight percentage points lower), warning/error surfaces 52%/56%, sticky headers 60% and flyouts 86%. Control backgrounds also drop eight percentage points; text, icons and the white toggle retain full opacity. Collapsed navigation buttons fit the actual inner rail width with square proportions; selection/hover geometry uses fractional bounds so the circle is not clipped by rail borders or pixel rounding. Browser checked collapsed and toggled selection at laptop/desktop widths without horizontal rail overflow.

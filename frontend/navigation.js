@@ -56,7 +56,8 @@ const navigation=nav.querySelector('nav');
 const selection=document.createElement('span');selection.className='nav-selection';selection.setAttribute('aria-hidden','true');navigation.prepend(selection);
 function moveSelection(){
   const link=links.find(link=>link.classList.contains('selected'));if(!link)return;
-  selection.style.width=`${link.offsetWidth}px`;selection.style.height=`${link.offsetHeight}px`;selection.style.transform=`translate(${link.offsetLeft}px,${link.offsetTop}px)`;
+  const rect=link.getBoundingClientRect(),parent=navigation.getBoundingClientRect();
+  selection.style.width=`${rect.width}px`;selection.style.height=`${rect.height}px`;selection.style.transform=`translate(${rect.left-parent.left}px,${rect.top-parent.top}px)`;
 }
 window.addEventListener('dashboard-view-change',moveSelection);
 new ResizeObserver(moveSelection).observe(navigation);
@@ -65,8 +66,9 @@ const highlight=document.createElement('span');highlight.className='nav-hover';h
 let hovered=null;
 function moveHighlight(link){
   hovered=link;if(!link){highlight.style.opacity='0';return;}
-  highlight.style.width=`${link.offsetWidth}px`;highlight.style.height=`${link.offsetHeight}px`;
-  highlight.style.transform=`translate(${link.offsetLeft}px,${link.offsetTop}px)`;highlight.style.opacity='1';
+  const rect=link.getBoundingClientRect(),parent=navigation.getBoundingClientRect();
+  highlight.style.width=`${rect.width}px`;highlight.style.height=`${rect.height}px`;
+  highlight.style.transform=`translate(${rect.left-parent.left}px,${rect.top-parent.top}px)`;highlight.style.opacity='1';
 }
 links.forEach(link=>{
   link.addEventListener('pointerenter',()=>moveHighlight(link));link.addEventListener('focus',()=>moveHighlight(link));
