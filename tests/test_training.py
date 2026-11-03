@@ -174,3 +174,30 @@ def test_cli_prepare_train_score_and_final_test(inputs,tmp_path,capsys):
     assert main(["score","--model",str(tmp_path/"model"),"--record",str(inputs[0]/"score-record.json")])==0
     assert main(["final-test",*base,"--model",str(tmp_path/"model"),"--output",str(tmp_path/"test.json")])==0
     assert 'synthetic-code-check' in capsys.readouterr().out
+
+
+def test_model_loader_allows_python_patch_change_and_preserves_provenance(inputs, tmp_path):
+    from ddos_detector.training import versions
+    output = tmp_path / "model"
+    train(prepare(inputs), output, n_estimators=4)
+    sample = json.loads((inputs[0] / "score-record.json").read_text())
+    before = score_record(output, sample)
+    recorded_python = ".".join(versions()["python"].split(".")[:2]) + ".999"
+    rewrite(output / "metadata.json", lambda m: m["versions"].update(python=recorded_python))
+    _, metadata = load_model(output)
+    assert metadata["versions"]["python"] == recorded_python
+    assert score_record(output, sample) == before
+
+
+@pytest.mark.parametrize("key,value", [
+    ("python", "3.13.0"), ("python", "2.12.0"), ("python", "3.12"),
+    ("python", "3.12.bad"), ("python", None), ("python", 3.12),
+    ("numpy", "different"), ("scikit_learn", "different"),
+    ("scipy", "different"), ("joblib", "different"),
+])
+def test_model_loader_rejects_other_version_mismatches(inputs, tmp_path, key, value):
+    output = tmp_path / "model"
+    train(prepare(inputs), output, n_estimators=4)
+    rewrite(output / "metadata.json", lambda m: m["versions"].update({key: value}))
+    with pytest.raises(ValueError, match="versions"):
+        load_model(output)

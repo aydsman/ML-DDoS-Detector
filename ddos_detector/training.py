@@ -134,8 +134,16 @@ def load_model(directory):
     for key, value in expected.items():
         if meta.get(key) != value:
             raise ValueError(f"Incompatible model metadata: {key}")
-    if meta.get("versions") != versions():
-        raise ValueError("Model package requires its recorded Python/ML dependency versions")
+    recorded = meta.get("versions")
+    runtime = versions()
+    # Preserve full versions as provenance; Python patch releases may differ
+    # across the training PC and lab VM. ML libraries still match exactly.
+    python_parts = recorded.get("python", "").split(".") if isinstance(recorded, dict) and isinstance(recorded.get("python"), str) else []
+    if (not isinstance(recorded, dict) or recorded.keys() != runtime.keys()
+            or len(python_parts) != 3 or not all(part.isdecimal() for part in python_parts)
+            or python_parts[:2] != runtime["python"].split(".")[:2]
+            or any(recorded[key] != value for key, value in runtime.items() if key != "python")):
+        raise ValueError("Model package requires matching Python major.minor and exact ML dependency versions")
     threshold = meta.get("decision_threshold")
     if isinstance(threshold, bool) or not isinstance(threshold, (float, int)) or not math.isfinite(threshold) or not 0 <= threshold <= 1:
         raise ValueError("Invalid saved threshold")
