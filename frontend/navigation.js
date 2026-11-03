@@ -34,6 +34,15 @@ nav.addEventListener('keydown',event => {
 nav.addEventListener('focusin',() => nav.classList.remove('labels-dismissed'));
 nav.addEventListener('pointerover',() => nav.classList.remove('labels-dismissed'));
 window.addEventListener('hashchange',() => showPage());
+const toggle = document.getElementById('sidebar-toggle');
+toggle.addEventListener('click', () => {
+  const expanded = toggle.getAttribute('aria-expanded') !== 'true';
+  toggle.setAttribute('aria-expanded', String(expanded));
+  toggle.setAttribute('aria-label', expanded ? 'Collapse sidebar' : 'Expand sidebar');
+  document.body.classList.toggle('sidebar-expanded', expanded);
+});
+// Escape dismisses descriptions without changing the selected page.
+nav.addEventListener('pointerdown', () => nav.classList.remove('labels-dismissed'));
 document.querySelector('.workspace').classList.add('initial');
 setTimeout(() => document.querySelector('.workspace').classList.remove('initial'),500);
 showPage(true);

@@ -79,3 +79,65 @@ button:active:not(:disabled){transform:scale(.97)}details[open] table{animation:
 @media(forced-colors:active){.panel,.health-card,.glass-nav,#notice,.toolbar,#view-detections,#view-blocks{background:Canvas;color:CanvasText}}
 @media(min-width:1800px){.workspace{min-height:calc(100dvh - 59px)}}
 @media(min-width:1800px) and (max-height:950px){.workspace{min-height:calc(100dvh - 46px)}}
+/* Shared glass and responsive sidebar: one tint across all surfaces. */
+:root{--glass:linear-gradient(125deg,rgba(51,44,41,.62),rgba(36,31,30,.66));--rail:60px}
+body{padding-left:calc(var(--rail) + 40px);transition:padding-left 250ms ease}
+body.sidebar-expanded{--rail:252px}
+.workspace{width:calc(100% - 48px);max-width:1560px;transform:none;margin-left:auto;margin-right:auto}
+.glass-nav,.toolbar,.panel,.health-card,#view-detections,#view-blocks{background:var(--glass);-webkit-backdrop-filter:blur(18px) saturate(110%);backdrop-filter:blur(18px) saturate(110%)}
+.glass-nav{width:var(--rail);border-radius:32px;transition:width 250ms ease;max-height:calc(100dvh - 40px)}
+.glass-nav nav{margin-top:24px}
+.sidebar-toggle{position:absolute;top:-12px;right:-10px;display:grid;place-items:center;width:28px;height:28px;min-height:28px;padding:5px;border-radius:50%;background:#f4f1ed;color:#302a28;border:1px solid #fff;box-shadow:0 3px 12px #0004}
+.sidebar-toggle:hover{background:#fff;color:#171412}.sidebar-toggle svg{width:16px;height:16px;transition:transform 250ms}.sidebar-expanded .sidebar-toggle svg{transform:rotate(180deg)}
+.glass-nav a{display:flex;justify-content:flex-start;padding:0 11px;gap:14px;transition:background 160ms,box-shadow 160ms,width 250ms,border-radius 250ms}
+.sidebar-expanded .glass-nav a{width:100%;border-radius:24px}
+.sidebar-expanded .nav-label{position:static;opacity:1;visibility:visible;transform:none;padding:0;background:none;border:0;font-size:14px;pointer-events:auto}
+.glass-nav.labels-dismissed .nav-label,.glass-nav.labels-dismissed .status-tooltip{visibility:hidden;opacity:0}
+.sidebar-expanded .glass-nav.labels-dismissed .nav-label{visibility:visible;opacity:1}
+.sidebar-statuses{border-top:1px solid #ffffff30;margin-top:20px;padding-top:10px;display:grid;gap:6px}
+.status-caption{margin:0;text-align:center;font-size:8px;font-weight:800;letter-spacing:1px;color:#ffe3ad}
+.status-item{position:relative;display:flex;gap:12px;align-items:center;min-height:44px;padding:10px;border-radius:22px;color:#e1ded9;cursor:default}
+.status-item svg{width:22px;height:22px;flex:none}.status-item[data-tone=attention]{color:#ffd192}.status-item[data-tone=unknown]{color:#d2d0ce}
+.status-copy{display:none;min-width:0}.status-copy small{display:block;font-size:10px;color:#ded9d5}.status-copy strong{display:block;font-size:12px;font-weight:600;line-height:1.4}
+.sidebar-expanded .status-copy{display:block}.sidebar-expanded .status-caption{text-align:left;padding-left:10px}
+.status-tooltip{position:absolute;z-index:40;left:calc(100% + 16px);top:50%;transform:translateY(-50%);width:260px;padding:12px;border:1px solid #ffffff40;border-radius:14px;background:#292321f2;color:#f3eeea;font-size:12px;line-height:1.6;opacity:0;visibility:hidden;pointer-events:none}
+.status-item:hover .status-tooltip,.status-item:focus-visible .status-tooltip{opacity:1;visibility:visible}
+#notice{background:linear-gradient(125deg,#38312ecc,#272221d6)}#notice.warning{background:#443419d6}#notice.error{background:#54212bd6}
+thead th{background:#403733ed}
+.panel,.health-card,.toolbar{transition:border-color 160ms,box-shadow 160ms}
+.panel:hover,.health-card:hover,.toolbar:hover{border-color:#ffffff65;box-shadow:inset 0 1px #ffffff25,0 12px 30px #050a2033}
+.health-card{transition:transform 160ms,border-color 160ms,box-shadow 160ms}.health-card:hover{transform:translateY(-2px)}
+/* Keep backdrop surfaces opaque to the compositor; animate their contents. */
+.view.entering,.view.leaving,.workspace.initial .toolbar,.workspace.initial .overview-content{animation:none;opacity:1;transition:none}
+.view.entering .section-heading,.view.entering .charts,.view.entering .table-wrap{animation:content-in 220ms ease both}
+.view.entering .charts,.view.entering .table-wrap{animation-delay:40ms}
+.view.entering .health-card{animation:card-in 220ms ease both}.view.entering .health-card:nth-child(2){animation-delay:40ms}.view.entering .health-card:nth-child(3){animation-delay:80ms}.view.entering .health-card:nth-child(4){animation-delay:120ms}
+.view.leaving .charts,.view.leaving .table-wrap,.view.leaving .section-heading{opacity:0;transition:opacity 100ms}
+@keyframes content-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes card-in{from{transform:translateY(6px)}to{transform:none}}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
+*{scrollbar-width:thin;scrollbar-color:#c3b4aa88 transparent}
+::-webkit-scrollbar{width:9px;height:9px;background:transparent}::-webkit-scrollbar-track,::-webkit-scrollbar-corner{background:transparent}::-webkit-scrollbar-thumb{background:#c3b4aa88;border:2px solid transparent;background-clip:padding-box;border-radius:20px}::-webkit-scrollbar-thumb:hover{background-color:#ded1c7bb}::-webkit-scrollbar-button{display:none;width:0;height:0}
+.table-wrap{scrollbar-color:#c3b4aa88 transparent}
+@media(min-width:1800px){:root{--rail:75px}body.sidebar-expanded{--rail:300px}.workspace{max-width:1950px;width:calc(100% - 70px)}.glass-nav{width:var(--rail)}.glass-nav a{padding-left:14px;gap:18px}.sidebar-expanded .nav-label{font-size:17px}.status-item{padding:14px;min-height:55px}.status-item svg{width:26px;height:26px}.status-copy small{font-size:12px}.status-copy strong{font-size:14px}.status-tooltip{font-size:14px;width:300px}.sidebar-toggle{width:32px;height:32px;min-height:32px}}
+@media(max-width:850px),(max-height:540px){
+ body,body.sidebar-expanded{padding-left:0}
+ .glass-nav{position:relative;left:auto;top:auto;transform:none;width:calc(100% - 32px);max-height:none;margin:20px 16px 0;padding:10px;border-radius:24px}
+ .glass-nav nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;margin:0;padding-right:30px}
+ .glass-nav a,.sidebar-expanded .glass-nav a{width:100%;height:auto;min-height:44px;justify-content:center;padding:10px;border-radius:22px;gap:8px}
+ .sidebar-toggle{top:16px;right:7px}.sidebar-expanded .glass-nav nav{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .sidebar-expanded .nav-label{display:block;font-size:12px}.glass-nav a .nav-label{left:0;top:calc(100% + 12px);transform:none}
+ .sidebar-statuses{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px;padding-top:8px}.status-caption{grid-column:1/-1;text-align:left;padding-left:10px}
+ .status-item{align-items:flex-start;padding:8px;min-height:44px}.status-copy{display:block}.status-copy strong{font-size:11px}
+ .status-tooltip{left:0;top:100%;transform:none;width:min(260px,75vw)}.status-item:last-child .status-tooltip{left:auto;right:0}
+ .workspace{width:calc(100% - 32px);margin:18px 16px 20px;transform:none;min-height:0}
+ .toolbar>div{flex-wrap:wrap}.toolbar{flex-wrap:wrap}.shared-meta{overflow-wrap:anywhere}
+}
+@media(hover:none){.glass-nav a:focus-visible .nav-label{display:block}.sidebar-expanded .nav-label{display:block}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.view.leaving .charts,.view.leaving .table-wrap,.view.leaving .section-heading{opacity:1}.health-card:hover{transform:none}}
+@supports not (backdrop-filter:blur(1px)){.glass-nav,.toolbar,.panel,.health-card,#view-detections,#view-blocks{background:#302b2a}}
+@media(forced-colors:active){.glass-nav,.toolbar,.panel,.health-card,#view-detections,#view-blocks,.status-tooltip,#notice,#notice.error,#notice.warning{background:Canvas;color:CanvasText}.status-item[data-tone]{color:CanvasText}.sidebar-toggle{background:ButtonFace;color:ButtonText}.status-caption,.status-copy small{color:CanvasText}}
+.chart-title strong span{font:inherit;letter-spacing:inherit;color:inherit}
+.glass-nav.labels-dismissed .status-item .status-tooltip,.glass-nav.labels-dismissed nav a .nav-label{visibility:hidden;opacity:0;transition:none}
+.sidebar-expanded .glass-nav.labels-dismissed nav a .nav-label{visibility:visible;opacity:1}
+.view.entering .health-card{animation-fill-mode:backwards}
