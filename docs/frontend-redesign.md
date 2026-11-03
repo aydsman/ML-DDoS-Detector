@@ -1,33 +1,11 @@
-# Frontend glass redesign
+# City glass frontend redesign
 
-Branch: `feature/frontend-redesign`. The implementation changes presentation in `frontend/styles.css` only. Aadi's `index.html`, `app.js`, `data.js` and shared API sample JSON remain byte-for-byte unchanged from the starting version.
+Branch: `feature/frontend-redesign`. Preview: http://127.0.0.1:8002/frontend/ (serve the repository root).
 
-## Preview
+Overview, Traffic, Detections and Blocks share one snapshot, scenario selector, reload control, timestamp and warning. Hash navigation supports Back/Forward without fetching or resetting data. Overview has compact charts; Traffic retains both exact-value disclosures. Existing event/block rendering, ordering, units, data and loader behavior are retained. No API integration or enforcement controls are added.
 
-Serve the repository root with Python's local HTTP server and open `/frontend/`. The review preview uses `http://127.0.0.1:8001/frontend/` to avoid the old stylesheet cached on port 8000. It remains a mock dashboard, not live inference/firewall integration.
+The selected dusk skyline sits behind smoky glass. Sidebar expands on hover/focus and can be pinned, reserving desktop content space. Page transitions use a 100ms exit and 220ms entrance; initial panels use 350ms with a 50ms stagger. Reduced motion disables animations. Native disclosures, named links, skip navigation and focus outlines support keyboard use. Small/short screens scroll; desktop tables scroll internally.
 
-## Verified behavior
+Browser checks: all six scenarios, stale-data retention and recovery, four-page navigation, unavailable exact measurements, sidebar pin spacing, 1366x768 outer dimensions and 390px width. Full backend regression tests were not rerun for these frontend-only changes.
 
-Browser checks covered representative data; no measurements/events; measured zero; capture unavailable (unavailable rather than zero); stale snapshot; simulated connection failure retaining the last snapshot; recovery; reload; and exact-value disclosures. All health indicators, chart data/units, detection/block fields and Toronto timestamps are retained.
-
-At a 390px viewport, health cards use two columns, charts stack, and wide detection/block tables scroll within their containers without document-level horizontal overflow. The viewport was reset afterward. Keyboard focus and reduced-motion styles are retained. No new navigation, metrics, controls, sample history, dependencies or backend calls were added.
-
-## Restore the original presentation
-
-A named annotated tag preserves the exact starting checkout: `frontend-aadi-before-glass-20261102`.
-
-Before merge, commit any work on the redesign branch, then `git switch development` to view the shared version. For a new comparison branch at the exact original snapshot, use:
-
-```sh
-git switch -c compare/aadi-original frontend-aadi-before-glass-20261102
-```
-
-Do not reset or force-push shared history. If the redesign is merged later and needs undoing, revert its merge/change through the normal reviewed workflow. This preview does not merge the redesign into development or main.
-
-## City-glass Overview concept
-
-Open http://127.0.0.1:8001/frontend/overview-preview.html for the separate Overview composition. It uses the selected city-dusk image, stronger frosted panels, and an icon sidebar that expands on hover, keyboard focus, or the pin button. The original dashboard remains available at /frontend/.
-
-This is an Overview-only visual review. Traffic, Detections, and Blocks links currently open their existing dashboard sections; their separate redesigned views are pending visual feedback. All six demo scenarios and the existing rendering logic are reused. The original HTML, application JavaScript, and data files are unchanged.
-
-Browser verification covered all six scenarios, failure recovery, and the sidebar pin toggle. At 1366×768 the Overview has no outer page scrolling and both exact-measurement disclosures fit within the chart area. Expanded measurement tables scroll inside that area. Smaller screens may scroll for readability.
+The original presentation is preserved by tag `frontend-aadi-before-glass-20261102`. Development and main have not been merged. The separate `overview-preview.html` remains an earlier composition reference.

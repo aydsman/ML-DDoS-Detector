@@ -1,0 +1,93 @@
+/* Separate composition preview; the original dashboard is untouched. */
+:root { --ink:#f4f6fa; --muted:#d0d5df; --line:rgba(255,255,255,.21); }
+body { background:#1b2331 url('assets/city-dusk.jpg') center center / cover fixed no-repeat; }
+body::before { z-index:0; background:linear-gradient(100deg,rgba(12,18,30,.25),rgba(16,20,29,.12) 55%,rgba(14,20,31,.28)); }
+.workspace { position:relative; margin:20px 24px 20px 112px; padding:0; max-width:none; height:calc(100dvh - 40px); min-height:640px; display:flex; flex-direction:column; gap:12px; }
+.heading { margin:0; min-height:56px; flex-shrink:0; padding:0 8px; text-shadow:0 2px 12px rgba(0,0,0,.4); }
+h1 { font-size:30px; font-weight:550; margin:2px 0 0; }
+.eyebrow { color:#e1e5ed; font-size:9px; letter-spacing:2px; }
+.sample { background:rgba(30,35,43,.3); color:#ffe4b1; border-color:rgba(255,230,190,.35); backdrop-filter:blur(12px); }
+.glass-nav,.toolbar,.panel,.health-card,#notice { -webkit-backdrop-filter:blur(20px) saturate(125%); backdrop-filter:blur(20px) saturate(125%); background:linear-gradient(130deg,rgba(224,229,239,.16),rgba(46,55,73,.28)); border:1px solid rgba(255,255,255,.25); box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 12px 35px rgba(5,10,20,.16); }
+.glass-nav { position:fixed; z-index:10; top:20px; bottom:20px; left:20px; width:68px; border-radius:22px; display:flex; flex-direction:column; padding:10px; overflow:hidden; transition:width 180ms ease; }
+.glass-nav:hover,.glass-nav:focus-within,.glass-nav.pinned { width:220px; }
+.nav-brand,.glass-nav nav a,.nav-bottom,.nav-pin { display:flex; gap:14px; align-items:center; color:#f2f5fa; text-decoration:none; height:44px; min-height:44px; border-radius:13px; white-space:nowrap; padding:0 10px; }
+.nav-brand { font-size:26px; margin-bottom:16px; }
+.nav-brand span { font-size:13px; font-weight:650; }
+.nav-icon { width:24px; min-width:24px; text-align:center; font-size:23px; font-weight:400; }
+.nav-label,.nav-brand span { opacity:0; transition:opacity 100ms; font-size:13px; }
+.glass-nav:hover .nav-label,.glass-nav:hover .nav-brand span,.glass-nav:focus-within .nav-label,.glass-nav:focus-within .nav-brand span,.glass-nav.pinned .nav-label,.glass-nav.pinned .nav-brand span { opacity:1; }
+.nav-pin { width:100%; margin-bottom:16px; border:0; background:transparent; box-shadow:none; font-weight:400; }
+.nav-pin:hover { background:rgba(255,255,255,.1); box-shadow:none; }
+.glass-nav nav { display:flex; flex-direction:column; gap:10px; }
+.glass-nav nav a.selected { background:rgba(155,199,255,.24); border:1px solid rgba(204,225,255,.35); box-shadow:inset 0 1px 0 rgba(255,255,255,.12); }
+.glass-nav nav a:hover,.nav-bottom:hover { background:rgba(255,255,255,.13); }
+.nav-bottom { margin-top:auto; }
+.toolbar { padding:8px 13px; border-radius:15px; flex-shrink:0; }
+.toolbar > span { color:#e0e4ed; }
+select { background:rgba(28,37,53,.5); border-color:rgba(255,255,255,.25); }
+button#reload { background:rgba(102,159,230,.35); border-color:rgba(182,217,255,.5); }
+#notice { font-size:11px; margin:0; padding:8px 12px; border-radius:10px; border-left:3px solid #a8cfff; color:#edf3ff; flex-shrink:0; }
+#notice.warning { background:rgba(86,65,30,.6); color:#ffe1a8; }
+#notice.error { background:rgba(105,35,45,.65); color:#ffd6dd; }
+.overview-content { display:flex; flex-direction:column; gap:14px; min-height:0; flex:1; }
+.section-heading { padding:0 3px; }
+.section-heading h2 { font-size:15px; }
+.section-heading > span { color:#e0e4ed; font-size:10px; }
+.health-grid { margin:8px 0 0; gap:12px; }
+.health-card { padding:12px 16px; border-radius:17px; }
+.health-card small { color:#d8dfe9; font-size:11px; }
+.health-card strong { margin-top:3px; font-size:19px; }
+.health-card strong.good { color:#b7f0d3; }
+.panel { flex:1; min-height:0; margin:0; padding:19px; border-radius:22px; background:linear-gradient(120deg,rgba(67,78,99,.44),rgba(29,38,55,.5)); display:flex; flex-direction:column; }
+.panel .eyebrow { color:#b6d6ff; }
+.panel > .muted { color:#d2d9e5; font-size:10px; margin-top:5px; }
+.charts { min-height:0; flex:1; overflow:auto; margin-top:18px; gap:24px; scrollbar-color:rgba(230,240,255,.4) transparent; }
+.chart { display:flex; flex-direction:column; }
+.chart svg { height:clamp(100px,17vh,185px); flex:1; min-height:100px; }
+.chart svg text { fill:#d4deed; }
+.chart svg path { stroke:rgba(225,236,255,.18); }
+.chart-title strong { font-size:30px; }
+.chart-title span,.axis { color:#d0d8e5; }
+.measurement-table { flex-shrink:0; }
+.measurement-table summary { color:#d3e6ff; }
+.measurement-table table { background:rgba(19,27,42,.6); }
+footer { flex-shrink:0; margin:0; padding:0 5px; color:#e3e7ee; font-size:10px; text-shadow:0 1px 4px #111; }
+@media(min-width:1100px) and (min-height:720px) { body { overflow:hidden; } .workspace { min-height:0; } }
+@media(max-width:700px) { .workspace { margin:14px 12px 14px 86px; height:auto; min-height:calc(100dvh - 28px); } .glass-nav { top:14px; bottom:14px; left:10px; width:62px; padding:7px; border-radius:19px; } .toolbar > span { display:none; } .heading { flex-wrap:wrap; gap:8px; } .health-grid { gap:8px; } .health-card { padding:11px; } .panel { min-height:500px; padding:15px; } .charts { overflow:visible; } .chart svg { flex:none; height:130px; } footer span { display:none; } }
+@media(prefers-reduced-motion:reduce) { .glass-nav,.nav-label,.nav-brand span { transition:none; } }
+
+@media(min-width:701px) { .charts { grid-template-rows:minmax(0,1fr); } .chart { min-height:0; } .chart svg { flex:1 1 90px; min-height:60px; max-height:170px; } .measurement-table summary { margin:8px 0 0; } }
+
+/* Four views share one snapshot and a fixed desktop shell. */
+[hidden] { display:none !important; }
+.workspace { transition:margin-left 200ms ease; }
+body.nav-pinned .workspace { margin-left:264px; }
+.glass-nav { transition:width 200ms ease; }
+.view { min-height:0; }
+.panel.view { overflow:hidden; }
+.table-wrap { min-height:0; overflow:auto; flex:1; }
+thead th { position:sticky; top:0; background:#303d53; z-index:1; }
+#notice,.panel > .muted,.section-heading > span,.toolbar label { font-size:12px; }
+th,td small,.axis,.chart-title span { font-size:11px; }
+footer { font-size:11px; }
+#overview-charts .measurement-table { display:none; }
+.panel { background:linear-gradient(120deg,rgba(54,66,88,.72),rgba(24,33,49,.76)); }
+.health-card { transition:border-color 160ms,box-shadow 160ms; }
+.health-card:hover { border-color:rgba(230,242,255,.55); box-shadow:0 12px 35px #050a2038; }
+button:active:not(:disabled) { transform:scale(.97); transition:transform 120ms; }
+.view.entering { animation:page-in 220ms ease both; }
+.workspace.initial .toolbar,.workspace.initial .overview-content { animation:panel-in 350ms ease both; }
+.workspace.initial .overview-content { animation-delay:50ms; }
+@keyframes page-in { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+@keyframes panel-in { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+.view.leaving { opacity:0; transition:opacity 100ms; }
+summary::marker { color:#c3dcff; }
+details[open] table { animation:measurement-in 150ms ease; }
+@keyframes measurement-in { from { opacity:.3; } to { opacity:1; } }
+.skip-link { position:fixed; top:-80px; left:100px; z-index:30; background:#18283d; color:white; padding:12px; }
+.skip-link:focus { top:10px; }
+@supports not (backdrop-filter:blur(1px)) { .glass-nav,.toolbar,.health-card,#notice,.panel { background:#263348; } }
+@media(max-width:1099px),(max-height:719px) { body { overflow:auto; } .workspace { height:auto; min-height:calc(100dvh - 40px); } .panel.view { min-height:460px; } .overview-content .panel { min-height:330px; } .table-wrap { max-height:65vh; } }
+@media(max-width:700px) { body.nav-pinned .workspace { margin-left:86px; } .glass-nav.pinned { box-shadow:0 0 0 100vmax #080e2055; } .panel.view { min-height:480px; } .overview-content .panel { min-height:500px; } .charts { flex:none; } .toolbar > span { display:block; } }
+@media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none !important; transition:none !important; } }
+@media(forced-colors:active) { .panel,.health-card,.glass-nav,#notice { background:Canvas; color:CanvasText; border:1px solid CanvasText; } }
