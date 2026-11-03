@@ -17,3 +17,9 @@ Browser checks covered 1366x768, 2560x1440, 3440x1440 and 390x844. Overview fit 
 ## Recovery
 
 Original snapshot: tag `frontend-aadi-before-glass-20261102`. Development and main remain unchanged. Review draft PR #21 before merging. Revert through normal Git workflow rather than resetting shared history.
+
+## Warm charcoal refinement
+
+General toolbar/health glass opacity reduced by eight percentage points (approximately 75/79% to 67/71%); general chart panels similarly reduced from 82/85% to 74/77%. Tint is warm charcoal. Warnings and event/block table surfaces retain darker backgrounds. Desktop widths of 1800px and above use approximately 125% interface sizing and a 1950px content cap; laptop sizing is retained.
+
+Verified Overview dimensions at 2560x1440, 1920x1080 and 1366x768 without outer scrolling. Checked mobile width, detection records and failure/recovery display. No application logic or data changes in this refinement.

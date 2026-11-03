@@ -9,30 +9,30 @@ h1{font-size:clamp(28px,2.3vw,36px);font-weight:600;margin:2px 0;letter-spacing:
 h2,.section-heading h2{font-size:17px;font-weight:600}
 h3{font-size:14px}.eyebrow{font-size:10px;letter-spacing:1.8px;color:#e1e7ef}
 .sample{background:#18233280;color:#ffe6b8;border-color:#ffe8bd50;backdrop-filter:blur(12px)}
-.glass-nav{position:fixed;z-index:20;left:20px;top:50%;transform:translateY(-50%);width:60px;padding:8px;border-radius:34px;background:linear-gradient(135deg,#18212cdd,#101820bd);border:1px solid #ffffff29;backdrop-filter:blur(18px);box-shadow:inset 0 1px #ffffff18,0 12px 35px #0003}
+.glass-nav{position:fixed;z-index:20;left:20px;top:50%;transform:translateY(-50%);width:60px;padding:8px;border-radius:34px;background:linear-gradient(135deg,#292423dd,#191716bd);border:1px solid #ffffff29;backdrop-filter:blur(18px);box-shadow:inset 0 1px #ffffff18,0 12px 35px #0003}
 .glass-nav nav{display:flex;flex-direction:column;gap:8px}
 .glass-nav a{position:relative;display:grid;place-items:center;width:44px;height:44px;border-radius:50%;color:#e1e7f1;text-decoration:none;transition:background 160ms,color 160ms,box-shadow 160ms}
 .glass-nav a svg{width:21px;height:21px;display:block;flex:none}
 .glass-nav a:hover{background:#ffffff14;color:#fff}
 .glass-nav a.selected{color:#fff;background:linear-gradient(135deg,#dce8ff55,#bdcbe12b);box-shadow:inset 0 1px #ffffff70,0 3px 12px #0003}
-.nav-label{position:absolute;left:calc(100% + 19px);top:50%;transform:translate(4px,-50%);background:#15202bed;border:1px solid #ffffff24;padding:7px 12px;border-radius:18px;white-space:nowrap;font-size:12px;opacity:0;visibility:hidden;pointer-events:none;transition:opacity 120ms 150ms,transform 120ms 150ms,visibility 120ms 150ms}
+.nav-label{position:absolute;left:calc(100% + 19px);top:50%;transform:translate(4px,-50%);background:#292321ed;border:1px solid #ffffff24;padding:7px 12px;border-radius:18px;white-space:nowrap;font-size:12px;opacity:0;visibility:hidden;pointer-events:none;transition:opacity 120ms 150ms,transform 120ms 150ms,visibility 120ms 150ms}
 .glass-nav a:hover .nav-label,.glass-nav a:focus-visible .nav-label{opacity:1;visibility:visible;transform:translate(0,-50%)}
 .glass-nav nav.labels-dismissed .nav-label{opacity:0;visibility:hidden;transition:none}
-.toolbar,.panel,.health-card,#notice{border:1px solid #ffffff35;backdrop-filter:blur(18px) saturate(110%);-webkit-backdrop-filter:blur(18px) saturate(110%);box-shadow:inset 0 1px #ffffff16,0 12px 30px #050a201e;background:linear-gradient(125deg,#253143bf,#182436c9)}
+.toolbar,.panel,.health-card,#notice{border:1px solid #ffffff35;backdrop-filter:blur(18px) saturate(110%);-webkit-backdrop-filter:blur(18px) saturate(110%);box-shadow:inset 0 1px #ffffff16,0 12px 30px #050a201e;background:linear-gradient(125deg,rgba(56,49,46,.669),rgba(39,34,33,.708))}
 .toolbar{border-radius:18px;padding:12px 16px}.toolbar label,.toolbar>span{font-size:12px;color:#e0e6ef}.shared-meta{text-align:right}
-select{background:#142338aa}button#reload{background:#5288bd70;border-color:#b5d7ff70}
+select{background:#292422cc}button#reload{background:#5288bd70;border-color:#b5d7ff70}
 #notice{font-size:12px;margin:0;padding:10px 14px;border-radius:12px;color:#f0f4fa;border-left:3px solid #a8cfff}
 #notice.warning{background:#443419e6;color:#ffe2a8}#notice.error{background:#54212be6;color:#ffdde1}
 .overview-content{display:flex;flex-direction:column;gap:18px}.section-heading>span{font-size:12px;color:#d8e1ef}
 .health-grid{margin:10px 0 0;gap:14px}.health-card{padding:16px 18px;border-radius:22px;transition:border-color 160ms,box-shadow 160ms}.health-card:hover{border-color:#ffffff66;box-shadow:0 12px 30px #050a2033}.health-card small{font-size:12px;color:#d8e1ef}.health-card strong{font-size:20px;margin-top:5px}.health-card strong.good{color:#b7f0d3}
-.panel{margin:0;border-radius:24px;padding:22px;min-width:0;display:flex;flex-direction:column;background:linear-gradient(125deg,#253143d1,#172235d9)}
+.panel{margin:0;border-radius:24px;padding:22px;min-width:0;display:flex;flex-direction:column;background:linear-gradient(125deg,rgba(54,46,43,.740),rgba(38,33,32,.771))}
 .panel>.muted{font-size:12px;margin-top:7px;color:#d8e1ef}
 .charts{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:22px;gap:24px;flex:none;min-height:0}
 .chart{display:flex;flex-direction:column;min-width:0}.chart-title strong{font-size:32px;font-weight:600}.chart-title span,.axis{font-size:12px;color:#d2dce9}
 .chart svg{width:100%;height:clamp(150px,20vh,220px);max-height:none;min-height:150px;flex:none;display:block;margin-top:14px}.chart svg text{fill:#d4deed;font:12px Manrope,system-ui,sans-serif}.chart svg path{stroke:#deecff28}
 #view-traffic .chart svg{height:clamp(190px,27vh,300px)}
 #overview-charts .measurement-table{display:none}.measurement-table{flex:none}.measurement-table summary{font-size:12px;color:#cce2ff;margin:12px 0 0}.measurement-table table{font-size:13px}.measurement-table th{font-size:12px}
-.panel.view{max-height:calc(100dvh - 310px);min-height:360px}.panel.view .charts{overflow:auto}.table-wrap{overflow:auto;min-height:0;max-height:60vh;margin-top:18px}table{font-size:14px}th,td small{font-size:12px}thead th{position:sticky;top:0;z-index:1;background:#2b3b50}.pill{font-size:12px}td,th{padding:14px 12px}
+.panel.view{max-height:calc(100dvh - 310px);min-height:360px}.panel.view .charts{overflow:auto}.table-wrap{overflow:auto;min-height:0;max-height:60vh;margin-top:18px}table{font-size:14px}th,td small{font-size:12px}thead th{position:sticky;top:0;z-index:1;background:#403733}.pill{font-size:12px}td,th{padding:14px 12px}
 footer{margin:0;padding:0 5px;font-size:11px;color:#e0e7f1;text-shadow:0 1px 4px #111}
 .skip-link{position:fixed;top:-80px;left:100px;z-index:30;background:#18283d;color:white;padding:12px}.skip-link:focus{top:10px}
 .view.entering{animation:page-in 220ms ease both}.view.leaving{opacity:0;transition:opacity 100ms}.workspace.initial .toolbar,.workspace.initial .overview-content{animation:panel-in 350ms ease both}.workspace.initial .overview-content{animation-delay:50ms}
@@ -46,3 +46,36 @@ button:active:not(:disabled){transform:scale(.97)}details[open] table{animation:
 @media(forced-colors:active){body{background:Canvas}.panel,.health-card,.glass-nav,#notice,.toolbar{background:Canvas;color:CanvasText;border:1px solid CanvasText}.glass-nav a.selected{outline:2px solid Highlight}}
 .health-grid{margin-bottom:0}
 @media(min-width:701px) and (max-height:850px){.workspace{gap:12px;margin-top:20px;min-height:calc(100dvh - 44px)}.overview-content{gap:14px}.panel{padding:18px}.health-card{padding:12px 14px}.charts{margin-top:16px}.chart svg{height:150px}.heading{min-height:46px}.toolbar{padding:9px 14px}}
+
+/* Keep information-heavy surfaces darker than the general glass. */
+#notice{background:linear-gradient(125deg,rgba(56,49,46,.80),rgba(39,34,33,.84))}
+#notice.warning{background:#443419e6}#notice.error{background:#54212be6}
+#view-detections,#view-blocks{background:linear-gradient(125deg,rgba(54,46,43,.82),rgba(38,33,32,.85))}
+@media(min-width:1800px){
+ body{font-size:17.5px}
+ .workspace{max-width:1950px;width:calc(100% - 180px);gap:20px;margin-top:35px;transform:translateX(40px)}
+ h1{font-size:44px}.heading{min-height:65px}.eyebrow{font-size:12.5px}
+ h2,.section-heading h2{font-size:21px}h3{font-size:17.5px}
+ .sample{font-size:12.5px;padding:9px 14px}
+ .toolbar{padding:15px 20px;border-radius:23px}.toolbar>div{gap:15px}
+ .toolbar label,.toolbar>span{font-size:15px}
+ select,button{font-size:15px;min-height:45px;padding:10px 15px;border-radius:9px}
+ #notice{font-size:15px;padding:12px 18px;border-radius:15px}
+ .overview-content{gap:22px}.health-grid{gap:18px;margin-top:12px}
+ .health-card{padding:20px 23px;border-radius:27px}.health-card small{font-size:15px}.health-card strong{font-size:25px}
+ .panel{padding:28px;border-radius:30px}.panel>.muted,.section-heading>span{font-size:15px}
+ .charts{margin-top:27px;gap:30px}.chart+.chart{padding-left:30px}
+ .chart-title strong{font-size:40px}.chart-title span,.axis{font-size:15px}
+ .chart svg{height:clamp(190px,20vh,275px);margin-top:18px}.chart svg text{font-size:15px}
+ #view-traffic .chart svg{height:clamp(235px,27vh,375px)}
+ .measurement-table summary{font-size:15px;margin-top:15px}.measurement-table table{font-size:16px}.measurement-table th{font-size:15px}
+ table{font-size:17.5px}th,td small,.pill{font-size:15px}td,th{padding:18px 15px}
+ footer{font-size:13px}.panel.view{max-height:calc(100dvh - 370px);min-height:450px}
+ .glass-nav{width:75px;padding:10px;border-radius:42px;left:25px}.glass-nav nav{gap:10px}
+ .glass-nav a{width:55px;height:55px}.glass-nav a svg{width:26px;height:26px}.nav-label{font-size:15px;padding:9px 15px;left:calc(100% + 24px)}
+}
+@media(min-width:1800px) and (max-height:950px){.workspace{gap:14px;margin-top:22px}.overview-content{gap:16px}.health-card{padding:14px 20px}.panel{padding:22px}.chart svg{height:175px}.charts{margin-top:18px}}
+@supports not (backdrop-filter:blur(1px)){.glass-nav,.toolbar,.panel,.health-card,#notice{background:#302b2a}}
+@media(forced-colors:active){.panel,.health-card,.glass-nav,#notice,.toolbar,#view-detections,#view-blocks{background:Canvas;color:CanvasText}}
+@media(min-width:1800px){.workspace{min-height:calc(100dvh - 59px)}}
+@media(min-width:1800px) and (max-height:950px){.workspace{min-height:calc(100dvh - 46px)}}
