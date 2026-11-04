@@ -1,5 +1,5 @@
 {
-  "status": "collaborator-reported-csv-inventory-not-independent-verification",
+  "status": "collaborator-reported-csv-and-pcap-inventory-not-independent-verification",
   "dataset": "CIC-DDoS2019",
   "reported_by": "iamnobody0101",
   "reported_access_date": "2026-10-29",
@@ -8,7 +8,7 @@
   "source_page_url": "https://cicresearch.ca/CICDataset/CICDDoS2019/",
   "reported_storage_root": "C:\\Users\\iamno\\datasets\\cic-ddos2019",
   "checksum_origin": "Locally computed by Vince; not publisher-provided or independently recomputed here",
-  "pcap_status": "No PCAP download reported; exact members, sizes and selection pending",
+  "pcap_status": "Vince reports all five archives downloaded and extracted; members, hashes, labels, timezone and independent runs have not been verified by Ali",
   "archives": [
     {
       "filename": "CSV-01-12.zip",
@@ -67,9 +67,97 @@
     }
   ],
   "limitations": [
+    "All archive sizes and checksums are collaborator-reported; no raw member content or hashes were independently checked by Ali.",
+    "Direct archive URLs and publisher metadata were not verified by the November 4 read-only source check; the source page URL is not an archive URL.",
     "Flow-level labels are not packet labels or the project feature table.",
-    "Calendar dates, timezone, victim/filter metadata and independent runs remain unverified.",
-    "MSSQL is outside project scope.",
-    "No independently verified labelled packet-window sample exists in this inventory."
-  ]
+    "Reported packet-derived timestamps and apparent source/victim identities are not independent verification of labels or schedule timezone.",
+    "The partial scan does not establish complete windows, benign evidence, capture coverage or independent runs.",
+    "MSSQL and other out-of-scope traffic must be excluded from selected packets/windows; removing CSV rows alone is insufficient.",
+    "DrDoS_UDP and UDP may represent different reflection/flood scenarios; the folder-based split remains provisional.",
+    "No independently reviewed enriched packet-window sample or final split is supplied by this inventory."
+  ],
+  "updated_date": "2026-11-04",
+  "pcap_evidence_url": "https://github.com/aydsman/ML-DDoS-Detector/issues/3#issuecomment-6617753926",
+  "pcap_reported_date": "2026-11-03",
+  "pcap_reported_storage_root": "C:\\Users\\iamno\\datasets\\cic-ddos2019\\pcaps",
+  "pcap_archives": [
+    {
+      "filename": "PCAP-01-12_0-0249.zip",
+      "size_bytes": 7882529451,
+      "sha256": "E7A59B0E24A366D87982345E9A4197BF45061C89B83A8300DD7DDFBE7E63471E",
+      "download_url": null,
+      "verified_split": null,
+      "independently_verified": false
+    },
+    {
+      "filename": "PCAP-01-12_0250-0499.zip",
+      "size_bytes": 9474338816,
+      "sha256": "4B83498DA02E8F13324027BE0D691B1B79D158D48828909A6C538B92C33A797E",
+      "download_url": null,
+      "verified_split": null,
+      "independently_verified": false
+    },
+    {
+      "filename": "PCAP-01-12_0500-0749.zip",
+      "size_bytes": 3071127389,
+      "sha256": "09736BA757FD69D09B871DF6FE3D09F49A4320ABDDCA5BB19CBD0D0132762554",
+      "download_url": null,
+      "verified_split": null,
+      "independently_verified": false
+    },
+    {
+      "filename": "PCAP-01-12_0750-0818.zip",
+      "size_bytes": 462715773,
+      "sha256": "89F81501B60C34F311805B611813931A6A6B31092648CE42A5F8842C31720084",
+      "download_url": null,
+      "verified_split": null,
+      "independently_verified": false
+    },
+    {
+      "filename": "PCAP-03-11.zip",
+      "size_bytes": 2000948331,
+      "sha256": "CDC8935296CAB7A2354D4FD32939F7D5E6C592371E5FB89D6A3094CC05DC38C5",
+      "download_url": null,
+      "verified_split": null,
+      "independently_verified": false
+    }
+  ],
+  "pcap_inspection": {
+    "status": "collaborator-reported-partial-scan-not-ground-truth",
+    "reported_format": "classic pcap with Ethernet frames; members have no filename extension",
+    "reported_sampling": "First 3000 packets of each piece, plus TCP flags on three pieces",
+    "reported_free_space_bytes": null,
+    "reported_free_space_description": "approximately 1.4 TB; unit convention and current availability not independently checked",
+    "reported_candidates": [
+      {
+        "collection": "01-12",
+        "archive": "PCAP-01-12_0500-0749.zip",
+        "member_suffixes": [
+          "0618",
+          "0619",
+          "0620"
+        ],
+        "full_member_names": null,
+        "member_sha256": null,
+        "scenario": "SYN candidate inferred from the reported packet scan; not an independent label",
+        "reported_interval": "2018-12-01 approximately 17:30:30 to 17:34:40 UTC",
+        "independently_verified": false
+      },
+      {
+        "collection": "01-12",
+        "archive": null,
+        "member_suffixes": null,
+        "full_member_names": null,
+        "member_sha256": null,
+        "scenario": "Small named UDP selection still needed; DrDoS_UDP and UDP may be different scenarios",
+        "reported_interval": null,
+        "independently_verified": false
+      }
+    ],
+    "selected_enriched_window_sample": null,
+    "packet_flow_join_evidence": null,
+    "verified_timezone_mapping": null,
+    "verified_victim_filter": null,
+    "independent_run_assignment": null
+  }
 }
