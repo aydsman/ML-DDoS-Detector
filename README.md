@@ -167,7 +167,7 @@ From the repository root:
 ./.venv/bin/python -m pytest -q
 ```
 
-The current tests cover the feature extractor and window grouping, the version-one feature contract checks, packet normalization, and the legitimate HTTP client, including pacing, error handling, and exports. Passing them does not validate live detection, model quality, lab integration, or firewall mitigation. Dependency versions are not locked yet, so installations can resolve different package versions.
+The current tests cover the feature extractor and window grouping, the version-one feature contract checks, packet normalization, the legitimate HTTP client (pacing, error handling and exports), and offline checks for the bounded SYN/UDP scenario runner. Passing them does not validate live scenario delivery, detection, model quality, lab integration, or firewall mitigation. Dependency versions are not locked yet, so installations can resolve different package versions.
 
 ### Automated checks
 
@@ -187,11 +187,13 @@ Start here if you are not sure where your work belongs. The "Main owner" column 
 | `ddos_detector/normalize.py` | Shared raw-packet normalization (IPv4 only) for offline PCAP and live capture; skip reasons are counted. | Vince |
 | `ddos_detector/contracts.py` | Version-one feature input checks: exact names, order, finite nonnegative values. | Ayden |
 | `ddos_detector/config.py` | Shared settings (window length, data folder) and the feature name list. | Vince |
+| `ddos_detector/scenarios.py` | Bounded SYN/UDP lab scenarios, offline preview, paced sending, interruption handling and run records. | Mujtaba |
+| `docs/scenarios.md` | Scenario commands, record schema and pending isolated-lab acceptance checks. | Mujtaba, Ali (evaluation review) |
 | `ddos_detector/http_client.py` | Legitimate HTTP client: capped rates, local/lab targets, bounded concurrency, epoch timestamps, and incremental draft JSON/CSV exports. See [client instructions](docs/http-client.md). | Mujtaba |
 | `ddos_detector/pcap.py`, `frames.py`, `aggregate.py`, `offline.py` | Classic pcap reader, Ethernet/inbound frame parser, streaming window aggregator, and the offline command-line entry point. | Vince |
 | `ddos_detector/live.py`, `capture.py` | Live pipeline (frames in, window records out, with an unavailable status on capture failure), its replay/live command line, and the Linux AF_PACKET frame source. | Vince |
 | `tools/verify_pcap_features.py` | Recomputes every window's features from tshark or scapy output and compares them with the package. | Vince |
-| `tests/` | pytest suite. `tests/test_features.py` covers the feature extractor and window grouping, `tests/test_normalize.py` packet normalization, `tests/test_contracts.py` the feature contract checks, and `tests/test_http_client.py` / `tests/test_http_client_accounting.py` the HTTP client and exports. | Ali (QA), everyone adds tests for their own code |
+| `tests/` | pytest suite covering feature extraction, window grouping, packet normalization, feature contracts, live and offline capture, HTTP client accounting and exports, and offline scenario checks. | Ali (QA), everyone adds tests for their own code |
 | `docs/design.md` | Design decisions: dataset, 1 second window, feature list, leakage rules, open items. | Ayden, Vince |
 | `docs/test-plan.md` | Week 1 QA scenarios, acceptance checks, prerequisites, and owner review decisions. | Ali |
 | `docs/measurement-formats.md` | Proposed metric definitions, collection methods, and experiment record format. | Ali, component owners review |
@@ -217,6 +219,7 @@ Not in the repository yet: live packet capture, model training, the backend API,
 There is no end-to-end pipeline to run yet. What you can do today:
 
 * Run the feature-extraction tests (see [Run the tests](#run-the-tests)).
+* Preview the [bounded SYN/UDP scenarios](docs/scenarios.md) offline. Live sending is restricted to the isolated Linux attacker VM. Vince's lab recheck of Ctrl+C during ARP and the evaluation-format review remain pending.
 * Review the [QA test plan](docs/test-plan.md) and [measurement formats](docs/measurement-formats.md) before recording experiment results. Later collection decisions and lab evidence remain pending.
 * Try the [HTTP client locally](docs/http-client.md), with a configurable request rate and duration and optional JSON/CSV exports. PR #7 is merged after review; retain each lab run's tested revision and evidence.
 * Build the isolated lab and verify packet capture with [the lab setup notes](docs/lab-setup.md).
@@ -272,6 +275,7 @@ Usage examples for live capture, training, and mitigation will be added as those
 - [x] Shared feature extractor with tests, and CI
 - [x] Isolated three-VM lab with verified packet capture
 - [ ] Legitimate-traffic generator on the client VM
+- [ ] Bounded SYN/UDP scenarios verified in the lab (runner and offline tests implemented)
 - [ ] PCAP reader and labelling
 - [ ] Offline Random Forest model, then MLP comparison
 - [ ] Live capture on the protected server
