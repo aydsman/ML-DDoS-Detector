@@ -242,6 +242,8 @@ To check the output against an independent computation (tshark by default; set `
 .\.venv\Scripts\python.exe -m tools.verify_pcap_features --engine scapy capture.pcap
 ```
 
+Both references skip IPv4 records whose Total Length is smaller than their own header (the package's `bad_length`) and keep valid truncated captures and non-first fragments with their declared length and unknown TCP flags. The scapy engine prints each skipped packet; tshark does not output such records at all, so it prints nothing for them.
+
 Raw captures stay under the gitignored `data/` folder and are never committed; tests that need real captures or tshark skip themselves when they are absent.
 
 ### Live capture
