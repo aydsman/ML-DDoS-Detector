@@ -120,7 +120,10 @@ def packet_scope(data, victim):
     src = ".".join(map(str, data[26:30]))
     fragment = bool(struct.unpack(">H", data[20:22])[0] & 0x1FFF)
     sport = dport = None
-    if proto in (6, 17) and not fragment and len(data) >= 14 + ihl + 4:
+    total_length = struct.unpack(">H", data[16:18])[0]
+    # bounded by the declared IPv4 Total Length as well as the captured bytes, so Ethernet
+    # padding is never read as ports
+    if proto in (6, 17) and not fragment and min(len(data) - 14, total_length) >= ihl + 4:
         sport, dport = struct.unpack(">HH", data[14 + ihl:14 + ihl + 4])
     return src, sport, dst, dport, proto
 
@@ -138,7 +141,8 @@ def offset_test(flows, pieces, candidate_hours, victim):
             if len(data) < 38 or data[12:14] != b"\x08\x00" or data[23] not in (6, 17):
                 continue
             ihl = (data[14] & 0x0F) * 4
-            if len(data) < 14 + ihl + 4 or struct.unpack(">H", data[20:22])[0] & 0x1FFF:
+            if (min(len(data) - 14, struct.unpack(">H", data[16:18])[0]) < ihl + 4
+                    or struct.unpack(">H", data[20:22])[0] & 0x1FFF):
                 continue
             sport, dport = struct.unpack(">HH", data[14 + ihl:14 + ihl + 4])
             key = (".".join(map(str, data[26:30])), sport, ".".join(map(str, data[30:34])),

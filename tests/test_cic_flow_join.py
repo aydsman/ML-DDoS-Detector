@@ -95,6 +95,16 @@ class CicFlowJoinTests(unittest.TestCase):
         _, reasons = join.label_windows(both, [self.pcap], VICTIM, {"Syn"}, off)
         self.assertEqual(reasons["ambiguous_labels"], 2)
 
+    def test_padding_beyond_ip_total_length_is_not_read_as_ports(self):
+        padded = ip_frame(ATTACKER, VICTIM, 6, b"") + bytes([0x03, 0xE8, 0x00, 0x50]) + bytes(16)
+        path = str(Path(self.dir.name) / "padded")
+        write_pcap(path, [(self.t0, padded)])
+        data = next(d for _, d in join.iter_packets(path))
+        self.assertEqual(join.packet_scope(data, VICTIM), (ATTACKER, None, VICTIM, None, 6))
+        # the offset test must not match a flow whose ports only exist in the padding
+        flows = [flow((ATTACKER, 1000, VICTIM, 80, 6), self.csv0, 100, "Syn")]
+        self.assertEqual(join.offset_test(flows, [path], [4], VICTIM), {4: 0})
+
     def test_reverse_direction_packets_match_the_initiators_flow(self):
         off = 4 * HOUR
         reverse = [flow((VICTIM, 80, ATTACKER, 1000, 6), self.csv0, 100, "Syn")]

@@ -8,6 +8,7 @@
   ],
   "benign_windows_available": 0,
   "csv_flows": 1582681,
+  "icmp_as_protocol0": false,
   "limitations": [
     "CSV labels are the dataset's own; only packet-to-flow consistency is checked here.",
     "Packets matched to CSV BENIGN flows count as unknown, not verified benign.",
@@ -35,7 +36,7 @@
     "no_matching_flow_interval": 611231
   },
   "python": "3.12.10",
-  "run_at_utc": "2026-11-05T04:57:42.617412+00:00",
+  "run_at_utc": "2026-11-05T05:24:05.113562+00:00",
   "tool": "tools/cic_flow_join.py",
   "tool_version": "1",
   "victim": "192.168.50.1",
