@@ -81,7 +81,7 @@ Implemented by `normalize_ip_packet()` in `ddos_detector/normalize.py` and `wind
 
 See [the bounded subset and labeling plan](dataset-plan.md) and [manifest template](dataset-manifest.example.json). The source/download-access check is recorded there; a template is not a verified inventory.
 
-- Train offline on a small raw-PCAP subset of CIC-DDoS2019, initially SYN, UDP, and benign traffic only. DNS/NTP are outside the initial scope. Vince has reported a CSV inventory and local storage location, recorded in [dataset-plan.md](dataset-plan.md) and [the reported inventory](dataset-inventory-reported.json). Actual PCAP names/member URLs, sizes, ground truth, disk needs and selected splits remain unverified.
+- Train offline on a small raw-PCAP subset of CIC-DDoS2019, initially SYN, UDP, and benign traffic only. DNS/NTP are outside the initial scope. Vince has reported CSV and PCAP archive inventories and local storage locations, recorded in [dataset-plan.md](dataset-plan.md) and [the reported inventory](dataset-inventory-reported.json). The archive byte sizes/hashes are reported, not independently recomputed. Exact selected member names/hashes, direct URLs, ground truth, timezone/victim evidence and independent split assignments still require verification; see [Ali's review status](dataset-review.md).
 - Keep raw captures/CSV archives outside Git, preferably outside synced project folders; a gitignored local `data/` is optional. Vince reports `C:\Users\iamno\datasets\cic-ddos2019\`. Commit manifests and small reviewed samples only, never full captures or generated datasets.
 - Verify whether official metadata supplies the necessary attack types, attacker/victim identities, and time intervals. An attack schedule alone must not be assumed to identify individual attack packets, especially with spoofed sources.
 - A candidate packet label requires verified attack-interval and attacker-to-victim evidence. Traffic lacking trustworthy ground truth stays unlabelled; do not automatically call it benign.
@@ -100,7 +100,7 @@ Do not feed raw IPs, ports, flow IDs, or timestamps into the model. Keep provena
 
 ### Dataset completion evidence
 
-Vince and Ali must produce a small inspectable sample (for example five minutes benign and five minutes attack), with feature records, label provenance, mixed/boundary examples, and shared offline/live normalization checks. CSV access is reported by Vince; PCAP access and valid packet-window labels are not established by that report. Dataset validity remains pending the evidence above.
+Vince and Ali must produce a small inspectable sample (for example five minutes benign and five minutes attack), with feature records, label provenance, mixed/boundary examples, and shared offline/live normalization checks. CSV and PCAP access are now reported by Vince; that does not establish independently reviewed member hashes or valid packet-window labels. Dataset validity remains pending the evidence above and [Ali's real-sample review](dataset-review.md).
 
 ## Remaining decisions and workflow
 

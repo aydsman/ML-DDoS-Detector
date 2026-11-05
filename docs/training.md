@@ -31,7 +31,7 @@ Linux uses `./.venv/bin/python` in place of the Windows interpreter. No VM, pack
 
 ## Real-data handoff format
 
-Supply a JSON array of enriched windows and a separate JSON manifest. The manifest is an explicit split assignment and review record, not the original CIC flow CSV. Raw captures stay outside Git. Vince's proposed PR #18 exports flat feature records without labels/run provenance; a reviewed join into this format is still required. Do not infer labels from extractor output or rename its CSV as a training dataset.
+Supply a JSON array of enriched windows and a separate JSON manifest. The manifest is an explicit split assignment and review record, not the original CIC flow CSV. Raw captures stay outside Git. The extractor merged in PR #18 exports flat feature records without labels/run provenance; a reviewed join into this format is still required. Follow [Ali's independent-review handoff](dataset-review.md) for the evidence required beyond loader checks. Do not infer labels from extractor output or rename its CSV as a training dataset.
 
 Manifest fields:
 
@@ -81,7 +81,7 @@ For scoring one saved feature record, provide a JSON object with `features`, `fe
 ## What remains before W2 is Done
 
 - Vince/Ayden: select actual usable PCAP subset and metadata; agree independently separated runs and make the labelled-window join reproducible.
-- Vince: verify extraction/coverage and offline/live feature compatibility (PR #18 is still separate work, not automatically approved by this pipeline).
+- Vince: supply extraction/coverage and offline/live feature-compatibility evidence for the actual selected data. PR #18 is merged, but that alone does not verify dataset labels or the selected sample.
 - Ali or the delegated reviewer: independently inspect label/exclusion sample and split evidence.
 - Ayden: prepare the real table, train baseline, choose settings/threshold from validation, save/reload and record actual evaluation/provenance/limitations.
 - Peer review and passing CI, then merge this task into `development`. Weekly promotion into `main` is a separate reviewed milestone.
