@@ -12,6 +12,13 @@ nothing is extracted; raw captures stay outside Git.
 --max-packets limits how many packets are read from the START of each piece;
 the report records the limit and whether it truncated the scan, so a sampled
 result is never presented as a full-piece result.
+
+Scope: --victim selects only the *_to_victim counters.  ipv4_protocols and the global
+source/destination totals cover every valid IPv4 packet, and rate_per_second covers every
+complete packet record (including non-IPv4 and malformed ones) in seconds that have at
+least one packet.  See "scope_notes" in the output.  TCP flags / UDP ports are read only
+from first fragments whose declared IPv4 Total Length and captured bytes both contain
+the transport header.
 """
 import argparse
 import datetime
@@ -31,6 +38,17 @@ MAGICS = {
 }
 PROTOS = {1: "icmp", 6: "tcp", 17: "udp"}
 TOP_N = 5
+SCOPE_NOTES = {
+    "victim_scoped": ["top_sources_to_victim", "tcp_flag_classes_to_victim",
+                      "udp_top_dst_ports_to_victim", "transport_unreadable_to_victim"],
+    "global_valid_ipv4": ["ipv4_protocols", "top_sources_all", "top_destinations_all"],
+    "global_all_records": ["rate_per_second counts every complete packet record, including "
+                           "non-IPv4 and malformed ones, and only seconds that contain at least "
+                           "one packet: it is not victim traffic and says nothing about "
+                           "continuous coverage"],
+    "transport_fields": "TCP flags and UDP ports are read only for first fragments whose declared "
+                        "IPv4 Total Length and captured bytes both contain the transport header",
+}
 
 
 def sha256_file(path, chunk=1 << 22):
@@ -79,6 +97,7 @@ def inspect_piece(path, victim, max_packets, do_hash):
     src_to_victim = Counter()
     ports_udp = Counter()
     non_ipv4 = 0
+    unreadable = Counter()
     malformed_ipv4 = 0
     non_first_fragments = 0
     truncated_pkt = 0
@@ -139,10 +158,20 @@ def inspect_piece(path, victim, max_packets, do_hash):
                 # header, so its bytes must not be read as TCP flags or UDP ports.
                 non_first_fragments += 1
                 continue
-            if p == 6 and to_victim and len(data) >= 14 + ihl + 14:
-                flags[flag_class(data[14 + ihl + 13])] += 1
-            if p == 17 and to_victim and len(data) >= 14 + ihl + 4:
-                ports_udp[struct.unpack(">H", data[14 + ihl + 2:14 + ihl + 4])[0]] += 1
+            # The readable IP extent is bounded by the declared Total Length as well as
+            # the captured bytes, so Ethernet padding or trailing bytes are never read
+            # as transport fields.
+            ip_extent = min(len(data) - 14, total_length)
+            if p == 6 and to_victim:
+                if ip_extent >= ihl + 14:
+                    flags[flag_class(data[14 + ihl + 13])] += 1
+                else:
+                    unreadable["tcp"] += 1
+            if p == 17 and to_victim:
+                if ip_extent >= ihl + 4:
+                    ports_udp[struct.unpack(">H", data[14 + ihl + 2:14 + ihl + 4])[0]] += 1
+                else:
+                    unreadable["udp"] += 1
         at_eof = not truncated_pkt and not handle.read(1)
     rates = sorted(per_second.values())
     report["scan"] = {
@@ -168,6 +197,7 @@ def inspect_piece(path, victim, max_packets, do_hash):
     report["top_sources_all"] = src_all.most_common(TOP_N)
     report["top_destinations_all"] = dst_all.most_common(TOP_N)
     report["top_sources_to_victim"] = src_to_victim.most_common(TOP_N)
+    report["transport_unreadable_to_victim"] = dict(unreadable)
     report["tcp_flag_classes_to_victim"] = dict(flags)
     report["udp_top_dst_ports_to_victim"] = ports_udp.most_common(TOP_N)
     return report
@@ -176,7 +206,11 @@ def inspect_piece(path, victim, max_packets, do_hash):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("pieces", nargs="+")
-    ap.add_argument("--victim", help="only count packets whose IPv4 dst equals this")
+    ap.add_argument("--victim", help=(
+        "IPv4 address that selects the *_to_victim counters only (top_sources_to_victim, "
+        "tcp_flag_classes_to_victim, udp_top_dst_ports_to_victim, "
+        "transport_unreadable_to_victim). It does NOT filter ipv4_protocols, "
+        "top_sources_all, top_destinations_all or rate_per_second, which are global."))
     ap.add_argument("--max-packets", type=int, default=None)
     ap.add_argument("--no-hash", action="store_true")
     ap.add_argument("--out")
@@ -185,6 +219,7 @@ def main(argv=None):
         "tool": "tools/inspect_cic_pcap.py", "tool_version": TOOL_VERSION,
         "python": sys.version.split()[0],
         "run_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "scope_notes": SCOPE_NOTES,
         "pieces": [inspect_piece(p, args.victim, args.max_packets, not args.no_hash)
                    for p in args.pieces],
     }

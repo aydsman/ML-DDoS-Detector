@@ -90,6 +90,46 @@ class InspectCicPcapTests(unittest.TestCase):
         self.assertEqual(r["tcp_flag_classes_to_victim"], {"syn": 1})
         self.assertEqual(r["top_sources_to_victim"], [("172.16.0.5", 1)])
 
+    def test_padding_beyond_ip_total_length_is_not_read_as_transport(self):
+        path = Path(self.dir.name) / "padded"
+        # IPv4 Total Length 20 = header only; the trailing bytes are Ethernet padding
+        syn_like = bytearray(20)
+        syn_like[13] = 0x02       # lands on the TCP flags byte
+        port_like = bytearray(20)
+        port_like[2:4] = b"\x00\x35"  # lands on the UDP destination port
+        _write_pcap(path, [
+            (1.0, _ip_packet("172.16.0.5", "192.168.50.1", 6, b"") + bytes(syn_like)),
+            (1.1, _ip_packet("172.16.0.5", "192.168.50.1", 17, b"") + bytes(port_like)),
+            (1.2, _ip_packet("172.16.0.5", "192.168.50.1", 6, _tcp(0x02))),
+        ])
+        r = tool.inspect_piece(str(path), "192.168.50.1", None, False)
+        self.assertEqual(r["tcp_flag_classes_to_victim"], {"syn": 1})
+        self.assertEqual(r["udp_top_dst_ports_to_victim"], [])
+        self.assertEqual(r["transport_unreadable_to_victim"], {"tcp": 1, "udp": 1})
+        self.assertEqual(r["ipv4_protocols"], {"tcp": 2, "udp": 1})
+        self.assertEqual(r["top_sources_to_victim"], [("172.16.0.5", 3)])
+
+    def test_snaplen_truncated_capture_keeps_ip_fields_without_inventing_transport(self):
+        path = Path(self.dir.name) / "snaplen"
+        # declared Total Length 100 but only 10 TCP bytes captured: flags are unreadable
+        _write_pcap(path, [(1.0, _ip_packet("172.16.0.5", "192.168.50.1", 6,
+                                            _tcp(0x02)[:10], total_length=100))])
+        r = tool.inspect_piece(str(path), "192.168.50.1", None, False)
+        self.assertEqual(r["tcp_flag_classes_to_victim"], {})
+        self.assertEqual(r["transport_unreadable_to_victim"], {"tcp": 1})
+        self.assertEqual(r["ipv4_protocols"], {"tcp": 1})
+        self.assertEqual(r["top_sources_to_victim"], [("172.16.0.5", 1)])
+
+    def test_scope_notes_state_which_counters_are_global(self):
+        path = Path(self.dir.name) / "scope"
+        _write_pcap(path, [(1.0, _ip_packet("172.16.0.5", "10.0.0.9", 6, _tcp(0x02)))])
+        r = tool.inspect_piece(str(path), "192.168.50.1", None, False)
+        # a packet to another host still appears in the global counters, not victim ones
+        self.assertEqual(r["ipv4_protocols"], {"tcp": 1})
+        self.assertEqual(r["top_sources_to_victim"], [])
+        self.assertIn("rate_per_second", " ".join(tool.SCOPE_NOTES["global_all_records"]))
+        self.assertIn("transport_unreadable_to_victim", tool.SCOPE_NOTES["victim_scoped"])
+
     def test_partial_record_header_is_reported_as_truncated(self):
         path = Path(self.dir.name) / "partial"
         _write_pcap(path, [(1.0, _ip_packet("172.16.0.5", "192.168.50.1", 6, _tcp(0x02)))])
