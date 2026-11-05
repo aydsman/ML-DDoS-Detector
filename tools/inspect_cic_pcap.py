@@ -79,6 +79,8 @@ def inspect_piece(path, victim, max_packets, do_hash):
     src_to_victim = Counter()
     ports_udp = Counter()
     non_ipv4 = 0
+    malformed_ipv4 = 0
+    non_first_fragments = 0
     truncated_pkt = 0
     total = 0
     first = last = None
@@ -94,7 +96,10 @@ def inspect_piece(path, victim, max_packets, do_hash):
         rec = struct.Struct(endian + "IIII")
         while max_packets is None or total < max_packets:
             raw = handle.read(16)
+            if not raw:
+                break
             if len(raw) < 16:
+                truncated_pkt += 1  # partial record header: incomplete input, not clean EOF
                 break
             sec, frac, incl, orig = rec.unpack(raw)
             data = handle.read(incl)
@@ -111,6 +116,15 @@ def inspect_piece(path, victim, max_packets, do_hash):
                 non_ipv4 += 1
                 continue
             ihl = (data[14] & 0x0F) * 4
+            total_length = struct.unpack(">H", data[16:18])[0]
+            # Scope rule: a usable IPv4 packet has version 4, a real header that was
+            # captured, and a Total Length covering that header.  Anything else is
+            # counted separately and never contributes to the parsed statistics.
+            if (data[14] >> 4 != 4 or ihl < 20 or len(data) < 14 + ihl
+                    or total_length < ihl):
+                malformed_ipv4 += 1
+                continue
+            fragment_offset = struct.unpack(">H", data[20:22])[0] & 0x1FFF
             p = data[23]
             src = ".".join(map(str, data[26:30]))
             dst = ".".join(map(str, data[30:34]))
@@ -120,17 +134,24 @@ def inspect_piece(path, victim, max_packets, do_hash):
             to_victim = victim is None or dst == victim
             if to_victim:
                 src_to_victim[src] += 1
+            if fragment_offset:
+                # A non-first fragment carries payload continuation, not a transport
+                # header, so its bytes must not be read as TCP flags or UDP ports.
+                non_first_fragments += 1
+                continue
             if p == 6 and to_victim and len(data) >= 14 + ihl + 14:
                 flags[flag_class(data[14 + ihl + 13])] += 1
             if p == 17 and to_victim and len(data) >= 14 + ihl + 4:
                 ports_udp[struct.unpack(">H", data[14 + ihl + 2:14 + ihl + 4])[0]] += 1
-        at_eof = not handle.read(1)
+        at_eof = not truncated_pkt and not handle.read(1)
     rates = sorted(per_second.values())
     report["scan"] = {
         "packets_read": total,
         "reached_end_of_file": at_eof,
         "truncated_final_record": bool(truncated_pkt),
         "non_ipv4_or_unparsed": non_ipv4,
+        "malformed_ipv4_excluded": malformed_ipv4,
+        "non_first_fragments_no_transport_parse": non_first_fragments,
     }
     if total:
         report["time"] = {
