@@ -1,0 +1,408 @@
+{
+  "artifacts": {
+    "coverage.json": {
+      "bytes": 1341,
+      "sha256": "a4bb763320ed2f86264f86d9a5843084c7cc35aadf14ed2e880fa4d866b9128e"
+    },
+    "manifest.json": {
+      "bytes": 1745,
+      "sha256": "be1be39a49ad0784c822d0ea15ba926a24e6ced4534072efeca82e13189eadda"
+    },
+    "windows.json": {
+      "bytes": 434637,
+      "sha256": "aced6b0466e092378771770dd1417d0c1ab01fca75c28d3b4449e9cb0612fe72"
+    }
+  },
+  "assigned_splits": {
+    "cic-2018-12-01-syn-a": null
+  },
+  "audit_scope": "Committed candidate JSON internal consistency only; raw PCAP/CSV unavailable",
+  "audit_script_sha256": "765aabfe050fc7028398164a31987bb1513d5def1689fcaaddb07950f7d73798",
+  "audited_at_utc": "2026-11-07T03:25:12.787006+00:00",
+  "boundary_count": 4,
+  "boundary_rows": [
+    {
+      "capture_id": "SAT-01-12-2018_0618",
+      "first_exclusion_reason": "unknown",
+      "label": "excluded",
+      "unknown_packets": 2,
+      "window_id": "cic-2018-12-01-syn-a-1543685430"
+    },
+    {
+      "capture_id": "SAT-01-12-2018_0618",
+      "first_exclusion_reason": "unknown",
+      "label": "excluded",
+      "unknown_packets": 2,
+      "window_id": "cic-2018-12-01-syn-a-1543685551"
+    },
+    {
+      "capture_id": "SAT-01-12-2018_0619",
+      "first_exclusion_reason": "unknown",
+      "label": "excluded",
+      "unknown_packets": 12314,
+      "window_id": "cic-2018-12-01-syn-a-1543685667"
+    },
+    {
+      "capture_id": "SAT-01-12-2018_0620",
+      "first_exclusion_reason": "unknown",
+      "label": "excluded",
+      "unknown_packets": 18470,
+      "window_id": "cic-2018-12-01-syn-a-1543685970"
+    }
+  ],
+  "candidate_attack_windows": [
+    {
+      "attack_labelled_packets": 19590,
+      "boundary": false,
+      "inside_reported_interval": true,
+      "packet_count": 19590,
+      "syn_count": 19590.0,
+      "syn_packet_fraction": 1.0,
+      "tcp_packets": 19590,
+      "udp_packets": 0,
+      "unknown_packets": 0,
+      "window_id": "cic-2018-12-01-syn-a-1543685431"
+    },
+    {
+      "attack_labelled_packets": 19724,
+      "boundary": false,
+      "inside_reported_interval": true,
+      "packet_count": 19724,
+      "syn_count": 19720.0,
+      "syn_packet_fraction": 0.9997972013790306,
+      "tcp_packets": 19724,
+      "udp_packets": 0,
+      "unknown_packets": 0,
+      "window_id": "cic-2018-12-01-syn-a-1543685434"
+    },
+    {
+      "attack_labelled_packets": 19598,
+      "boundary": false,
+      "inside_reported_interval": true,
+      "packet_count": 19598,
+      "syn_count": 19592.0,
+      "syn_packet_fraction": 0.999693846310848,
+      "tcp_packets": 19598,
+      "udp_packets": 0,
+      "unknown_packets": 0,
+      "window_id": "cic-2018-12-01-syn-a-1543685435"
+    },
+    {
+      "attack_labelled_packets": 19062,
+      "boundary": false,
+      "inside_reported_interval": true,
+      "packet_count": 19062,
+      "syn_count": 19060.0,
+      "syn_packet_fraction": 0.9998950792151925,
+      "tcp_packets": 19062,
+      "udp_packets": 0,
+      "unknown_packets": 0,
+      "window_id": "cic-2018-12-01-syn-a-1543685441"
+    },
+    {
+      "attack_labelled_packets": 20209,
+      "boundary": false,
+      "inside_reported_interval": true,
+      "packet_count": 20209,
+      "syn_count": 20209.0,
+      "syn_packet_fraction": 1.0,
+      "tcp_packets": 20209,
+      "udp_packets": 0,
+      "unknown_packets": 0,
+      "window_id": "cic-2018-12-01-syn-a-1543685545"
+    },
+    {
+      "attack_labelled_packets": 20912,
+      "boundary": false,
+      "inside_reported_interval": true,
+      "packet_count": 20912,
+      "syn_count": 20912.0,
+      "syn_packet_fraction": 1.0,
+      "tcp_packets": 20912,
+      "udp_packets": 0,
+      "unknown_packets": 0,
+      "window_id": "cic-2018-12-01-syn-a-1543685573"
+    },
+    {
+      "attack_labelled_packets": 20686,
+      "boundary": false,
+      "inside_reported_interval": true,
+      "packet_count": 20686,
+      "syn_count": 20686.0,
+      "syn_packet_fraction": 1.0,
+      "tcp_packets": 20686,
+      "udp_packets": 0,
+      "unknown_packets": 0,
+      "window_id": "cic-2018-12-01-syn-a-1543685581"
+    },
+    {
+      "attack_labelled_packets": 20836,
+      "boundary": false,
+      "inside_reported_interval": true,
+      "packet_count": 20836,
+      "syn_count": 20822.0,
+      "syn_packet_fraction": 0.9993280860049913,
+      "tcp_packets": 20826,
+      "udp_packets": 10,
+      "unknown_packets": 0,
+      "window_id": "cic-2018-12-01-syn-a-1543685654"
+    }
+  ],
+  "capture_counts": {
+    "SAT-01-12-2018_0618": {
+      "attack_packets": 2345073,
+      "attack_windows": 5,
+      "excluded_windows": 117,
+      "packets": 2349683,
+      "unknown_packets": 4610,
+      "windows": 122
+    },
+    "SAT-01-12-2018_0619": {
+      "attack_packets": 2361972,
+      "attack_windows": 3,
+      "excluded_windows": 113,
+      "packets": 2379112,
+      "unknown_packets": 17140,
+      "windows": 116
+    },
+    "SAT-01-12-2018_0620": {
+      "attack_packets": 0,
+      "attack_windows": 0,
+      "excluded_windows": 241,
+      "packets": 599593,
+      "unknown_packets": 599593,
+      "windows": 241
+    }
+  },
+  "capture_states_as_supplied": {
+    "valid": 479
+  },
+  "checks_performed": 12482,
+  "feature_parity_independently_verified": false,
+  "grid_observation": {
+    "end": 1543685971,
+    "gaps": [
+      {
+        "end": 1543685726,
+        "seconds": 4,
+        "start": 1543685722
+      },
+      {
+        "end": 1543685736,
+        "seconds": 4,
+        "start": 1543685732
+      },
+      {
+        "end": 1543685742,
+        "seconds": 1,
+        "start": 1543685741
+      },
+      {
+        "end": 1543685746,
+        "seconds": 2,
+        "start": 1543685744
+      },
+      {
+        "end": 1543685753,
+        "seconds": 1,
+        "start": 1543685752
+      },
+      {
+        "end": 1543685756,
+        "seconds": 1,
+        "start": 1543685755
+      },
+      {
+        "end": 1543685764,
+        "seconds": 1,
+        "start": 1543685763
+      },
+      {
+        "end": 1543685772,
+        "seconds": 1,
+        "start": 1543685771
+      },
+      {
+        "end": 1543685776,
+        "seconds": 2,
+        "start": 1543685774
+      },
+      {
+        "end": 1543685783,
+        "seconds": 1,
+        "start": 1543685782
+      },
+      {
+        "end": 1543685785,
+        "seconds": 1,
+        "start": 1543685784
+      },
+      {
+        "end": 1543685793,
+        "seconds": 1,
+        "start": 1543685792
+      },
+      {
+        "end": 1543685796,
+        "seconds": 1,
+        "start": 1543685795
+      },
+      {
+        "end": 1543685803,
+        "seconds": 1,
+        "start": 1543685802
+      },
+      {
+        "end": 1543685806,
+        "seconds": 1,
+        "start": 1543685805
+      },
+      {
+        "end": 1543685813,
+        "seconds": 2,
+        "start": 1543685811
+      },
+      {
+        "end": 1543685833,
+        "seconds": 2,
+        "start": 1543685831
+      },
+      {
+        "end": 1543685842,
+        "seconds": 1,
+        "start": 1543685841
+      },
+      {
+        "end": 1543685846,
+        "seconds": 3,
+        "start": 1543685843
+      },
+      {
+        "end": 1543685854,
+        "seconds": 3,
+        "start": 1543685851
+      },
+      {
+        "end": 1543685856,
+        "seconds": 1,
+        "start": 1543685855
+      },
+      {
+        "end": 1543685863,
+        "seconds": 1,
+        "start": 1543685862
+      },
+      {
+        "end": 1543685872,
+        "seconds": 1,
+        "start": 1543685871
+      },
+      {
+        "end": 1543685875,
+        "seconds": 2,
+        "start": 1543685873
+      },
+      {
+        "end": 1543685886,
+        "seconds": 5,
+        "start": 1543685881
+      },
+      {
+        "end": 1543685895,
+        "seconds": 3,
+        "start": 1543685892
+      },
+      {
+        "end": 1543685904,
+        "seconds": 1,
+        "start": 1543685903
+      },
+      {
+        "end": 1543685906,
+        "seconds": 1,
+        "start": 1543685905
+      },
+      {
+        "end": 1543685913,
+        "seconds": 1,
+        "start": 1543685912
+      },
+      {
+        "end": 1543685922,
+        "seconds": 1,
+        "start": 1543685921
+      },
+      {
+        "end": 1543685925,
+        "seconds": 2,
+        "start": 1543685923
+      },
+      {
+        "end": 1543685936,
+        "seconds": 3,
+        "start": 1543685933
+      },
+      {
+        "end": 1543685945,
+        "seconds": 2,
+        "start": 1543685943
+      },
+      {
+        "end": 1543685955,
+        "seconds": 4,
+        "start": 1543685951
+      }
+    ],
+    "interpretation": "Absent rows do not establish quiet intervals or capture loss; default aggregator omits empty rows.",
+    "span_seconds": 541,
+    "start": 1543685430,
+    "unrepresented_seconds": 62
+  },
+  "ground_truth_independently_verified": false,
+  "independent_first_exclusion_reasons": {
+    "unknown": 471
+  },
+  "internal_consistency_passed": true,
+  "labels": {
+    "attack": 8,
+    "excluded": 471
+  },
+  "limits": [
+    "Arithmetic consistency does not reproduce raw packet/flow matching or verify supplied capture_state.",
+    "Reported packet reasons are aggregate totals, not frame/CSV-row join evidence.",
+    "Eight candidate attack labels depend on supplied CSV/offset labels; SYN features alone do not establish ground truth.",
+    "Boundary flags were counted, not recomputed from inaccessible raw piece bounds.",
+    "No independent benign examples, independent runs, or reviewed split are supplied."
+  ],
+  "loader_check": {
+    "error": "data_kind must be synthetic or reviewed_packet_windows",
+    "input_modified": false,
+    "rejected": true,
+    "source_sha256": "e2227f0696859ccb01078b602f4542489ac8ff76b19b2a0f12aa6a75ff5c44a2"
+  },
+  "manifest_capture_count": 3,
+  "manifest_run_count": 1,
+  "problems": [],
+  "protocol_counts_from_feature_shares": {
+    "icmp": 9966,
+    "tcp": 5020558,
+    "udp": 297864
+  },
+  "raw_input_hashes_recomputed": false,
+  "reported_exclusion_reasons": {
+    "contains packets with unknown or unverified labels": 471
+  },
+  "source": {
+    "pull_request": 29,
+    "repository": "aydsman/ML-DDoS-Detector",
+    "reviewed_head": "83e62f2ad99dd63f81a5a963183632786bae95e9"
+  },
+  "timezone_verified": false,
+  "totals": {
+    "attack_labelled_packets": 4707045,
+    "packet_count": 5328388,
+    "unknown_packets": 621343
+  },
+  "training_approved": false,
+  "window_count": 479
+}

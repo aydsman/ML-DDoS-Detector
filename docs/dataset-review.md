@@ -1,8 +1,8 @@
 # Independent dataset review
 
-Owner: Ali. Checked November 4, 2026 against `development` at `920810f` and the latest discussion in [issue #3](https://github.com/aydsman/ML-DDoS-Detector/issues/3). **Real-data review is pending the reproducible sample.** This document records the review performed so far and the checks needed when the sample arrives.
+Owner: Ali. Latest review: November 6, 2026. [PR #29](https://github.com/aydsman/ML-DDoS-Detector/pull/29) now supplies a candidate SYN join and 479 window records. The [independent review and reproductions](reviews/issue-3-pr29-review.md) reconcile its arithmetic and identify two additional code defects. **Verdict: needs changes; raw-data verification and independent run/split approval remain blocked.** The November 4 evidence review below is retained as historical context; the candidate handoff has now arrived, while the original PCAP/CSV inputs remain unavailable here.
 
-## Evidence available and current verdict
+## November 4 evidence and continuing acceptance limits
 
 | Evidence | What was checked | Result / limitation |
 | --- | --- | --- |
@@ -49,4 +49,4 @@ For code checks, from the repository root:
 
 For feature comparison once a real sample is available, use the existing verifier with a selected PCAP and verified victim address, for example `python -m tools.verify_pcap_features <selected-member> --engine scapy --victim <verified-victim-ip>`. Choose the engine deliberately and keep the command/output with the evidence. This command is not a packet-label or split-independence check.
 
-The independent evidence review remains pending until these inputs exist. Passing synthetic tests or updating this inventory is not a reason to close issue #3.
+The supplied candidate code/JSON has now been reviewed at the exact head recorded above. Raw-evidence verification, repaired-code re-review and split approval remain pending. Passing synthetic tests or reconciling candidate arithmetic is not a reason to close issue #3.
