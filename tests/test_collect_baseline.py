@@ -202,7 +202,7 @@ def test_cli_reports_manifest_and_outcome_exit_code(tmp_path, controlled, capsys
 def test_unknown_resources_are_null_not_invented(monkeypatch):
     monkeypatch.setattr(collector.platform, "system", lambda: "Linux")
     monkeypatch.setattr(collector.os, "cpu_count", lambda: None)
-    monkeypatch.setattr(collector.os, "sysconf", Mock(side_effect=ValueError("not supported")))
+    monkeypatch.setattr(collector.os, "sysconf", Mock(side_effect=ValueError("not supported")), raising=False)
     observed = collector.machine_resources()
     assert observed["cpu_logical_count"] is None and observed["memory_bytes"] is None
     assert "cpu_logical_count" in observed["unavailable_reason"]
