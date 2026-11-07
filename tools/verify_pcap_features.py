@@ -29,20 +29,40 @@ def find_tshark(explicit=None):
     return None
 
 
-def tshark_rows(pcap, victim, tshark):
-    """Inbound IPv4 rows (ts Decimal, src, proto, ip.len, tcp flags or None)."""
+def valid_ipv4_lengths(total_length, header_length):
+    """Scope rule re-stated from the contract, not taken from the package.
+
+    An IPv4 packet is only usable when it has a real header (at least 20 bytes) and
+    its Total Length covers that header; anything else is malformed and is skipped
+    (the package reports it as ``bad_length``).  Valid truncated captures are kept
+    with their declared Total Length.
+    """
+    return (header_length is not None and total_length is not None
+            and header_length >= 20 and total_length >= header_length)
+
+
+def tshark_rows(pcap, victim, tshark, skipped=None):
+    """Inbound IPv4 rows (ts Decimal, src, proto, ip.len, tcp flags or None).
+
+    Malformed IPv4 length records are left out; when ``skipped`` is a list, one
+    ``(timestamp, reason)`` entry is appended for each so the skip is visible.
+    """
     cmd = [tshark, "-r", pcap, "-Y", f"ip.dst=={victim}", "-T", "fields",
            "-E", "occurrence=f", "-E", "separator=/t",
            "-e", "frame.time_epoch", "-e", "ip.src", "-e", "ip.dst", "-e", "ip.proto",
-           "-e", "ip.len", "-e", "tcp.flags"]
+           "-e", "ip.len", "-e", "ip.hdr_len", "-e", "tcp.flags"]
     out = subprocess.run(cmd, capture_output=True, text=True, check=True).stdout
     rows = []
     for line in out.splitlines():
-        ts, src, dst, proto, length, flags = (line.split("\t") + [""] * 6)[:6]
+        ts, src, dst, proto, length, hdr, flags = (line.split("\t") + [""] * 7)[:7]
         # The display filter also matches the quoted inner header of ICMP errors,
         # so re-check the outer destination (first occurrence) here.
         proto = PROTOS.get(proto)
         if proto is None or dst != victim:
+            continue
+        if not valid_ipv4_lengths(int(length) if length else None, int(hdr) if hdr else None):
+            if skipped is not None:
+                skipped.append((ts, f"bad_length ip.len={length or '?'} hdr={hdr or '?'}"))
             continue
         known = proto == "tcp" and flags != ""
         rows.append((Decimal(ts), src, proto, int(length), int(flags, 16) if known else
@@ -50,7 +70,8 @@ def tshark_rows(pcap, victim, tshark):
     return rows
 
 
-def scapy_rows(pcap, victim):
+def scapy_rows(pcap, victim, skipped=None):
+    """Inbound IPv4 rows from Scapy, with the same malformed-length scope as tshark."""
     from scapy.all import IP, TCP, rdpcap
 
     rows = []
@@ -60,6 +81,10 @@ def scapy_rows(pcap, victim):
         ip = p[IP]
         proto = PROTOS.get(str(ip.proto))
         if proto is None:
+            continue
+        if not valid_ipv4_lengths(ip.len, (ip.ihl or 0) * 4):
+            if skipped is not None:
+                skipped.append((str(p.time), f"bad_length ip.len={ip.len} hdr={(ip.ihl or 0) * 4}"))
             continue
         if proto != "tcp":
             flags = 0
@@ -157,14 +182,18 @@ def main(argv=None):
     failed = False
     print(f"{'pcap':40} {'windows':>7} {'packets':>7} {'max_abs':>10} {'max_rel':>10}  result")
     for pcap in args.pcaps:
-        rows = (tshark_rows(pcap, args.victim, tshark) if args.engine == "tshark"
-                else scapy_rows(pcap, args.victim))
+        skipped = []
+        rows = (tshark_rows(pcap, args.victim, tshark, skipped) if args.engine == "tshark"
+                else scapy_rows(pcap, args.victim, skipped))
         result = compare(pcap, rows, config)
+        result["reference_skipped"] = skipped
         ok = not result["problems"]
         failed |= not ok
         print(f"{os.path.basename(pcap):40} {result['windows']:7} {result['packets']:7} "
               f"{max(result['max_abs'].values()):10.2e} {max(result['max_rel'].values()):10.2e}  "
               f"{'OK' if ok else 'MISMATCH'}")
+        for ts, reason in skipped[:20]:
+            print(f"    reference skipped packet at {ts}: {reason}")
         for problem in result["problems"][:20]:
             print("   ", problem)
     return 1 if failed else 0
