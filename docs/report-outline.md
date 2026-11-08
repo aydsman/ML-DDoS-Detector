@@ -30,6 +30,10 @@ Each owner supplies prose, source paths/commit, exact commands and versions, evi
 - The outline and contribution assignments were shared in a comment on [Aadi's Week 1 Trello card](https://trello.com/c/ZRF6obnC). Source is published in PR #10; Ayden approved the outline and responsibilities. Other team acknowledgements remain to be collected.
 - Ayden approved the week-one mock layout/API review in PR #10. The proposed history limits/freshness defaults are provisional; finalize pagination, error responses, per-endpoint freshness, and partial-failure behavior before live integration.
 
+## Prepared component contributions
+
+- [Ayden: ML method, features, data splitting, baseline training and evaluation](contributions/ayden-ml-methodology.md). Prepared November 3 against PR #19 at `07f1d1a`; real-data results remain explicitly pending.
+
 ## Final assembly checklist
 
 - [ ] Confirm instructor rubric and submission format.
