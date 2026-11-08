@@ -68,7 +68,7 @@ Proposed bookkeeping rules, for Ayden's review:
 2. The timer starts at the firewall's confirmed installation time of the first block and is never renewed by repeated detections or by another protocol.
 3. Only firewall-confirmed blocks count as active. A pending request reserves one cap slot, so concurrent requests cannot exceed the cap. A definitively failed request with verified no installation releases the slot and records a structured failure. Timeout/unknown outcome keeps the reservation until reconciliation proves installed or absent; do not release an uncertain installation and exceed the cap.
 4. Maximum active blocks: 20, configurable, a provisional lab value (agreed on #5). When it is reached, further eligible IPs get an `alert` with reason `block_cap_reached`, no existing block is evicted, and nothing is queued. When several IPs become eligible in one window, the heaviest group by packet count is served first, then lowest numeric IPv4 address for ties, so the result is deterministic.
-5. Expiry is removal from the firewall confirmed by the adapter. Until it is confirmed the entry stays active and the slot stays used. After confirmed removal the IP's streaks are reset to zero, so a new block needs three new consecutive qualifying windows. (Alternative: keep the streak and re-block at once. This proposal chooses fresh evidence for every block; the capture sees packets before netfilter drops them, so a blocked source keeps appearing in windows.)
+5. Expiry is removal from the firewall confirmed by the adapter. Until it is confirmed the entry stays active and the slot stays used. After confirmed removal the IP's streaks are reset to zero, so a new block needs three new consecutive qualifying windows. (Alternative: keep the streak and re-block at once. This proposal chooses fresh evidence for every block; continued packet visibility during a block must be measured on the actual adapter/capture path, not inferred from the prediction stream.)
 6. Switching `monitor_only` to `automatic` clears all streaks, so the first automatic block rests on three windows observed in automatic mode. Switching back does not remove existing blocks; they expire normally.
 7. Never block: the protected server, loopback, and every allowlist entry (section 4). A qualifying allowlisted source yields `no_action` with reason `never_block`.
 
@@ -86,7 +86,7 @@ Read from the running `ddos-server` on 2026-11-08 over SSH (read-only, no sudo; 
 | Attacker | `10.10.10.30`: source address of all scenario captures; never allowlisted | pcaps |
 | Capture drops | 0 packets dropped by kernel in the `ctrlc-syn` capture | `ctrlc-syn.log` |
 
-Proposed allowlist entries are in [policy-defaults.json](policy-defaults.json): 10.10.10.10, 10.10.10.20, 127.0.0.0/8, 10.0.2.2, 10.0.2.3 and 10.0.2.15. The management addresses sit on `enp0s3` and never appear in an `enp0s8` capture, so the allowlist protects the management path only if the firewall adapter applies rules to the lab interface or checks the allowlist before any rule. The adapter must enforce both the allowlist check before any action and lab-interface/protected-destination scoping; it is not implemented yet.
+Proposed allowlist entries are in [policy-defaults.json](policy-defaults.json): 10.10.10.10, 10.10.10.20, 127.0.0.0/8, 10.0.2.2, 10.0.2.3 and 10.0.2.15. Management traffic is expected on `enp0s3`, but routing or forged source fields mean the adapter must not assume these addresses can never appear on the lab NIC. Apply allowlist checks before every action and scope enforcement to the verified lab interface/protected destination. The adapter must enforce both the allowlist check before any action and lab-interface/protected-destination scoping; it is not implemented yet.
 
 `allowlist.verified` stays `false`. Enforcement must not be enabled with it: the runtime values above are observed, but the firewall state and the adapter's scope are not. Observed but not enough: `ufw` is active and `nginx` is active on the server (`systemctl is-active`), and `iptables` and `nft` are installed, so the adapter has to coexist with `ufw`.
 
@@ -117,7 +117,7 @@ ICMP: groups are built like TCP and UDP, but no ICMP flood evidence exists, so i
 Both paths use the same `WindowAggregator` in `ddos_detector/aggregate.py`:
 
 - Window index is `floor(ts / window_seconds)`, start is `index * window_seconds`, start inclusive and end exclusive, with timestamps in Unix epoch seconds. Timestamps 100.1 and 100.9 fall in [100, 101); 101.0 falls in [101, 102). A test in `tests/test_policy_defaults.py` pins this.
-- Offline uses the PCAP record timestamp; live uses the kernel receive timestamp (`SO_TIMESTAMPNS`), not the time of processing. This keeps the two paths on the same clock model.
+- Offline uses the PCAP record timestamp. Live prefers the kernel receive timestamp (`SO_TIMESTAMPNS`) and the current source falls back to `time.time()` at receive if ancillary timestamps are absent. Verify the actual timestamp source and clock alignment in lab evidence; do not claim kernel-timestamp coverage merely because the option was requested.
 - A window is finalized once the newest timestamp or the live clock passes its end plus `grace_seconds` (1.0 s). Later packets for it are dropped and counted in `late_dropped`, so a finished window never changes. A decision for window `[t, t+1)` can therefore come about 1 s after `t+1`, plus inference time.
 - Empty or missing intervals: the aggregator emits no record for a window without packets (`emit_empty=False`) and cannot know why. The policy consumer must treat every window index that is not exactly one `window_seconds` after the previous evaluated window as a streak break. This is the same for a measured empty interval and for unavailable capture; only reporting differs. A healthy capture with no packets is reported as zero traffic, while an unavailable capture is reported as unavailable (null rates), never as zero. Offline replays have no coverage information, so their gaps are reported as unknown and are never used as benign windows or as zero traffic. For scale: in the PR #29 candidate captures 62 of 541 seconds have no record.
 - The policy consumer processes windows strictly in order and never re-evaluates a finalized window.
@@ -145,7 +145,7 @@ Proposal: keep the twelve version-one features unchanged for the first validatio
 | Offline/live adapter parity and coverage evidence | Vince, Ali | Not provided by this proposal |
 
 
-## Owner decisions — November 8
+## Owner decisions â€” November 8
 
 Ayden accepts the documented share denominator and bookkeeping design, including pending-slot reservations, no eviction, confirmed-removal expiry, fresh streaks after expiry and mode changes, no timer renewal, numeric-IP tie breaking and allowlist checks plus lab-interface scoping. Unknown installation/removal outcomes retain their cap reservation until verified reconciliation. Returning to monitor-only stops new automatic requests but does not silently claim existing blocks removed; confirmation and expiry still apply. This accepts a design, not working enforcement.
 
