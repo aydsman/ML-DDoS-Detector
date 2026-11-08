@@ -45,7 +45,7 @@ def test_matches_shared_config():
 def test_allowlist_entries_are_valid_and_exclude_attacker():
     entries = [e["address"] for e in defaults()["allowlist"]["entries"]]
     networks = [ipaddress.ip_network(e) for e in entries]
-    assert ipaddress.ip_address("10.10.10.30") not in [n.network_address for n in networks if n.prefixlen == 32]
+    assert all(ipaddress.ip_address("10.10.10.30") not in network for network in networks)
     for must in ("10.10.10.10", "10.10.10.20"):
         assert ipaddress.ip_address(must) in [n.network_address for n in networks if n.prefixlen == 32]
     assert any(ipaddress.ip_address("127.0.0.1") in n for n in networks)

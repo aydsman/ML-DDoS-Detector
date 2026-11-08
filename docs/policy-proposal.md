@@ -1,19 +1,19 @@
 # Policy settings and capture behavior: proposal for issue #5, section 1
 
-Owner: Vince. Reviewers: Ayden (policy/API), Ali. Status: proposal for review. Nothing here enables enforcement, loads a model or claims a tuned threshold. The machine-readable defaults are in [policy-defaults.json](policy-defaults.json); no code reads that file yet. Settled decisions are in [design.md](design.md) and the issue #5 replies; this document adds the missing numbers' method, the block bookkeeping rules and the lab facts.
+Owner: Vince. Reviewers: Ayden (policy/API), Ali. Status: owner-accepted design/defaults; thresholds and runtime allowlist validation remain pending. Nothing here enables enforcement, loads a model or claims a tuned threshold. The machine-readable defaults are in [policy-defaults.json](policy-defaults.json); no code reads that file yet. Settled decisions are in [design.md](design.md) and the issue #5 replies; this document adds the missing numbers' method, the block bookkeeping rules and the lab facts.
 
 Protected-port rate limiting is a separate proposal and is not covered here.
 
 ## 1. Evidence available today, and what it cannot support
 
-All figures below were computed on 2026-11-08 from the saved lab PCAPs under `data/lab-runs/` (inbound to 10.10.10.10, one-second epoch windows, the repository's own `iter_packets`) and from the reported candidate windows in `docs/samples/cic-syn-0618-0620/windows.json` (PR #29, training-day only, labels and offsets not independently verified). No final-test (03-11) data was used. No output of `tools/collect_baseline.py` exists in this checkout or in the lab data folder, so there is no recorded baseline collection.
+Vince reports computing all figures below on 2026-11-08 from the saved lab PCAPs under `data/lab-runs/` (inbound to 10.10.10.10, one-second epoch windows, the repository's own `iter_packets`) and from the reported candidate windows in `docs/samples/cic-syn-0618-0620/windows.json` (PR #29, training-day only, labels and offsets not independently verified). No final-test (03-11) data was used. Vince reports no output of `tools/collect_baseline.py` in his checkout/lab folder. The raw lab inputs and runtime command outputs are unavailable to this owner review, so the numerical/runtime observations remain collaborator-reported; a source list is not independent reproduction.
 
 | Evidence | What it shows | Limits |
 | --- | --- | --- |
 | Legitimate HTTP client, 2 runs (`http-client-2026-10-28-rerun`) | One source (10.10.10.20), TCP only. 72 and 57 windows. Total inbound pps: median 10 and 8, maximum 18 in both. SYN-only: at most 2 per second. | One client, one nginx page, target 5 req/s (about 4 achieved). No concurrency, no larger load. Lab VM timers jitter up to about 3 s. |
-| Controlled SYN, 3 runs (`pr16-syn-run1`, `syn-run2`, `ctrlc-syn`) | One source (10.10.10.30). 10 SYN/s offered; the source's TCP packets are 20 per second because its inbound RSTs count too. Share of all inbound packets: 1.0 in every window. | Generator test rate, not a flood. The attacker rate is below the benign client's maximum of 18 pps. |
+| Controlled SYN, 3 runs (`pr16-syn-run1`, `syn-run2`, `ctrlc-syn`) | One source (10.10.10.30). 10 SYN/s offered; the source's TCP packets are 20 per second because its inbound RSTs count too. Share of all inbound packets: 1.0 in every window. | Generator test rate, not a flood. The offered SYN-only rate is 10/s, while the observed source packet rate includes RSTs and is 20/s. Do not compare those different quantities as though both were total packet rates. |
 | Controlled UDP, 3 runs (`pr16-udp-run1`, `udp-run2`, `ctrlc-udp`) | One source, 10 UDP packets/s, share 1.0. | Same: a pipeline test, not a flood. |
-| Inbound ICMP from 10.10.10.30 | 1 packet/s in 2 windows of each of four scenario captures. | Not an attack; there is no ICMP flood evidence at all. |
+| Inbound ICMP from 10.10.10.30 | 1 packet/s in 2 windows of each of four scenario captures. | Low-rate ICMP observation; no independently labelled ICMP flood or benign-window evidence is established here. |
 | CIC-DDoS2019 candidate SYN windows (PR #29) | 8 candidate attack windows, one source, TCP share about 1.0. 19,062 to 20,912 packets/s per window, all but a handful SYN-only (SYN-only 19,060 to 20,912). | Training-day, one run, unreviewed ground truth, unresolved time offset. No benign windows, no UDP windows. Not a lab measurement. |
 
 What this means: the largest benign rate we have measured is 18 pps total from a single client, and the attack rates we have are either 10 pps (lab generator) or about 20,000 SYN/s (unreviewed public data). Any number between about 18 and 19,000 would be a guess, so this proposal sets none. There is no evidence at all for UDP or ICMP flood rates, for any minimum share, or for a legitimate client running next to an attacker.
@@ -66,8 +66,8 @@ Proposed bookkeeping rules, for Ayden's review:
 
 1. Streaks are kept per `(src_ip, protocol)`. A block is kept per `src_ip`: when an IP qualifies under several protocols there is still exactly one block entry, one cap slot and one 300 s timer, and its reason lists the first protocol that reached three windows.
 2. The timer starts at the firewall's confirmed installation time of the first block and is never renewed by repeated detections or by another protocol.
-3. Only firewall-confirmed blocks count as active. A pending request reserves one cap slot, so concurrent requests cannot exceed the cap. A failed request releases the slot and records a structured failure.
-4. Maximum active blocks: 20, configurable, a provisional lab value (agreed on #5). When it is reached, further eligible IPs get an `alert` with reason `block_cap_reached`, no existing block is evicted, and nothing is queued. When several IPs become eligible in one window, the heaviest group by packet count is served first, then lowest IP for ties, so the result is deterministic.
+3. Only firewall-confirmed blocks count as active. A pending request reserves one cap slot, so concurrent requests cannot exceed the cap. A definitively failed request with verified no installation releases the slot and records a structured failure. Timeout/unknown outcome keeps the reservation until reconciliation proves installed or absent; do not release an uncertain installation and exceed the cap.
+4. Maximum active blocks: 20, configurable, a provisional lab value (agreed on #5). When it is reached, further eligible IPs get an `alert` with reason `block_cap_reached`, no existing block is evicted, and nothing is queued. When several IPs become eligible in one window, the heaviest group by packet count is served first, then lowest numeric IPv4 address for ties, so the result is deterministic.
 5. Expiry is removal from the firewall confirmed by the adapter. Until it is confirmed the entry stays active and the slot stays used. After confirmed removal the IP's streaks are reset to zero, so a new block needs three new consecutive qualifying windows. (Alternative: keep the streak and re-block at once. This proposal chooses fresh evidence for every block; the capture sees packets before netfilter drops them, so a blocked source keeps appearing in windows.)
 6. Switching `monitor_only` to `automatic` clears all streaks, so the first automatic block rests on three windows observed in automatic mode. Switching back does not remove existing blocks; they expire normally.
 7. Never block: the protected server, loopback, and every allowlist entry (section 4). A qualifying allowlisted source yields `no_action` with reason `never_block`.
@@ -86,7 +86,7 @@ Read from the running `ddos-server` on 2026-11-08 over SSH (read-only, no sudo; 
 | Attacker | `10.10.10.30`: source address of all scenario captures; never allowlisted | pcaps |
 | Capture drops | 0 packets dropped by kernel in the `ctrlc-syn` capture | `ctrlc-syn.log` |
 
-Proposed allowlist entries are in [policy-defaults.json](policy-defaults.json): 10.10.10.10, 10.10.10.20, 127.0.0.0/8, 10.0.2.2, 10.0.2.3 and 10.0.2.15. The management addresses sit on `enp0s3` and never appear in an `enp0s8` capture, so the allowlist protects the management path only if the firewall adapter applies rules to the lab interface or checks the allowlist before any rule. The adapter must do one of these; it is not implemented yet.
+Proposed allowlist entries are in [policy-defaults.json](policy-defaults.json): 10.10.10.10, 10.10.10.20, 127.0.0.0/8, 10.0.2.2, 10.0.2.3 and 10.0.2.15. The management addresses sit on `enp0s3` and never appear in an `enp0s8` capture, so the allowlist protects the management path only if the firewall adapter applies rules to the lab interface or checks the allowlist before any rule. The adapter must enforce both the allowlist check before any action and lab-interface/protected-destination scoping; it is not implemented yet.
 
 `allowlist.verified` stays `false`. Enforcement must not be enabled with it: the runtime values above are observed, but the firewall state and the adapter's scope are not. Observed but not enough: `ufw` is active and `nginx` is active on the server (`systemctl is-active`), and `iptables` and `nft` are installed, so the adapter has to coexist with `ufw`.
 
@@ -138,8 +138,15 @@ Proposal: keep the twelve version-one features unchanged for the first validatio
 | Item | Owner | Needed to close |
 | --- | --- | --- |
 | Threshold values and `min_share` | Vince, then Ayden | Evidence from section 2 (benign ceiling, attack floor, mixed run) |
-| Block rules 3 to 6 above | Ayden | Review; Mujtaba needs the confirmed-apply and confirmed-removal interface |
+| Block rules 3 to 6 above | Ayden / Mujtaba | Owner accepted with the November 8 clarifications below; implementation/interface tests remain |
 | Firewall and `ufw` state, allowlist scope | Vince, Mujtaba | Answers to section 4 questions |
 | `allowlist.verified` | Vince, Ayden | Only after the above; until then enforcement stays off |
-| Feature `syn_ack_ratio` decision | Ayden | Section 7 |
+| Feature `syn_ack_ratio` decision | Ayden | Retain all twelve version-one features for the baseline; record redundancy and revisit only in a separately versioned, retrained validation experiment |
 | Offline/live adapter parity and coverage evidence | Vince, Ali | Not provided by this proposal |
+
+
+## Owner decisions — November 8
+
+Ayden accepts the documented share denominator and bookkeeping design, including pending-slot reservations, no eviction, confirmed-removal expiry, fresh streaks after expiry and mode changes, no timer renewal, numeric-IP tie breaking and allowlist checks plus lab-interface scoping. Unknown installation/removal outcomes retain their cap reservation until verified reconciliation. Returning to monitor-only stops new automatic requests but does not silently claim existing blocks removed; confirmation and expiry still apply. This accepts a design, not working enforcement.
+
+Keep `syn_ack_ratio` and all twelve schema-v1 features unchanged for the baseline. The reported redundancy is worth recording but does not justify silently changing a model contract. A later schema-v2 comparison requires new artifacts, validation-only selection and retraining; the final test must not drive this choice. Retain null rate/share thresholds and `allowlist.verified=false` until actual evidence supports them. No runtime component loads these draft defaults.
