@@ -1,0 +1,3 @@
+# Only these tiny synthetic QA fixtures are versioned. Real captures stay ignored.
+!synthetic-mixed-boundaries.pcap
+!synthetic-fragments-truncation.pcap

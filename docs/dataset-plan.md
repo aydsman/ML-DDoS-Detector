@@ -6,7 +6,7 @@ Owner: Ayden; capture inventory/normalization: Vince; independent label review: 
 
 Checked October 27, 2026: the [official CIC-DDoS2019 page](https://www.unb.ca/cic/datasets/ddos-2019.html) describes raw PCAPs, labeled flow CSVs, and SYN/UDP scenarios across training/testing collections. It recommends raw captures for a custom extractor. Its first/second-day table and prose are insufficient to assign exact calendar dates and timezone safely; match the downloaded metadata before converting times. Flow CSV rows are not this project's one-second aggregate features.
 
-The earlier automated retrieval error did not establish that the download service was unavailable: the interactive registration page loaded on October 29. Vince subsequently reported accessing the [official download page](https://cicresearch.ca/CICDataset/CICDDoS2019/) and downloading the two CSV archives. His [issue #3 inventory](https://github.com/aydsman/ML-DDoS-Detector/issues/3#issuecomment-6502234272) supplies names, byte sizes and locally calculated SHA-256 values; these are collaborator-reported evidence, not independently verified files or publisher checksums. No PCAP download is reported. See [reported inventory](dataset-inventory-reported.json).
+The earlier automated retrieval error did not establish that the download service was unavailable: the interactive registration page loaded on October 29. Vince subsequently reported accessing the [official download page](https://cicresearch.ca/CICDataset/CICDDoS2019/) and downloading the two CSV archives. His [issue #3 inventory](https://github.com/aydsman/ML-DDoS-Detector/issues/3#issuecomment-6502234272) supplies names, byte sizes and locally calculated SHA-256 values; these are collaborator-reported evidence, not independently verified files or publisher checksums. Vince subsequently [reported all five PCAP archives downloaded and extracted on November 3](https://github.com/aydsman/ML-DDoS-Detector/issues/3#issuecomment-6617753926). See the updated [reported inventory](dataset-inventory-reported.json). Archive/member contents, hashes, packet labels and split independence have not been independently verified by Ali.
 
 ### October 30 selection decisions and next evidence
 
@@ -17,6 +17,18 @@ The earlier automated retrieval error did not establish that the download servic
 - Raw data stays outside Git and preferably outside synced project folders. Vince's reported location is `C:\Users\iamno\datasets\cic-ddos2019\`; each member can use a different local root. Commit manifests and small reviewed samples, not archives or full generated datasets. The example manifest remains a template until real selection evidence is available.
 - Before selecting a PCAP download, Vince should provide exact archive/member URLs and names, relevant capture timestamps/time ranges, compressed/unpacked sizes (or explicitly unknown estimates), available disk space, victim/filter evidence and proposed split/run IDs. Check whether a bounded subset can be obtained without downloading all archives. No PCAP download or split is claimed by this decision.
 - Next handoff: Vince provides the inventory/metadata and a small candidate selection; Ayden reviews scope and split, and Ali independently checks labels and exclusions. Training waits for those checks and adapter parity.
+
+## November 6 candidate handoff
+
+PR #27's inspection utility is merged. [PR #29](https://github.com/aydsman/ML-DDoS-Detector/pull/29) supplies a SYN candidate join and 479 enriched records, with member/CSV hashes reported in its manifest. Ali independently reconciled 8 candidate attack and 471 excluded windows, and reproduced boundary/provenance defects in the join. See [the exact-head review and repeatable probes](reviews/issue-3-pr29-review.md). Raw file hashes and the empirical four-hour offset have not been independently reproduced here. No benign windows, independent runs or reviewed split are supplied. Keep the manifest unreviewed and issue #3 open; this is progress on the handoff, not approval for training.
+
+## November 4 independent-review status
+
+The [latest bounded handoff](https://github.com/aydsman/ML-DDoS-Detector/issues/3#issuecomment-6621822689) uses Vince's existing files; no additional bulk download is needed. Start with reported SYN candidate suffixes 0618–0620 and a small named training-side UDP selection. Supply exact member names/hashes, inspection scripts and reproducible packet/flow/window evidence before Ali's independent review. Do not adopt the packet scan's apparent victim/source identities or an inferred four-hour schedule shift as ground truth.
+
+The official description confirms raw PCAPs and labelled flow CSVs, but the readable schedule does not establish calendar dates or timezone. The November 4 read-only download-page retrieval returned a registration form/server error, so it did not verify direct archive links or publisher sizes/hashes. Vince's report remains useful collaborator evidence; this retrieval result does not invalidate his downloads.
+
+DrDoS_UDP and UDP may be different reflection/flood scenarios; keep that distinction explicit in a proposed cross-scenario evaluation. Neither file names nor archive pieces establish independent train/validation/test runs. See [Ali's evidence review and handoff checks](dataset-review.md) for current checks and the required real sample. The enriched training format is in [training.md](training.md#real-data-handoff-format). Issue #3 remains open; the new label-contract tests check synthetic logic only.
 
 ## Concrete first subset
 

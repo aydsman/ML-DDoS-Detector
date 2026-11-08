@@ -44,6 +44,12 @@ The numeric/name/version guard is now implemented as ddos_detector.contracts.fea
 - Non-first fragments may contribute packet/byte/protocol/source counts but have no readable transport flags. Do not infer observed flags from missing headers. The implemented Packet.flags supports None for unavailable flags and preserves observed zero. SYN/ACK counts and denominators use known flags only; unknown-flag packets still contribute to source/protocol/size aggregates.
 - Inputs must be sorted by timestamp. Live late/out-of-order packet handling and coverage detection need Vince's adapter policy and tests; do not silently reassign finalized windows.
 
+## Memory bound
+
+The streaming aggregator tracks at most `max_sources_per_window` (default 10,000) distinct source IPs per window. Packets from further sources still count in every other feature, but `unique_src_ips` and `src_ip_entropy` are then computed over tracked sources only. The window record sets `capped` and `untracked_source_packets` outside the model vector. Feature definitions and the schema version are unchanged.
+
+Finalizing a window does not depend on the number of packets: size statistics are computed from the per-size histogram. A window with `capped` set has incomplete source-diversity features, so it is excluded from version-one training and inference and must not be scored by an exact-contract model. Only uncapped windows are valid model input.
+
 ## Model compatibility and completion gates
 
 Each future saved model must record feature_schema_version, exact feature_names/order, dtype, window_seconds, capture scope, packet-size definition, preprocessing, model version, score interpretation, and selected decision threshold. The loader must reject an incompatible schema/order instead of guessing. The version/name/numeric input guard is implemented, but model artifact loading and metadata compatibility checks remain future work.
