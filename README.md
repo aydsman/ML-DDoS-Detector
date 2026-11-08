@@ -386,3 +386,7 @@ and paired lab-capture evidence remain required before the Week 2 QA card is com
 ### Offline baseline training (Week 2)
 
 See [the training guide](docs/training.md) for labelled-window preparation, deterministic Random Forest training, validation metrics and model save/reload. A synthetic demo checks the code without downloading data. Verified data/labels/splits and extraction evidence are still required before real training or accuracy claims.
+
+### Monitor-only scoring
+
+See [the monitor runner and backend handoff](docs/monitor.md) for replay/live entry points, typed audit records, failure semantics and the direct-state-store integration decision. This remains monitor-only; no API or firewall connection is claimed.

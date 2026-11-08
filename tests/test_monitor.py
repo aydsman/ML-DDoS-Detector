@@ -43,9 +43,10 @@ def test_replay_logs_one_line_per_window_and_never_blocks(tmp_path, model_dir):
     assert main(["--replay", str(pcap(tmp_path)), "--model", str(model_dir), "--log", str(log)]) == 0
     lines = [json.loads(x) for x in log.read_text().splitlines()]
     assert lines and all(x["monitor_only"] is True for x in lines)
-    scored = [x for x in lines if x["scored"]]
+    windows = [x for x in lines if x["record_type"] == "window"]
+    scored = [x for x in windows if x["scored"]]
     assert scored and all(0 <= x["attack_score"] <= 1 for x in scored)
-    assert all(x["processing_delay_s"] is None for x in lines)  # replay: no delay claimed
+    assert all(x["processing_delay_s"] is None for x in windows)  # replay: no delay claimed
     assert all(x["data_kind"] == "synthetic" for x in scored)
 
 
@@ -80,3 +81,60 @@ def test_live_delay_is_measured_from_window_end(tmp_path, model_dir):
     mon.handle(rec)
     log.close()
     assert json.loads((tmp_path / "y.jsonl").read_text())["processing_delay_s"] == 1.5
+
+@pytest.mark.parametrize('window', ['2', '0', '-1', 'nan', 'inf'])
+def test_incompatible_window_rejected_before_log(tmp_path, window):
+    log = tmp_path / 'never.jsonl'
+    with pytest.raises(SystemExit) as exc:
+        main(['--replay', 'unused.pcap', '--model', 'unused-model', '--log', str(log), '--window', window])
+    assert exc.value.code == 2 and not log.exists()
+
+
+@pytest.mark.parametrize('duration', ['0', '-1', 'nan', 'inf'])
+def test_invalid_duration_rejected_before_log(tmp_path, duration):
+    log = tmp_path / 'never.jsonl'
+    with pytest.raises(SystemExit):
+        main(['--replay', 'unused.pcap', '--model', 'unused-model', '--log', str(log), '--duration', duration])
+    assert not log.exists()
+
+
+def test_model_is_loaded_once_for_entire_run(tmp_path, model_dir, monkeypatch):
+    from ddos_detector import monitor
+    real_load = monitor.load_model
+    calls = []
+    def tracked(path):
+        calls.append(path)
+        return real_load(path)
+    monkeypatch.setattr(monitor, 'load_model', tracked)
+    log = tmp_path / 'cached.jsonl'
+    assert main(['--replay', str(pcap(tmp_path)), '--model', str(model_dir), '--log', str(log)]) == 0
+    assert len(calls) == 1
+    rows = [json.loads(x) for x in log.read_text().splitlines()]
+    assert rows[0]['status'] == 'started' and rows[-1]['status'] == 'completed'
+    assert rows[-1]['data_kind'] == 'synthetic'
+    assert rows[-1]['backlog'] is None and rows[-1]['kernel_drops'] is None
+    assert rows[-1]['windows'] == sum(r['record_type'] == 'window' for r in rows)
+
+
+def test_capture_failure_is_retained_in_audit_log(tmp_path, model_dir, monkeypatch):
+    from ddos_detector import monitor
+    def broken(_):
+        yield 100.1, eth(0x0800, ipv4())
+        raise OSError('synthetic read failure')
+    monkeypatch.setattr(monitor, 'read_pcap', broken)
+    log = tmp_path / 'failure.jsonl'
+    assert main(['--replay', 'synthetic-only', '--model', str(model_dir), '--log', str(log)]) == 1
+    rows = [json.loads(x) for x in log.read_text().splitlines()]
+    assert not any(r['record_type'] == 'window' for r in rows)
+    assert rows[-1]['status'] == 'unavailable'
+    assert 'synthetic read failure' in rows[-1]['gaps'][0]['reason']
+    assert rows[-1]['gaps'][0]['discarded_windows'] == 1
+
+
+def test_damaged_replay_has_failure_event_and_nonzero_exit(tmp_path, model_dir):
+    path, log = tmp_path / 'bad.pcap', tmp_path / 'damaged.jsonl'
+    path.write_bytes(b'not a pcap')
+    assert main(['--replay', str(path), '--model', str(model_dir), '--log', str(log)]) == 2
+    rows = [json.loads(x) for x in log.read_text().splitlines()]
+    assert rows[-1]['status'] == 'unavailable'
+    assert rows[-1]['gaps'] and 'PcapError' in rows[-1]['gaps'][0]['reason']

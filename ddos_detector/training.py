@@ -158,7 +158,11 @@ def load_model(directory):
 
 
 def score_record(directory, record):
-    pipeline, meta = load_model(directory)
+    return score_loaded_record(*load_model(directory), record)
+
+
+def score_loaded_record(pipeline, meta, record):
+    """Score with a trusted package already validated by load_model for this run."""
     if record.get("capture_state") != "valid" or record.get("capped") is not False:
         raise ValueError("Inference requires valid coverage and uncapped source counts")
     if (record.get("feature_schema_version") != meta["feature_schema_version"]
