@@ -1,0 +1,37 @@
+{
+  "record_type": "template",
+  "collection_purpose": "Week 2 normal-service baseline",
+  "operator": null,
+  "recorded_at_utc": null,
+  "host": {
+    "os_version": null,
+    "hypervisor_version": null,
+    "background_workload": null,
+    "evidence_paths": []
+  },
+  "server": {
+    "vm_name": "ddos-server",
+    "allocated_vcpus": null,
+    "allocated_memory_mib": null,
+    "snapshot_or_image_id": null,
+    "guest_os": null,
+    "service_version_and_configuration": null,
+    "interface_and_route": null,
+    "firewall_and_detector_state": null,
+    "capture_and_instrumentation": null,
+    "evidence_paths": []
+  },
+  "client": {
+    "vm_name": "ddos-client",
+    "allocated_vcpus": null,
+    "allocated_memory_mib": null,
+    "snapshot_or_image_id": null,
+    "guest_os": null,
+    "interface_and_route": null,
+    "evidence_paths": []
+  },
+  "clock_evidence": [],
+  "isolation_evidence_paths": [],
+  "changes_between_trials": [],
+  "unavailable_reason": "Blank template; actual resources, service state and clock evidence have not been recorded."
+}
