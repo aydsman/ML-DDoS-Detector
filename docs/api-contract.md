@@ -48,6 +48,8 @@ The `points` field is an array of measurement objects. An empty array means ther
 
 These are observed capture rates, not guaranteed offered traffic or server throughput. If capture fails, do not fabricate zero-rate points. Report the capture status and leave an unmeasured interval absent, or explicitly use null rates for that interval.
 
+The mock traffic history contains 30 one-second windows: low-volume variation, a brief burst and a sustained rise. All values are fabricated demonstration data, not captured traffic or model output. The final two original readings remain 4,212 packets/s and 252,720 bytes/s. Packet and byte rates can have different shapes because average packet size varies; a rise alone does not establish an attack, and this sample does not demonstrate a mitigation outcome.
+
 ## Detections
 
 The `detections` field is an array of prediction/decision records, sorted newest first by detected_at, then id for ties. An empty array means there are no detection records in the returned history. It does not prove there was no attack.

@@ -1,0 +1,13 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const source=readFileSync(new URL('../frontend/status.js',import.meta.url),'utf8');
+const {summarizeSnapshot}=await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+const data=JSON.parse(readFileSync(new URL('../docs/api-examples.json',import.meta.url),'utf8'));
+test('historical records never claim live protection',()=>{const s=summarizeSnapshot(data);assert.match(s.detection[0],/snapshot/);assert.match(s.mitigation[0],/snapshot/);assert.doesNotMatch(JSON.stringify(s),/safe|active blocks|no attack/i)});
+test('empty history does not imply no attack',()=>{const d=structuredClone(data);d.detections.detections=[];assert.equal(summarizeSnapshot(d).detection[0],'No detection records')});
+test('monitor-only can coexist with confirmed snapshot blocks',()=>{const d=structuredClone(data);d.health.mitigation_mode='monitor_only';assert.match(summarizeSnapshot(d).mitigation[0],/Monitor only.*1 confirmed block/)});
+for(const state of ['stale','error']) test(`${state} overrides both historical summaries`,()=>{const s=summarizeSnapshot(data,state);assert.equal(s.detection[0],'Stale snapshot');assert.equal(s.mitigation[0],'Stale snapshot')});
+test('initial connection failure reports unavailable',()=>{const s=summarizeSnapshot(null,'error');assert.equal(s.detection[0],'Data unavailable');assert.equal(s.mitigation[0],'Data unavailable')});
+test('failed capture cannot imply healthy detection',()=>{const d=structuredClone(data);d.health.capture_status='error';assert.equal(summarizeSnapshot(d).detection[0],'Detection unavailable')});
+test('unavailable firewall overrides historical block count',()=>{const d=structuredClone(data);d.health.firewall_status='error';assert.equal(summarizeSnapshot(d).mitigation[0],'Firewall unavailable')});

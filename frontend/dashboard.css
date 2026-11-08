@@ -1,0 +1,217 @@
+@font-face{font-family:Manrope;src:url('assets/fonts/Manrope.ttf') format('truetype');font-style:normal;font-weight:200 800;font-display:swap}
+:root{--ink:#f3f5fa;--muted:#d0d8e5;--line:#ffffff28}
+body{font-family:Manrope,system-ui,sans-serif;font-size:14px;background:#1b2331 url('assets/city-sunset.jpg') center 48%/cover fixed no-repeat}
+body::before{z-index:0;background:linear-gradient(100deg,#10162477,#131a2855 55%,#11182777)}
+[hidden]{display:none!important}
+.workspace{position:relative;width:calc(100% - 132px);max-width:1560px;margin:28px auto 24px;padding:0;transform:translateX(34px);min-height:calc(100dvh - 52px);display:flex;flex-direction:column;gap:16px}
+.heading{margin:0;padding:0 6px;min-height:52px}
+h1{font-size:clamp(28px,2.3vw,36px);font-weight:600;margin:2px 0;letter-spacing:-1px}
+h2,.section-heading h2{font-size:17px;font-weight:600}
+h3{font-size:14px}.eyebrow{font-size:10px;letter-spacing:1.8px;color:#e1e7ef}
+.sample{background:#18233280;color:#ffe6b8;border-color:#ffe8bd50;backdrop-filter:blur(12px)}
+.glass-nav{position:fixed;z-index:20;left:20px;top:50%;transform:translateY(-50%);width:60px;padding:8px;border-radius:34px;background:linear-gradient(135deg,#292423dd,#191716bd);border:1px solid #ffffff29;backdrop-filter:blur(18px);box-shadow:inset 0 1px #ffffff18,0 12px 35px #0003}
+.glass-nav nav{display:flex;flex-direction:column;gap:8px}
+.glass-nav a{position:relative;display:grid;place-items:center;width:44px;height:44px;border-radius:50%;color:#e1e7f1;text-decoration:none;transition:background 160ms,color 160ms,box-shadow 160ms}
+.glass-nav a svg{width:21px;height:21px;display:block;flex:none}
+.glass-nav a:hover{background:#ffffff14;color:#fff}
+.glass-nav a.selected{color:#fff;background:linear-gradient(135deg,#dce8ff55,#bdcbe12b);box-shadow:inset 0 1px #ffffff70,0 3px 12px #0003}
+.nav-label{position:absolute;left:calc(100% + 19px);top:50%;transform:translate(4px,-50%);background:#292321ed;border:1px solid #ffffff24;padding:7px 12px;border-radius:18px;white-space:nowrap;font-size:12px;opacity:0;visibility:hidden;pointer-events:none;transition:opacity 120ms 150ms,transform 120ms 150ms,visibility 120ms 150ms}
+.glass-nav a:hover .nav-label,.glass-nav a:focus-visible .nav-label{opacity:1;visibility:visible;transform:translate(0,-50%)}
+.glass-nav nav.labels-dismissed .nav-label{opacity:0;visibility:hidden;transition:none}
+.toolbar,.panel,.health-card,#notice{border:1px solid #ffffff35;backdrop-filter:blur(18px) saturate(110%);-webkit-backdrop-filter:blur(18px) saturate(110%);box-shadow:inset 0 1px #ffffff16,0 12px 30px #050a201e;background:linear-gradient(125deg,rgba(56,49,46,.669),rgba(39,34,33,.708))}
+.toolbar{border-radius:18px;padding:12px 16px}.toolbar label,.toolbar>span{font-size:12px;color:#e0e6ef}.shared-meta{text-align:right}
+select{background:#292422ae}button#reload{background:#5288bd52;border-color:#b5d7ff70}
+#notice{font-size:12px;margin:0;padding:10px 14px;border-radius:12px;color:#f0f4fa;border-left:3px solid #a8cfff}
+#notice.warning{background:#443419e6;color:#ffe2a8}#notice.error{background:#54212be6;color:#ffdde1}
+.overview-content{display:flex;flex-direction:column;gap:18px}.section-heading>span{font-size:12px;color:#d8e1ef}
+.health-grid{margin:10px 0 0;gap:14px}.health-card{padding:16px 18px;border-radius:22px;transition:border-color 160ms,box-shadow 160ms}.health-card:hover{border-color:#ffffff66;box-shadow:0 12px 30px #050a2033}.health-card small{font-size:12px;color:#d8e1ef}.health-card strong{font-size:20px;margin-top:5px}.health-card strong.good{color:#b7f0d3}
+.panel{margin:0;border-radius:24px;padding:22px;min-width:0;display:flex;flex-direction:column;background:linear-gradient(125deg,rgba(54,46,43,.740),rgba(38,33,32,.771))}
+.panel>.muted{font-size:12px;margin-top:7px;color:#d8e1ef}
+.charts{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:22px;gap:24px;flex:none;min-height:0}
+.chart{display:flex;flex-direction:column;min-width:0}.chart-title strong{font-size:32px;font-weight:600}.chart-title span,.axis{font-size:12px;color:#d2dce9}
+.chart svg{width:100%;height:clamp(150px,20vh,220px);max-height:none;min-height:150px;flex:none;display:block;margin-top:14px}.chart svg text{fill:#d4deed;font:12px Manrope,system-ui,sans-serif}.chart svg path{stroke:#deecff28}
+#view-traffic .chart svg{height:clamp(190px,27vh,300px)}
+#overview-charts .measurement-table{display:none}.measurement-table{flex:none}.measurement-table summary{font-size:12px;color:#cce2ff;margin:12px 0 0}.measurement-table table{font-size:13px}.measurement-table th{font-size:12px}
+.panel.view{max-height:calc(100dvh - 310px);min-height:360px}.panel.view .charts{overflow:auto}.table-wrap{overflow:auto;min-height:0;max-height:60vh;margin-top:18px}table{font-size:14px}th,td small{font-size:12px}thead th{position:sticky;top:0;z-index:1;background:#403733}.pill{font-size:12px}td,th{padding:14px 12px}
+footer{margin:0;padding:0 5px;font-size:11px;color:#e0e7f1;text-shadow:0 1px 4px #111}
+.skip-link{position:fixed;top:-80px;left:100px;z-index:30;background:#18283d;color:white;padding:12px}.skip-link:focus{top:10px}
+.view.entering{animation:page-in 220ms ease both}.view.leaving{opacity:0;transition:opacity 100ms}.workspace.initial .toolbar,.workspace.initial .overview-content{animation:panel-in 350ms ease both}.workspace.initial .overview-content{animation-delay:50ms}
+@keyframes page-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}@keyframes panel-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+button:active:not(:disabled){transform:scale(.97)}details[open] table{animation:measurement-in 150ms ease}@keyframes measurement-in{from{opacity:.4}to{opacity:1}}
+@media(max-width:1100px),(max-height:760px){.workspace{gap:12px;margin-top:20px}.panel{padding:18px}.health-card{padding:12px 14px}.chart svg{height:150px}.panel.view{max-height:none;min-height:320px}.table-wrap{max-height:58vh}}
+@media(max-width:700px){body{background-position:36% center}.workspace{width:calc(100% - 100px);margin:18px 12px 20px 88px;transform:none;min-height:calc(100dvh - 38px)}.glass-nav{left:12px}.heading{flex-wrap:wrap;gap:8px}.toolbar{gap:10px}.shared-meta{text-align:left}.charts{grid-template-columns:minmax(0,1fr)}.chart+.chart{padding:18px 0 0;border-left:0;border-top:1px solid var(--line)}.health-grid{gap:10px}.health-card strong{font-size:17px}.chart-title{flex-wrap:wrap}.chart-title strong{font-size:28px}.section-heading{flex-wrap:wrap;gap:8px}.axis{font-size:11px}.panel.view{min-height:0}.table-wrap{max-height:65vh}.panel{border-radius:20px}footer span{display:block}}
+@media(hover:none){.nav-label{display:none}}
+@supports not (backdrop-filter:blur(1px)){.glass-nav,.toolbar,.panel,.health-card,#notice{background:#253247}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+@media(forced-colors:active){body{background:Canvas}.panel,.health-card,.glass-nav,#notice,.toolbar{background:Canvas;color:CanvasText;border:1px solid CanvasText}.glass-nav a.selected{outline:2px solid Highlight}}
+.health-grid{margin-bottom:0}
+@media(min-width:701px) and (max-height:850px){.workspace{gap:12px;margin-top:20px;min-height:calc(100dvh - 44px)}.overview-content{gap:14px}.panel{padding:18px}.health-card{padding:12px 14px}.charts{margin-top:16px}.chart svg{height:150px}.heading{min-height:46px}.toolbar{padding:9px 14px}}
+
+/* Keep information-heavy surfaces darker than the general glass. */
+#notice{background:linear-gradient(125deg,rgba(56,49,46,.80),rgba(39,34,33,.84))}
+#notice.warning{background:#443419e6}#notice.error{background:#54212be6}
+#view-detections,#view-blocks{background:linear-gradient(125deg,rgba(54,46,43,.82),rgba(38,33,32,.85))}
+@media(min-width:1800px){
+ body{font-size:17.5px}
+ .workspace{max-width:1950px;width:calc(100% - 180px);gap:20px;margin-top:35px;transform:translateX(40px)}
+ h1{font-size:44px}.heading{min-height:65px}.eyebrow{font-size:12.5px}
+ h2,.section-heading h2{font-size:21px}h3{font-size:17.5px}
+ .sample{font-size:12.5px;padding:9px 14px}
+ .toolbar{padding:15px 20px;border-radius:23px}.toolbar>div{gap:15px}
+ .toolbar label,.toolbar>span{font-size:15px}
+ select,button{font-size:15px;min-height:45px;padding:10px 15px;border-radius:9px}
+ #notice{font-size:15px;padding:12px 18px;border-radius:15px}
+ .overview-content{gap:22px}.health-grid{gap:18px;margin-top:12px}
+ .health-card{padding:20px 23px;border-radius:27px}.health-card small{font-size:15px}.health-card strong{font-size:25px}
+ .panel{padding:28px;border-radius:30px}.panel>.muted,.section-heading>span{font-size:15px}
+ .charts{margin-top:27px;gap:30px}.chart+.chart{padding-left:30px}
+ .chart-title strong{font-size:40px}.chart-title span,.axis{font-size:15px}
+ .chart svg{height:clamp(190px,20vh,275px);margin-top:18px}.chart svg text{font-size:15px}
+ #view-traffic .chart svg{height:clamp(235px,27vh,375px)}
+ .measurement-table summary{font-size:15px;margin-top:15px}.measurement-table table{font-size:16px}.measurement-table th{font-size:15px}
+ table{font-size:17.5px}th,td small,.pill{font-size:15px}td,th{padding:18px 15px}
+ footer{font-size:13px}.panel.view{max-height:calc(100dvh - 370px);min-height:450px}
+ .glass-nav{width:75px;padding:10px;border-radius:42px;left:25px}.glass-nav nav{gap:10px}
+ .glass-nav a{width:55px;height:55px}.glass-nav a svg{width:26px;height:26px}.nav-label{font-size:15px;padding:9px 15px;left:calc(100% + 24px)}
+}
+@media(min-width:1800px) and (max-height:950px){.workspace{gap:14px;margin-top:22px}.overview-content{gap:16px}.health-card{padding:14px 20px}.panel{padding:22px}.chart svg{height:175px}.charts{margin-top:18px}}
+@supports not (backdrop-filter:blur(1px)){.glass-nav,.toolbar,.panel,.health-card,#notice{background:#302b2a}}
+@media(forced-colors:active){.panel,.health-card,.glass-nav,#notice,.toolbar,#view-detections,#view-blocks{background:Canvas;color:CanvasText}}
+@media(min-width:1800px){.workspace{min-height:calc(100dvh - 59px)}}
+@media(min-width:1800px) and (max-height:950px){.workspace{min-height:calc(100dvh - 46px)}}
+/* Shared glass and responsive sidebar: one tint across all surfaces. */
+:root{--glass:linear-gradient(125deg,rgba(51,44,41,.36),rgba(36,31,30,.40));--rail:60px}
+body{padding-left:calc(var(--rail) + 40px);transition:padding-left 300ms cubic-bezier(.2,.7,.2,1)}
+body.sidebar-expanded{--rail:252px}
+.workspace{width:calc(100% - 48px);max-width:1560px;transform:none;margin-left:auto;margin-right:auto}
+.glass-nav,.toolbar,.panel,.health-card,#view-detections,#view-blocks{background:var(--glass);-webkit-backdrop-filter:blur(18px) saturate(110%);backdrop-filter:blur(18px) saturate(110%)}
+.glass-nav{width:var(--rail);border-radius:32px;transition:width 300ms cubic-bezier(.2,.7,.2,1);max-height:calc(100dvh - 40px)}
+.glass-nav nav{margin-top:24px}
+.sidebar-toggle{position:absolute;top:-12px;right:-10px;display:grid;place-items:center;width:28px;height:28px;min-height:28px;padding:5px;border-radius:50%;background:#f4f1ed;color:#302a28;border:1px solid #fff;box-shadow:0 3px 12px #0004}
+.sidebar-toggle:hover{background:#fff;color:#171412}.sidebar-toggle svg{width:16px;height:16px;transition:transform 300ms}.sidebar-expanded .sidebar-toggle svg{transform:rotate(180deg)}
+.glass-nav a{display:flex;justify-content:flex-start;padding:0 11px;gap:14px;transition:background 160ms,box-shadow 160ms,width 300ms,border-radius 300ms}
+.sidebar-expanded .glass-nav a{width:100%;border-radius:24px}
+.sidebar-expanded .nav-label{position:static;opacity:1;visibility:visible;transform:none;padding:0;background:none;border:0;font-size:14px;pointer-events:auto}
+.glass-nav.labels-dismissed .nav-label,.glass-nav.labels-dismissed .status-tooltip{visibility:hidden;opacity:0}
+.sidebar-expanded .glass-nav.labels-dismissed .nav-label{visibility:visible;opacity:1}
+.sidebar-statuses{border-top:1px solid #ffffff30;margin-top:20px;padding-top:10px;display:grid;gap:6px}
+.status-caption{margin:0;text-align:center;font-size:8px;font-weight:800;letter-spacing:1px;color:#ffe3ad}
+.status-item{position:relative;display:flex;gap:12px;align-items:center;min-height:44px;padding:10px;border-radius:22px;color:#e1ded9;cursor:default}
+.status-item svg{width:22px;height:22px;flex:none}.status-item[data-tone=attention]{color:#ffd192}.status-item[data-tone=unknown]{color:#d2d0ce}
+.status-copy{display:none;min-width:0}.status-copy small{display:block;font-size:10px;color:#ded9d5}.status-copy strong{display:block;font-size:12px;font-weight:600;line-height:1.4}
+.sidebar-expanded .status-copy{display:block}.sidebar-expanded .status-caption{text-align:left;padding-left:10px}
+.status-tooltip{position:absolute;z-index:40;left:calc(100% + 16px);top:50%;transform:translateY(-50%);width:260px;padding:12px;border:1px solid #ffffff40;border-radius:14px;background:#292321f2;color:#f3eeea;font-size:12px;line-height:1.6;opacity:0;visibility:hidden;pointer-events:none}
+.status-item:hover .status-tooltip,.status-item:focus-visible .status-tooltip{opacity:1;visibility:visible}
+#notice{background:var(--glass)}#notice.warning{background:rgba(68,52,25,.48)}#notice.error{background:rgba(84,33,43,.52)}
+thead th{background:rgba(64,55,51,.56);backdrop-filter:blur(12px)}
+.panel,.health-card,.toolbar{transition:border-color 160ms,box-shadow 160ms}
+.panel:hover,.health-card:hover,.toolbar:hover{border-color:#ffffff65;box-shadow:inset 0 1px #ffffff25,0 12px 30px #050a2033}
+.health-card{transition:transform 160ms,border-color 160ms,box-shadow 160ms}.health-card:hover{transform:translateY(-2px)}
+/* Keep backdrop surfaces opaque to the compositor; animate their contents. */
+.view.entering,.view.leaving,.workspace.initial .toolbar,.workspace.initial .overview-content{animation:none;opacity:1;transition:none}
+.view.entering .section-heading,.view.entering .table-wrap{animation:content-in 220ms ease both}
+.view.entering .table-wrap{animation-delay:40ms}
+.view.entering .health-card{animation:card-in 220ms ease both}.view.entering .health-card:nth-child(2){animation-delay:40ms}.view.entering .health-card:nth-child(3){animation-delay:80ms}.view.entering .health-card:nth-child(4){animation-delay:120ms}
+.view.leaving .table-wrap,.view.leaving .section-heading{opacity:0;transition:opacity 100ms}
+@keyframes content-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes card-in{from{transform:translateY(6px)}to{transform:none}}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
+*{scrollbar-width:thin;scrollbar-color:#c3b4aa88 transparent}
+::-webkit-scrollbar{width:9px;height:9px;background:transparent}::-webkit-scrollbar-track,::-webkit-scrollbar-corner{background:transparent}::-webkit-scrollbar-thumb{background:#c3b4aa88;border:2px solid transparent;background-clip:padding-box;border-radius:20px}::-webkit-scrollbar-thumb:hover{background-color:#ded1c7bb}::-webkit-scrollbar-button{display:none;width:0;height:0}
+.table-wrap{scrollbar-color:#c3b4aa88 transparent}
+@media(min-width:1800px){:root{--rail:75px}body.sidebar-expanded{--rail:300px}.workspace{max-width:1950px;width:calc(100% - 70px)}.glass-nav{width:var(--rail)}.glass-nav a{padding-left:14px;gap:18px}.sidebar-expanded .nav-label{font-size:17px}.status-item{padding:14px;min-height:55px}.status-item svg{width:26px;height:26px}.status-copy small{font-size:12px}.status-copy strong{font-size:14px}.status-tooltip{font-size:14px;width:300px}.sidebar-toggle{width:32px;height:32px;min-height:32px}}
+@media(max-width:850px){
+ body,body.sidebar-expanded{padding-left:0}
+ .glass-nav{position:relative;left:auto;top:auto;transform:none;width:calc(100% - 32px);max-height:none;margin:20px 16px 0;padding:10px;border-radius:24px}
+ .glass-nav nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;margin:0;padding-right:30px}
+ .glass-nav a,.sidebar-expanded .glass-nav a{width:100%;height:auto;min-height:44px;justify-content:center;padding:10px;border-radius:22px;gap:8px}
+ .sidebar-toggle{top:16px;right:7px}.sidebar-expanded .glass-nav nav{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .sidebar-expanded .nav-label{display:block;font-size:12px}.glass-nav a .nav-label{left:0;top:calc(100% + 12px);transform:none}
+ .sidebar-statuses{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px;padding-top:8px}.status-caption{grid-column:1/-1;text-align:left;padding-left:10px}
+ .status-item{align-items:flex-start;padding:8px;min-height:44px}.status-copy{display:block}.status-copy strong{font-size:11px}
+ .status-tooltip{left:0;top:100%;transform:none;width:min(260px,75vw)}.status-item:last-child .status-tooltip{left:auto;right:0}
+ .workspace{width:calc(100% - 32px);margin:18px 16px 20px;transform:none;min-height:0}
+ .toolbar>div{flex-wrap:wrap}.toolbar{flex-wrap:wrap}.shared-meta{overflow-wrap:anywhere}
+}
+@media(hover:none){.glass-nav a:focus-visible .nav-label{display:block}.sidebar-expanded .nav-label{display:block}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.view.leaving .table-wrap,.view.leaving .section-heading{opacity:1}.health-card:hover{transform:none}}
+@supports not (backdrop-filter:blur(1px)){.glass-nav,.toolbar,.panel,.health-card,#view-detections,#view-blocks{background:#302b2a}}
+@media(forced-colors:active){.glass-nav,.toolbar,.panel,.health-card,#view-detections,#view-blocks,.status-tooltip,#notice,#notice.error,#notice.warning{background:Canvas;color:CanvasText}.status-item[data-tone]{color:CanvasText}.sidebar-toggle{background:ButtonFace;color:ButtonText}.status-caption,.status-copy small{color:CanvasText}}
+.chart-title strong span{font:inherit;letter-spacing:inherit;color:inherit}
+.glass-nav.labels-dismissed .status-item .status-tooltip,.glass-nav.labels-dismissed nav a .nav-label{visibility:hidden;opacity:0;transition:none}
+.sidebar-expanded .glass-nav.labels-dismissed nav a .nav-label{visibility:visible;opacity:1}
+.view.entering .health-card{animation-fill-mode:backwards}
+
+/* Short desktop windows retain the left rail; only genuinely narrow screens use top navigation. */
+.sample{background:var(--glass)}
+
+@supports not (backdrop-filter:blur(1px)){#notice,.sample{background:#302b2a}}
+@media(forced-colors:active){#notice,.sample,thead th{background:Canvas;color:CanvasText}}
+
+/* Chart interaction is an overlay; recorded coordinates never depend on tooltips. */
+.chart svg{color:#8cbbff;touch-action:pan-y}
+.chart:nth-child(2) svg{color:#83d5d1}
+.chart svg polyline,.chart svg circle{stroke:currentColor}
+.chart svg circle{fill:currentColor}
+.chart svg:focus-visible{outline:2px solid #f4e9d8;outline-offset:5px;border-radius:6px}
+.graph-tooltip,.sidebar-flyout{position:fixed;z-index:1000;max-width:min(330px,calc(100vw - 16px));width:max-content;padding:10px 14px;border:1px solid #ffffff50;border-radius:14px;background:rgba(35,29,27,.82);box-shadow:0 8px 24px #0004;backdrop-filter:blur(12px);color:#fff7ef;font:13px/1.5 Manrope,system-ui,sans-serif;pointer-events:none;overflow-wrap:anywhere}
+.graph-tooltip[hidden],.sidebar-flyout[hidden]{display:none}
+.sidebar-flyout{animation:flyout-in 120ms ease both}
+@keyframes flyout-in{from{opacity:0}to{opacity:1}}
+.glass-nav nav{position:relative;isolation:isolate}
+.nav-hover{position:absolute;left:0;top:0;z-index:-1;pointer-events:none;border-radius:24px;background:#ffffff14;border:1px solid #ffffff1a;opacity:0;transition:transform 150ms ease,width 150ms ease,height 150ms ease,opacity 120ms}
+.glass-nav a:hover{background:transparent}.glass-nav a.selected:hover{background:linear-gradient(135deg,#dce8ff55,#bdcbe12b)}
+.glass-nav a{overflow:visible;flex:none}
+.sidebar-toggle::before{content:'';position:absolute;inset:-8px;border-radius:50%}
+.glass-nav .status-tooltip,body:not(.sidebar-expanded) .glass-nav .nav-label{visibility:hidden;opacity:0}
+.glass-nav .status-tooltip{display:none}
+.sidebar-expanded .glass-nav .nav-label{overflow:hidden;white-space:nowrap;animation:rail-label-in 160ms 90ms both}
+@keyframes rail-label-in{from{opacity:0}to{opacity:1}}
+.status-copy{display:block;max-width:0;max-height:0;overflow:hidden;opacity:0;visibility:hidden;transition:opacity 140ms, max-width 300ms,max-height 300ms,visibility 140ms}
+.sidebar-expanded .status-copy{max-width:230px;max-height:110px;opacity:1;visibility:visible;transition-delay:90ms}
+.status-item{flex-shrink:0}.status-item:focus-visible,.glass-nav a:focus-visible,.sidebar-toggle:focus-visible{outline:2px solid #fff1d9;outline-offset:3px}
+@media(min-width:851px){.sidebar-expanded .glass-nav a{overflow:hidden}.glass-nav nav{flex:none}}
+
+@media(max-width:850px){.status-copy{max-width:none;max-height:none;opacity:1;visibility:visible}.sidebar-expanded .status-copy{max-width:none;max-height:none}.sidebar-expanded .glass-nav .nav-label{min-width:0}}
+@media(prefers-reduced-motion:reduce){.sidebar-flyout,.sidebar-expanded .glass-nav .nav-label{animation:none}.nav-hover,.status-copy{transition:none}}
+@media(forced-colors:active){.graph-tooltip,.sidebar-flyout{background:Canvas;color:CanvasText;border-color:CanvasText}.chart svg{color:CanvasText}.nav-hover{border-color:Highlight}}
+
+/* Stack by available panel space, including when the desktop rail is expanded. */
+.panel{container-type:inline-size}
+@container(max-width:650px){.charts{grid-template-columns:minmax(0,1fr)}.chart+.chart{padding:18px 0 0;border-left:0;border-top:1px solid var(--line)}}
+
+.graph-tooltip,.sidebar-flyout{pointer-events:auto}
+.chart svg path.recorded-point{stroke:currentColor}
+
+/* The outer capsule always stays centred; only its inner content can scroll vertically. */
+@media(min-width:851px){
+ .glass-nav{top:50%;transform:translateY(-50%);max-height:calc(100dvh - 32px);overflow:visible}
+ .rail-scroll{max-height:calc(100dvh - 54px);min-width:0;overflow-x:hidden;overflow-y:auto;scrollbar-width:none}
+ .rail-scroll::-webkit-scrollbar{width:0;height:0}
+ .glass-nav nav{margin-top:20px;overflow:visible}
+ .glass-nav a{overflow:hidden;position:relative;z-index:1}
+ .glass-nav .nav-label{min-width:0;flex:1}
+ .status-item{width:100%;min-width:0;min-height:64px;gap:0;overflow:hidden}
+ .status-copy,.sidebar-expanded .status-copy{position:absolute;left:48px;right:8px;width:auto;max-width:none;max-height:none;overflow:hidden;transform:translateX(-5px);transition:opacity 160ms ease,transform 220ms ease,visibility 160ms;transition-delay:0ms}
+ .sidebar-expanded .status-copy{transform:none;transition-delay:100ms}
+ .status-copy strong{overflow-wrap:anywhere}
+ .sidebar-statuses{margin-top:16px}
+ .status-caption,.sidebar-expanded .status-caption{text-align:left;padding-left:8px}
+ .sidebar-expanded .glass-nav .nav-label{animation:rail-label-slide 180ms 90ms both}
+}
+@media(min-width:1800px){.status-item{min-height:76px}.status-copy,.sidebar-expanded .status-copy{left:58px}}
+@keyframes rail-label-slide{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:translateX(0)}}
+/* Selection glides independently of hover, like the reference navigation. */
+.nav-selection{position:absolute;top:0;left:0;pointer-events:none;z-index:0;border-radius:24px;background:linear-gradient(135deg,#dce8ff55,#bdcbe12b);box-shadow:inset 0 1px #ffffff70,0 3px 12px #0003;transition:transform 300ms cubic-bezier(.2,.7,.2,1),width 300ms cubic-bezier(.2,.7,.2,1),height 300ms cubic-bezier(.2,.7,.2,1),border-radius 300ms}
+body:not(.sidebar-expanded) .nav-selection{border-radius:50%}
+.glass-nav a.selected,.glass-nav a.selected:hover{background:transparent;box-shadow:none}
+.nav-hover{z-index:0;transition:transform 220ms cubic-bezier(.2,.7,.2,1),width 300ms,height 220ms,opacity 140ms}
+@media(max-width:850px){body:not(.sidebar-expanded) .nav-selection{border-radius:22px}}
+@media(prefers-reduced-motion:reduce){.nav-selection,.nav-hover,.status-copy{transition:none!important}.sidebar-expanded .glass-nav .nav-label{animation:none}}
+@media(forced-colors:active){.nav-selection{border:2px solid Highlight;background:Canvas}.glass-nav a.selected{color:Highlight}}
+
+/* Fit the collapsed selection to the actual inner rail width, including its border. */
+@media(min-width:851px){
+ body:not(.sidebar-expanded) .glass-nav nav a{width:100%;height:auto;min-height:0;aspect-ratio:1;justify-content:center;padding:0}
+ body:not(.sidebar-expanded) .glass-nav nav a .nav-label{display:none}
+}
