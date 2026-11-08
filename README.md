@@ -196,6 +196,7 @@ Start here if you are not sure where your work belongs. The "Main owner" column 
 | `tools/verify_pcap_features.py` | Recomputes every window's features from tshark or scapy output and compares them with the package. | Vince |
 | `tests/` | pytest suite covering feature extraction, window grouping, packet normalization, feature contracts, live and offline capture, HTTP client accounting and exports, and offline scenario checks. | Ali (QA), everyone adds tests for their own code |
 | `docs/design.md` | Design decisions: dataset, 1 second window, feature list, leakage rules, open items. | Ayden, Vince |
+| `docs/policy-proposal.md` | Proposed attribution/block policy, lab interface and allowlist, window rule, SYN/ACK decision (issue #5). Defaults in `docs/policy-defaults.json`. | Vince, Ayden |
 | `docs/test-plan.md` | Week 1 QA scenarios, acceptance checks, prerequisites, and owner review decisions. | Ali |
 | `docs/measurement-formats.md` | Proposed metric definitions, collection methods, and experiment record format. | Ali, component owners review |
 | `docs/templates/run-record.template.json` | Empty experiment record template; real run artifacts remain local and ignored. | Ali |

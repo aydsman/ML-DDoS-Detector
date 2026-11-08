@@ -1,0 +1,91 @@
+{
+  "schema": "policy-defaults-draft-1",
+  "status": "owner-accepted design defaults; unvalidated thresholds/allowlist; not loaded by runtime code",
+  "mode": "monitor_only",
+  "scope": {
+    "ip_version": 4,
+    "protocols": [
+      "tcp",
+      "udp",
+      "icmp"
+    ],
+    "protected_ip": "10.10.10.10",
+    "capture_interface": "enp0s8",
+    "inbound_only": true
+  },
+  "window": {
+    "window_seconds": 1.0,
+    "origin": "epoch",
+    "start_formula": "floor(timestamp / window_seconds) * window_seconds",
+    "interval": "start_inclusive_end_exclusive",
+    "grace_seconds": 1.0
+  },
+  "attribution": {
+    "required_consecutive_windows": 3,
+    "streak_key": [
+      "src_ip",
+      "protocol"
+    ],
+    "block_key": "src_ip",
+    "share_basis": "all_selected_packets",
+    "min_share": null,
+    "packet_rate_thresholds": {
+      "tcp": null,
+      "udp": null,
+      "icmp": null
+    },
+    "syn_rate_threshold": null,
+    "threshold_comparison": "rate_strictly_greater_than_threshold; share_greater_or_equal_to_min_share",
+    "unset_threshold_behavior": "never qualifies"
+  },
+  "blocks": {
+    "block_seconds": 300,
+    "max_active_blocks": 20,
+    "max_active_blocks_status": "provisional lab cap",
+    "expiry_clock_starts": "first firewall-confirmed installation",
+    "renew_on_repeat_detection": false,
+    "reset_streak_on_expiry": true,
+    "reset_streaks_on_mode_change": true,
+    "cap_reached_behavior": "alert_only_no_eviction",
+    "pending_requests_reserve_cap_slots": true,
+    "unknown_outcome_behavior": "retain_reservation_until_verified_reconciliation",
+    "expiry_requires_confirmed_removal": true,
+    "priority": "packet_count_desc_then_numeric_ipv4_asc"
+  },
+  "allowlist": {
+    "verified": false,
+    "entries": [
+      {
+        "address": "10.10.10.10",
+        "why": "protected server",
+        "source": "docs and runtime ip -br a, 2026-11-08"
+      },
+      {
+        "address": "10.10.10.20",
+        "why": "legitimate client",
+        "source": "docs; source address of the HTTP client pcaps"
+      },
+      {
+        "address": "127.0.0.0/8",
+        "why": "loopback",
+        "source": "always"
+      },
+      {
+        "address": "10.0.2.2",
+        "why": "NAT gateway; SSH management peer seen by ss on the server",
+        "source": "runtime ip route and ss, 2026-11-08"
+      },
+      {
+        "address": "10.0.2.3",
+        "why": "NAT DNS",
+        "source": "runtime resolvectl, 2026-11-08"
+      },
+      {
+        "address": "10.0.2.15",
+        "why": "server NAT address",
+        "source": "runtime ip -br a, 2026-11-08"
+      }
+    ],
+    "note": "10.10.10.30 (attacker) is deliberately not listed. Keep verified=false until the open questions in docs/policy-proposal.md are answered."
+  }
+}

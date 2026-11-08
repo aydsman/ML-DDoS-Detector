@@ -104,7 +104,9 @@ Vince and Ali must produce a small inspectable sample (for example five minutes 
 
 ## Remaining decisions and workflow
 
-Follow-up [issue #5](https://github.com/aydsman/ML-DDoS-Detector/issues/5), assigned to Vince, consolidates unresolved thresholds, capture details, and dataset verification. Original issues #1-#3 remain open until their completion evidence is satisfied. Aadi must still review display fields, history limits, and backend error/stale-data behavior with Ayden. Review order agreed on October 26: docs and fixtures PR into development first, then lab settings/measurements, then dataset verification. Ali independently checks fixtures and labelled samples. See [feature contract](feature-contract.md) for ordered ML inputs and component boundaries.
+Follow-up [issue #5](https://github.com/aydsman/ML-DDoS-Detector/issues/5), assigned to Vince, consolidates unresolved thresholds, capture details, and dataset verification. The design/fixture acceptance for issues #1/#2 is closed and recorded in [contract acceptance](contract-acceptance.md); dataset issue #3 remains open. Ayden accepted the redesigned sample frontend through PR #21; real API freshness/history/error behavior still needs backend integration. Review order agreed on October 26: docs and fixtures PR into development first, then lab settings/measurements, then dataset verification. Ali independently checks fixtures and labelled samples. See [feature contract](feature-contract.md) for ordered ML inputs and component boundaries.
+
+The policy settings proposal (thresholds method, block rules, lab interface and allowlist, window rule, SYN/ACK evidence) is in [policy-proposal.md](policy-proposal.md); it sets no threshold values because the evidence does not exist yet.
 
 Approved decisions are recorded in [Ayden's issue #5 reply](https://github.com/aydsman/ML-DDoS-Detector/issues/5#issuecomment-6428534359). Documenting them does not complete the outstanding acceptance evidence.
 
