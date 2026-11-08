@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ML-DDoS-Detector · Overview concept</title>
+  <link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="overview-preview.css?v=2">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <aside class="glass-nav" aria-label="Preview navigation">
+    <a class="nav-brand" href="overview-preview.html" aria-label="Overview concept">◈<span>ML-DDoS-Detector</span></a>
+    <button class="nav-pin" aria-label="Pin sidebar open" aria-expanded="false"><span class="nav-icon">☰</span><span class="nav-label">Keep menu open</span></button>
+    <nav>
+      <a class="selected" aria-current="page" href="overview-preview.html"><span class="nav-icon">▦</span><span class="nav-label">Overview</span></a>
+      <a href="./#traffic-title" title="Traffic — existing dashboard"><span class="nav-icon">⌁</span><span class="nav-label">Traffic</span></a>
+      <a href="./#detections-title" title="Detections — existing dashboard"><span class="nav-icon">◎</span><span class="nav-label">Detections</span></a>
+      <a href="./#blocks-title" title="Blocks — existing dashboard"><span class="nav-icon">◇</span><span class="nav-label">Blocks</span></a>
+    </nav>
+    <a class="nav-bottom" href="./" title="Open existing dashboard"><span class="nav-icon">↗</span><span class="nav-label">Existing dashboard</span></a>
+  </aside>
+  <main class="workspace">
+    <div class="heading"><div><p class="eyebrow">ML-DDOS-DETECTOR / LAB</p><h1>Overview</h1></div><span class="sample">● SAMPLE DATA</span></div>
+    <section class="toolbar" aria-label="Mock demonstration controls"><div><label for="scenario">Demo scenario</label><select id="scenario"><option value="sample">Representative activity</option><option value="empty">No measurements or events</option><option value="zero">Measured zero traffic</option><option value="unavailable">Capture unavailable</option><option value="stale">Stale snapshot</option><option value="error">Connection failure</option></select><button id="reload">Reload sample</button></div><span>Display only · America/Toronto</span></section>
+    <p id="notice" role="status" aria-live="polite">Loading sample data…</p>
+    <div class="overview-content"><section aria-labelledby="health-title"><div class="section-heading"><h2 id="health-title">System health</h2><span id="updated">Awaiting snapshot</span></div><div id="health" class="health-grid"></div></section>
+    <section class="panel" aria-labelledby="traffic-title"><div class="section-heading"><div><p class="eyebrow">01 / TRAFFIC</p><h2 id="traffic-title">Aggregate inbound traffic</h2></div><span>IPv4 · TCP / UDP / ICMP</span></div><p class="muted">One-second windows. IP bytes include IP and transport headers; Ethernet headers are excluded.</p><div id="charts" class="charts"></div></section>
+    </div><div hidden aria-hidden="true"><section class="panel" aria-labelledby="detections-title"><div class="section-heading"><div><p class="eyebrow">02 / DETECTION</p><h2 id="detections-title">Detection events</h2></div><span id="detection-count"></span></div><p class="muted">Scores describe aggregate windows. Source events reuse that score and carry separate attribution evidence.</p><div id="detections" class="table-wrap"></div></section>
+    <section class="panel" aria-labelledby="blocks-title"><div class="section-heading"><div><p class="eyebrow">03 / MITIGATION</p><h2 id="blocks-title">Confirmed blocks in snapshot</h2></div><span id="block-count"></span></div><p class="muted">A block request is not confirmation. These fixed examples do not describe current firewall state.</p><div id="blocks" class="table-wrap"></div></section>
+    </div><footer>Overview concept · Other views open the existing dashboard <span>Fixed sample data · No live connection</span></footer>
+  </main>
+<script>
+const pin = document.querySelector('.nav-pin');
+pin.addEventListener('click', () => {
+  const open = document.querySelector('.glass-nav').classList.toggle('pinned');
+  pin.setAttribute('aria-expanded', String(open));
+  pin.setAttribute('aria-label', open ? 'Unpin sidebar' : 'Pin sidebar open');
+});
+</script>
+</body>
+</html>

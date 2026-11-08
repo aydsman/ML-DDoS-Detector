@@ -1,0 +1,52 @@
+{
+  "attack_interval_pcap_utc": [
+    "2018-12-01T17:30:30.741451+00:00",
+    "2018-12-01T17:34:27.403304+00:00"
+  ],
+  "attack_labels": [
+    "Syn"
+  ],
+  "benign_windows_available": 0,
+  "csv_flows": 1582681,
+  "icmp_as_protocol0": false,
+  "limitations": [
+    "CSV labels are the dataset's own; only packet-to-flow consistency is checked here.",
+    "Packets matched to CSV BENIGN flows count as unknown, not verified benign.",
+    "All pieces come from one capture run: no independent runs can be assigned."
+  ],
+  "offset_hours_used": 4,
+  "offset_test_flow_starts_matching_a_packet_exactly": {
+    "-1": 0,
+    "-2": 0,
+    "-3": 0,
+    "-4": 0,
+    "-5": 0,
+    "-6": 0,
+    "0": 0,
+    "1": 0,
+    "2": 0,
+    "3": 0,
+    "4": 1582330,
+    "5": 0,
+    "6": 0
+  },
+  "packet_label_reasons": {
+    "matched_attack_flow": 4707045,
+    "no_5_tuple(icmp_or_non_first_fragment_or_short)": 10112,
+    "no_matching_flow_interval": 611231
+  },
+  "python": "3.12.10",
+  "run_at_utc": "2026-11-05T05:24:05.113562+00:00",
+  "tool": "tools/cic_flow_join.py",
+  "tool_version": "1",
+  "victim": "192.168.50.1",
+  "windows_by_exclusion_reason": {
+    "contains packets with unknown or unverified labels": 471
+  },
+  "windows_label_counts": {
+    "attack": 8,
+    "excluded": 471
+  },
+  "windows_packet_count_mismatch": 0,
+  "windows_total": 479
+}
