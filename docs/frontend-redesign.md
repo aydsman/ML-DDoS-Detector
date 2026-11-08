@@ -59,3 +59,17 @@ Sidebar follow-up: the desktop capsule stays vertically centred at every window 
 
 
 Glass/selection follow-up: shared glass opacity is now 40–44% (eight percentage points lower), warning/error surfaces 52%/56%, sticky headers 60% and flyouts 86%. Control backgrounds also drop eight percentage points; text, icons and the white toggle retain full opacity. Collapsed navigation buttons fit the actual inner rail width with square proportions; selection/hover geometry uses fractional bounds so the circle is not clipped by rail borders or pixel rounding. Browser checked collapsed and toggled selection at laptop/desktop widths without horizontal rail overflow.
+
+## Owner adoption review — November 8
+
+Ayden took over the adoption review formerly assigned to Aadi and accepts this UI for subsequent frontend work. This is owner acceptance, not an approval submitted under Aadi's identity.
+
+Checks performed on the implemented frontend:
+- All 13 graph/status JavaScript checks and 14 API-contract tests passed.
+- Browser exercised representative, empty, measured-zero, unavailable-capture, stale and connection-failure scenarios, including recovery. Failure retains stale data; unknown/unavailable is not turned into zero or a no-attack claim.
+- Verified all four destinations, preserved selected scenario/snapshot, 30 exact measurement rows per rate, two detection rows (aggregate/source attribution) and the confirmed-block row with original headers/details/units.
+- Tested expanding/collapsing sidebar with content reflow and no overlap; keyboard graph inspection announces exact time/value/units and Escape dismisses it.
+- At 375x812, 1366x500 and 2560x1440 CSS pixels, no document-wide horizontal overflow was observed. Short/wide desktops retain a vertically centered left rail without horizontal rail scrolling; narrow navigation remains usable above content. The 1366x768 presentation was also inspected visually.
+- Reduced-motion/forced-colors fallbacks and non-blur fallback remain in CSS; source review confirms animation is presentation only and exact values remain immediate. Physical touch, OS/browser assistive technology and actual browser-zoom combinations were not certified by these viewport checks.
+
+The browser screenshot is retained locally as frontend-adoption-review.png in this chat's visualization folder. The same frontend assets were tested before bringing the current backend/docs changes into this branch; integration merged cleanly. This remains a fixed sample-data dashboard, with no real model/API/firewall integration or live safety claim. Existing photo provenance restrictions remain relevant before any public redistribution; this private development merge does not publish the site.
