@@ -192,6 +192,7 @@ Start here if you are not sure where your work belongs. The "Main owner" column 
 | `ddos_detector/http_client.py` | Legitimate HTTP client: capped rates, local/lab targets, bounded concurrency, epoch timestamps, and incremental draft JSON/CSV exports. See [client instructions](docs/http-client.md). | Mujtaba |
 | `ddos_detector/pcap.py`, `frames.py`, `aggregate.py`, `offline.py` | Classic pcap reader, Ethernet/inbound frame parser, streaming window aggregator, and the offline command-line entry point. | Vince |
 | `ddos_detector/live.py`, `capture.py` | Live pipeline (frames in, window records out, with an unavailable status on capture failure), its replay/live command line, and the Linux AF_PACKET frame source. | Vince |
+| `ddos_detector/monitor.py` | Monitor-only runner: scores each finished window with a saved model and logs predictions to JSONL. Never blocks traffic. | Vince (wiring), Ayden (model and scoring) |
 | `tools/verify_pcap_features.py` | Recomputes every window's features from tshark or scapy output and compares them with the package. | Vince |
 | `tests/` | pytest suite covering feature extraction, window grouping, packet normalization, feature contracts, live and offline capture, HTTP client accounting and exports, and offline scenario checks. | Ali (QA), everyone adds tests for their own code |
 | `docs/design.md` | Design decisions: dataset, 1 second window, feature list, leakage rules, open items. | Ayden, Vince |
@@ -265,6 +266,24 @@ sudo ./.venv/bin/python -m ddos_detector.live --interface enp0s8 --victim 10.10.
 Windows close once a packet or the clock passes their end plus `grace_seconds`, so a quiet link still closes windows. Records are written as they close, only when `--out` is given. On stop, the window still in progress is dropped rather than emitted half-measured.
 
 If the frame source fails, the status becomes `unavailable`: windows with incomplete coverage are discarded, nothing is zero-filled, and the gap (start, reason, discarded windows) is reported. The command then exits with code 1. Unavailable data is not the same as measured zero traffic; see the feature contract.
+
+### Monitor-only run
+
+Scores each window with a saved model and appends one JSON line per window to a new log file. It never touches a firewall. The log refuses to overwrite an existing file, and the run refuses to start on an unusable model.
+
+Replay a saved pcap (any OS; the model folder comes from the training commands above):
+
+```powershell
+.\.venv\Scripts\python.exe -m ddos_detector.monitor --replay capture.pcap --model results\w2-demo-model --log predictions.jsonl --victim 10.10.10.10
+```
+
+Live on the Linux VM (root or CAP_NET_RAW; **not yet run on a real interface**). Stop with Ctrl+C or `--duration`:
+
+```bash
+sudo ./.venv/bin/python -m ddos_detector.monitor --interface enp0s8 --model results/w2-demo-model --log predictions.jsonl --victim 10.10.10.10 --duration 60
+```
+
+Each line has `window_start`, `window_end`, `packet_count`, `scored`, `attack_score`, `predicted_attack`, `decision_threshold`, `model_sha256`, `processing_delay_s` (live only; `null` on replay) and `scoring_s`. A window that cannot be scored has `scored: false` and a reason. Processing backlog is not measured yet. A demo model is synthetic, so its scores only check the wiring.
 
 Usage examples for live capture, training, and mitigation will be added as those parts land.
 
