@@ -1,4 +1,6 @@
 import { loadSnapshot } from './data.js';
+import { updateStatusIndicators } from './status.js';
+import { mountCharts, captureChartState } from './graphs.js';
 
 const $ = id => document.getElementById(id);
 const escape = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -13,22 +15,18 @@ function chart(points, field, title, unit, color) {
   if (!points.length) return `<div class="chart"><h3>${title}</h3>${empty('No measurements in this snapshot')}</div>`;
   const values = points.map(p => p[field]);
   const maximum = Math.max(1, ...values.filter(v => v != null));
-  const times = points.map(p => Date.parse(p.window_start));
-  const duration = Math.max(1, times.at(-1) - times[0]);
-  const coordinates = values.map((v,i) => v == null ? null : [20 + (times[i]-times[0])/duration*460, 130 - v/maximum*100]);
-  let segments = [], current = [];
-  for (const point of coordinates) { if (point) current.push(point.join(',')); else { if(current.length) segments.push(current); current=[]; } }
-  if(current.length) segments.push(current);
-  const plot = segments.map(s=>`<polyline points="${s.join(' ')}" fill="none" stroke="${color}" stroke-width="3"/>`).join('') + coordinates.filter(Boolean).map(([x,y])=>`<circle cx="${x}" cy="${y}" r="4" fill="${color}"/>`).join('');
   const rows = points.map(p=>`<tr><td>${escape(time(p.window_start))}</td><td>${number(p[field])}</td></tr>`);
-  return `<div class="chart"><div class="chart-title"><div><h3>${title}</h3><span>${unit} · latest window</span></div><strong>${number(values.at(-1))}</strong></div>${values.every(v=>v==null) ? empty('Measurements unavailable — capture failed') : `<svg viewBox="0 0 500 155" role="img" aria-label="${title}; vertical scale zero to ${maximum} ${unit}. Exact values in table below."><path d="M20 30H480 M20 80H480 M20 130H480" stroke="#e4ecef" fill="none"/><text x="20" y="19" font-size="10" fill="#617582">${number(maximum)} ${unit}</text><text x="20" y="148" font-size="10" fill="#617582">0</text>${plot}</svg><div class="axis"><span>${escape(time(points[0].window_start))}</span><span>${escape(time(points.at(-1).window_start))}</span></div>`}<details class="measurement-table"><summary>View exact measurements</summary>${table(['Window start (Toronto)',unit],rows)}</details></div>`;
+  return `<div class="chart"><div class="chart-title"><div><h3>${title}</h3><span>${unit} · latest window</span></div><strong><span class="sr-only">${number(values.at(-1))}</span><span aria-hidden="true" ${values.at(-1) == null ? '' : `data-rate="${field}" data-value="${values.at(-1)}"`}>${number(values.at(-1))}</span></strong></div>${values.every(v=>v==null) ? empty('Measurements unavailable — capture failed') : `<svg data-series="${escape(JSON.stringify(points.map(p=>({time:Date.parse(p.window_start),seconds:p.window_seconds,value:p[field]}))))}" data-unit="${unit}" viewBox="0 0 500 155" role="img" aria-label="${title}; vertical scale zero to ${maximum} ${unit}. Exact values in table below."><path d="M20 30H480 M20 80H480 M20 130H480" stroke="#e4ecef" fill="none"/><text x="20" y="19" font-size="10" fill="#617582">${number(maximum)} ${unit}</text><text x="20" y="148" font-size="10" fill="#617582">0</text></svg><div class="axis"><span>${escape(time(points[0].window_start))}</span><span>${escape(time(points.at(-1).window_start))}</span></div>`}<details class="measurement-table"><summary>View exact measurements</summary>${table(['Window start (Toronto)',unit],rows)}</details></div>`;
 }
 
 function render(data) {
+  const chartState=captureChartState();
   $('updated').textContent = `Snapshot: ${time(data.health.updated_at)}`;
   $('health').innerHTML = [['Capture',data.health.capture_status],['Model',data.health.model_status],['Firewall',data.health.firewall_status],['Mitigation mode',data.health.mitigation_mode]].map(([name,value])=>`<div class="health-card"><small>${name}</small><strong class="${['running','loaded','available'].includes(value)?'good':'warn'}">${escape(label(value))}</strong></div>`).join('');
   const points = [...data.metrics.points].sort((a,b)=>Date.parse(a.window_start)-Date.parse(b.window_start));
   $('charts').innerHTML = chart(points,'packets_per_second','Packet rate','packets/s','#087f83') + chart(points,'bytes_per_second','Byte rate','bytes/s','#516cb0');
+  if ($('overview-charts')) $('overview-charts').innerHTML = $('charts').innerHTML.replaceAll('Exact values in table below.', 'Exact values available on the Traffic page.');
+  mountCharts(chartState);
   const detections = [...data.detections.detections].sort((a,b)=>Date.parse(b.detected_at)-Date.parse(a.detected_at)||a.id.localeCompare(b.id));
   $('detection-count').textContent = `${detections.length} records`;
   $('detections').innerHTML = detections.length ? table(['Time / event','Scope / source','Aggregate model score','Source-rule evidence','Decision'],detections.map(d=>{
@@ -49,12 +47,14 @@ async function refresh() {
     const nextSnapshot=await loadSnapshot(scenario);
     render(nextSnapshot);
     snapshot=nextSnapshot;
+    updateStatusIndicators(snapshot, scenario);
     $('notice').className=['stale','unavailable'].includes(scenario)?'warning':'';
     $('notice').textContent=scenario==='stale'?'STALE SNAPSHOT DEMO — showing an older example. Status and records may no longer reflect system state.':scenario==='unavailable'?'CAPTURE UNAVAILABLE DEMO — rates are unavailable, not zero. Previous example events remain visible.':'MOCK MODE — fixed October 22 example data. No live capture, model inference, or firewall connection.';
   } catch(error) {
+    updateStatusIndicators(snapshot, 'error');
     $('notice').className='error';
-    $('notice').textContent=`${error.message}. ${snapshot?'Retaining the last successful snapshot; all displayed data is stale.':'No data loaded. System state is unknown.'}`;
-    if(!snapshot) for(const id of ['health','charts','detections','blocks']) $(id).innerHTML=empty('Data unavailable');
+    $('notice').textContent=`${error instanceof TypeError ? 'Cannot reach the sample data. Check that this preview server is running and reachable' : error.message}. ${snapshot?'Retaining the last successful snapshot; all displayed data is stale.':'No data loaded. System state is unknown.'}`;
+    if(!snapshot) for(const id of ['health','charts','overview-charts','detections','blocks'].filter(id => $(id))) $(id).innerHTML=empty('Data unavailable');
   } finally { $('reload').disabled=false; $('scenario').disabled=false; }
 }
 $('reload').addEventListener('click',refresh);
