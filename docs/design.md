@@ -100,7 +100,7 @@ Do not feed raw IPs, ports, flow IDs, or timestamps into the model. Keep provena
 
 ### Dataset completion evidence
 
-Vince and Ali must produce a small inspectable sample (for example five minutes benign and five minutes attack), with feature records, label provenance, mixed/boundary examples, and shared offline/live normalization checks. CSV and PCAP access are now reported by Vince; that does not establish independently reviewed member hashes or valid packet-window labels. Dataset validity remains pending the evidence above and [Ali's real-sample review](dataset-review.md).
+Vince and Ali must produce a small inspectable sample (for example five minutes benign and five minutes attack), with feature records, label provenance, mixed/boundary examples, and shared offline/live normalization checks. CSV and PCAP access are now reported by Vince; that does not establish independently reviewed member hashes or valid packet-window labels. Ali's [November 6 review of the candidate SYN join](reviews/issue-3-pr29-review.md) records reconciled candidate counts and required code fixes. Raw-data validity, independently benign examples and whole-run split approval remain pending; see [the evidence review](dataset-review.md).
 
 ## Remaining decisions and workflow
 
