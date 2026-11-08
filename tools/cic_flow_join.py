@@ -22,7 +22,7 @@ Two stages, run together:
    marked capture_state "uncertain".
 
     python -m tools.cic_flow_join --csv Syn.csv --pieces P1 P2 P3 --victim 192.168.50.1 \
-        --attack-label Syn --offset-hours 4 --out-dir results/cic-syn-0618-0620
+        --attack-label Syn --offset-hours 4 --run-id cic-syn-a --out-dir results/cic-syn-0618-0620
 """
 import argparse
 import calendar
@@ -42,7 +42,7 @@ from ddos_detector.frames import frame_to_packet
 from ddos_detector.normalize import SkipCounter
 from ddos_detector.pcap import read_pcap
 
-TOOL_VERSION = "1"
+TOOL_VERSION = "2"
 HOUR_US = 3600 * 1_000_000
 MAGICS = {b"\xd4\xc3\xb2\xa1": ("<", 1_000_000), b"\xa1\xb2\xc3\xd4": (">", 1_000_000),
           b"\x4d\x3c\xb2\xa1": ("<", 1_000_000_000), b"\xa1\xb2\x3c\x4d": (">", 1_000_000_000)}
@@ -84,26 +84,40 @@ def load_flows(path):
 
 
 def iter_packets(path):
-    """Yield (timestamp_us, frame_bytes) from a classic pcap, stdlib only."""
+    """Yield epoch microseconds from classic Ethernet PCAP; floor sub-microsecond ns.
+
+    The integer conversion cannot roll a fractional timestamp into the next second.
+    Reject incomplete/corrupt records rather than silently treating them as clean EOF.
+    """
     with open(path, "rb") as handle:
         header = handle.read(24)
+        if len(header) != 24 or header[:4] not in MAGICS:
+            raise ValueError(f"{path}: incomplete or unsupported classic PCAP header")
         endian, scale = MAGICS[header[:4]]
+        if struct.unpack(endian + "I", header[20:24])[0] != 1:
+            raise ValueError(f"{path}: only Ethernet PCAP is supported")
         rec = struct.Struct(endian + "IIII")
-        per_second = 1_000_000_000 // scale  # fractional units per microsecond
         while True:
             raw = handle.read(16)
-            if len(raw) < 16:
+            if not raw:
                 return
-            sec, frac, incl, _ = rec.unpack(raw)
+            if len(raw) != 16:
+                raise ValueError(f"{path}: truncated PCAP record header")
+            sec, frac, incl, original = rec.unpack(raw)
+            if frac >= scale or incl > original or incl > (1 << 24):
+                raise ValueError(f"{path}: invalid PCAP timestamp or record length")
             data = handle.read(incl)
-            if len(data) < incl:
-                return
-            yield sec * 1_000_000 + (frac * 1000 // per_second if scale == 1_000_000_000
-                                     else frac), data
+            if len(data) != incl:
+                raise ValueError(f"{path}: truncated PCAP record payload")
+            yield sec * 1_000_000 + frac * 1_000_000 // scale, data
 
 
 def packet_scope(data, victim):
-    """(src, sport, proto, dport, fragment, ok) for in-scope inbound IPv4, else None."""
+    """Return (src, sport, dst, dport, proto) for valid selected IPv4.
+
+    A None victim retains all destinations for the global offset-evidence search.
+    This parser stays independent of production normalization.
+    """
     if len(data) < 34 or data[12:14] != b"\x08\x00":
         return None
     ihl = (data[14] & 0x0F) * 4
@@ -115,7 +129,7 @@ def packet_scope(data, victim):
     if proto not in (1, 6, 17):
         return None
     dst = ".".join(map(str, data[30:34]))
-    if dst != victim:
+    if victim is not None and dst != victim:
         return None
     src = ".".join(map(str, data[26:30]))
     fragment = bool(struct.unpack(">H", data[20:22])[0] & 0x1FFF)
@@ -129,7 +143,7 @@ def packet_scope(data, victim):
 
 
 def offset_test(flows, pieces, candidate_hours, victim):
-    """Count flow starts that equal a packet (same 5-tuple, same microsecond) at each offset."""
+    """Count exact 5-tuple/start matches over valid TCP/UDP packets, all destinations."""
     wanted = {}
     for flow in flows:
         wanted.setdefault(flow["key"], []).append(flow["start"])
@@ -138,15 +152,15 @@ def offset_test(flows, pieces, candidate_hours, victim):
     hits = {h: set() for h in candidate_hours}
     for piece in pieces:
         for ts, data in iter_packets(piece):
-            if len(data) < 38 or data[12:14] != b"\x08\x00" or data[23] not in (6, 17):
+            # Offset evidence intentionally covers all destinations, unlike the inbound
+            # labelling pass. Header, fragment and transport bounds are identical.
+            scope = packet_scope(data, None)
+            if scope is None:
                 continue
-            ihl = (data[14] & 0x0F) * 4
-            if (min(len(data) - 14, struct.unpack(">H", data[16:18])[0]) < ihl + 4
-                    or struct.unpack(">H", data[20:22])[0] & 0x1FFF):
+            src, sport, dst, dport, proto = scope
+            if proto not in (6, 17) or sport is None:
                 continue
-            sport, dport = struct.unpack(">HH", data[14 + ihl:14 + ihl + 4])
-            key = (".".join(map(str, data[26:30])), sport, ".".join(map(str, data[30:34])),
-                   dport, data[23])
+            key = (src, sport, dst, dport, proto)
             for h in candidate_hours:
                 starts = index[h].get(key)
                 if starts and ts in starts:
@@ -226,6 +240,12 @@ def main(argv=None):
     if os.path.exists(args.out_dir):
         sys.exit(f"refusing to overwrite {args.out_dir}")
 
+    # Basenames are capture IDs throughout the manifest and window provenance. Reject
+    # collisions before reading inputs or creating output, including case-only variants.
+    capture_ids = [os.path.basename(p) for p in args.pieces]
+    if len({name.casefold() for name in capture_ids}) != len(capture_ids):
+        ap.error("piece basenames must be unique (case-insensitive capture IDs)")
+
     flows = load_flows(args.csv)
     candidates = sorted(set(args.candidate_hours) | {args.offset_hours})
     matches = offset_test(flows, args.pieces, candidates, args.victim)
@@ -260,6 +280,12 @@ def main(argv=None):
                    for _, lo, hi in piece_bounds) or second in (first_second, last_second)
         capture = next((name for name, lo, hi in piece_bounds if start_us <= hi), piece_bounds[-1][0])
         inside = interval[0] <= start_us and end_us <= interval[1]
+        # One candidate attack envelope, not a new boundary at every flow start.
+        # Flow intervals are closed: a packet exactly at the final endpoint belongs
+        # to that interval, so its window is also an ending-boundary exclusion.
+        label_edge = (start_us < interval[0] < end_us
+                      or start_us <= interval[1] < end_us)
+        edge = edge or label_edge
         if not valid:
             label, why = "excluded", "independent packet count differs from extractor"
         elif record.capped:
@@ -267,7 +293,7 @@ def main(argv=None):
         elif unknown:
             label, why = "excluded", "contains packets with unknown or unverified labels"
         elif edge:
-            label, why = "excluded", "window touches a piece or run edge"
+            label, why = "excluded", "window touches a piece, run or attack-interval edge"
         elif selected and attack / selected >= 0.8:
             label, why = "attack", "all selected packets matched attack-labelled CSV flows"
         else:
@@ -306,6 +332,9 @@ def main(argv=None):
         "csv_flows": len(flows), "victim": args.victim,
         "attack_labels": args.attack_label,
         "offset_hours_used": args.offset_hours,
+        "timestamp_precision": "integer epoch microseconds; nanoseconds floored below 1 us",
+        "offset_test_scope": "valid first-fragment TCP/UDP with readable ports; all destinations",
+        "boundary_scope": "piece/run edges and the outer attack-flow envelope, not each flow start",
         "icmp_as_protocol0": args.icmp_as_protocol0,
         "offset_test_flow_starts_matching_a_packet_exactly": {str(h): n for h, n in matches.items()},
         "attack_interval_pcap_utc": [datetime.datetime.fromtimestamp(

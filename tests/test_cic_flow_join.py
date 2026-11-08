@@ -1,7 +1,13 @@
+import contextlib
+import csv
+import io
+import json
 import struct
 import tempfile
 import unittest
 from pathlib import Path
+
+import pytest
 
 from tools import cic_flow_join as join
 
@@ -114,3 +120,123 @@ class CicFlowJoinTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+# Independent byte fixtures for the four PR #29 review findings. Never transmitted.
+@pytest.mark.parametrize('endian', ['<', '>'])
+@pytest.mark.parametrize('scale,magic,frac,want', [
+    (1_000_000, 0xA1B2C3D4, 123456, 100123456),
+    (1_000_000_000, 0xA1B23C4D, 123456000, 100123456),
+    (1_000_000_000, 0xA1B23C4D, 999999999, 100999999),
+    (1_000_000_000, 0xA1B23C4D, 999, 100000000),
+])
+def test_timestamp_resolution_and_byte_order(tmp_path, endian, scale, magic, frac, want):
+    packet = ip_frame(ATTACKER, VICTIM, 6, tcp(1000, 80))
+    path = tmp_path / 'precision.pcap'
+    with path.open('wb') as f:
+        f.write(struct.pack(endian + 'IHHiIII', magic, 2, 4, 0, 0, 65535, 1))
+        f.write(struct.pack(endian + 'IIII', 100, frac, len(packet), len(packet)))
+        f.write(packet)
+    rows = list(join.iter_packets(path))
+    assert rows == [(want, packet)]
+    assert rows[0][0] // 1_000_000 == 100
+    # The production extractor and integer labelling pass assign the same second.
+    assert [int(r.window_start) for r in join.extract_chain([path], join.Config(victim_ip=VICTIM))] == [100]
+
+
+@pytest.mark.parametrize('change', ['version', 'ihl', 'total_length', 'short_options', 'fragment', 'padding'])
+def test_invalid_or_unreadable_packets_cannot_support_offset(tmp_path, change):
+    packet = bytearray(ip_frame(ATTACKER, VICTIM, 6, tcp(1000, 80)))
+    if change == 'version': packet[14] = 0x65
+    elif change == 'ihl': packet[14] = 0x44
+    elif change == 'total_length': packet[16:18] = struct.pack('!H', 10)
+    elif change == 'short_options': packet[14] = 0x4F
+    elif change == 'fragment': packet[20:22] = struct.pack('!H', 1)
+    elif change == 'padding': packet[16:18] = struct.pack('!H', 20)
+    path = tmp_path / 'rejected.pcap'
+    write_pcap(path, [(100_000_000, bytes(packet))])
+    flows = [flow((ATTACKER, 1000, VICTIM, 80, 6), 100_000_000, 100, 'Syn')]
+    assert join.offset_test(flows, [path], [0], VICTIM) == {0: 0}
+    stats, _ = join.label_windows(flows, [path], VICTIM, {'Syn'}, 0)
+    assert sum(c['attack'] for c in stats.values()) == 0
+
+
+def test_offset_search_explicitly_retains_other_valid_destinations(tmp_path):
+    other = '192.168.50.9'
+    path = tmp_path / 'other.pcap'
+    write_pcap(path, [(100_000_000, ip_frame(ATTACKER, other, 6, tcp(1000, 80)))])
+    flows = [flow((ATTACKER, 1000, other, 80, 6), 100_000_000, 100, 'Syn')]
+    assert join.offset_test(flows, [path], [0], VICTIM) == {0: 1}
+    assert not join.label_windows(flows, [path], VICTIM, {'Syn'}, 0)[0]
+
+
+def run_synthetic_join(tmp_path, records, flows):
+    path, csv_path, out = tmp_path / 'piece.pcap', tmp_path / 'flows.csv', tmp_path / 'output'
+    write_pcap(path, [(ts, ip_frame(ATTACKER, VICTIM, 6, tcp(port, 80))) for ts, port in records])
+    with csv_path.open('w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['Timestamp', 'Flow Duration', 'Label', 'Source IP', 'Source Port',
+                         'Destination IP', 'Destination Port', 'Protocol'])
+        for start, duration in flows:
+            writer.writerow([start, duration, 'Syn', ATTACKER, 1000, VICTIM, 80, 6])
+    with contextlib.redirect_stdout(io.StringIO()):
+        join.main(['--csv', str(csv_path), '--pieces', str(path), '--victim', VICTIM,
+                   '--attack-label', 'Syn', '--offset-hours', '0', '--run-id', 'synthetic-review',
+                   '--out-dir', str(out)])
+    return out, {int(r['window_start']): r for r in json.loads((out / 'windows.json').read_text())}
+
+
+def test_onset_and_ending_boundaries_excluded_but_interior_flow_starts_are_not(tmp_path):
+    records = [(100_000_000, 2000), (101_200_000, 1000), (101_800_000, 1000),
+               (102_100_000, 1000), (102_300_000, 1000), (103_100_000, 1000),
+               (104_100_000, 1000), (105_000_000, 2000)]
+    out, rows = run_synthetic_join(tmp_path, records, [
+        ('1970-01-01 00:01:41.200000', 3_000_000),
+        ('1970-01-01 00:01:42.300000', 1_000_000)])
+    for second in (101, 104):
+        assert rows[second]['boundary'] is True
+        assert rows[second]['inside_attack_interval'] is False
+        assert rows[second]['label'] == 'excluded'
+    for second in (102, 103):
+        assert rows[second]['boundary'] is False
+        assert rows[second]['label'] == 'attack'
+    manifest = json.loads((out / 'manifest.json').read_text())
+    assert manifest['data_kind'] == 'candidate_unreviewed_packet_windows'
+    assert all(v is None for v in manifest['review_refs'].values())
+    assert manifest['runs']['synthetic-review']['split'] is None
+    from ddos_detector.training_data import prepare_data
+    with pytest.raises(ValueError, match='data_kind'):
+        prepare_data(out / 'windows.json', out / 'manifest.json')
+
+
+def test_closed_interval_ending_on_axis_cannot_promote_following_window(tmp_path):
+    _, rows = run_synthetic_join(tmp_path, [(100_000_000, 2000), (101_000_000, 1000),
+        (102_000_000, 1000), (103_000_000, 1000), (104_000_000, 2000)],
+        [('1970-01-01 00:01:41', 2_000_000)])
+    assert rows[101]['label'] == rows[102]['label'] == 'attack'
+    assert rows[103]['boundary'] is True and rows[103]['label'] == 'excluded'
+
+
+@pytest.mark.parametrize('names', [('piece.pcap', 'piece.pcap'), ('PIECE.pcap', 'piece.pcap')])
+def test_duplicate_capture_ids_fail_before_input_reads_or_output(tmp_path, names):
+    out = tmp_path / 'output'
+    # Files deliberately absent: collision must be detected before attempting the CSV/PCAP.
+    with pytest.raises(SystemExit) as e:
+        join.main(['--csv', str(tmp_path / 'absent.csv'), '--pieces',
+                   str(tmp_path / 'a' / names[0]), str(tmp_path / 'b' / names[1]),
+                   '--victim', VICTIM, '--attack-label', 'Syn', '--offset-hours', '0',
+                   '--run-id', 'synthetic-review', '--out-dir', str(out)])
+    assert e.value.code == 2
+    assert not out.exists()
+
+
+@pytest.mark.parametrize('damage', ['record_header', 'payload', 'bad_fraction', 'non_ethernet'])
+def test_corrupt_or_unsupported_pcap_fails_explicitly(tmp_path, damage):
+    path = tmp_path / 'damaged.pcap'
+    packet = ip_frame(ATTACKER, VICTIM, 6, tcp(1000, 80))
+    raw = struct.pack('<IHHiIII', 0xA1B2C3D4, 2, 4, 0, 0, 65535, 2 if damage == 'non_ethernet' else 1)
+    if damage == 'record_header': raw += b'1234567'
+    else:
+        raw += struct.pack('<IIII', 100, 1_000_000 if damage == 'bad_fraction' else 0, len(packet), len(packet))
+        raw += packet[:-1] if damage == 'payload' else packet
+    path.write_bytes(raw)
+    with pytest.raises(ValueError): list(join.iter_packets(path))

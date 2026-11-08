@@ -1,5 +1,17 @@
 # CIC-DDoS2019 SYN pieces 0618-0620: flow-label join (issue #3)
 
+## Repair and regeneration status (November 7)
+
+The join is now tool version 2. Regression tests cover the four PR #29 findings: correct integer nanosecond conversion, identical independent header checks in both offset and label passes, exclusion of outer attack-interval boundary windows, and early rejection of colliding capture basenames. Damaged PCAP records fail explicitly rather than looking like a clean end of input. Nanoseconds below one microsecond are floored; offset matches are at that stated precision. Offset evidence deliberately covers valid TCP/UDP packets to **all destinations**; labelled windows remain inbound-only for the chosen victim.
+
+**The JSON files and numerical results below are historical version-1 candidate outputs. They have not been regenerated or approved.** The real PCAP/CSV files are unavailable on Ayden's machine. Keep the original artifacts and exact-head review evidence unchanged; rerun version 2 into a fresh directory on the real inputs before relying on current counts or promoting any manifest. The former ICMP opt-in counts remain unverified historical observations, not approved labels.
+
+Attack boundaries currently use the outer min/max envelope of attack-labelled flows. This is a candidate envelope, not a verified official schedule. It does not create a boundary at every constituent flow start, prove continuity between distinct attack episodes, or establish capture coverage. Review scenario transitions and represent separate episodes explicitly in the next selection if needed.
+
+See [the W2 data handoff](week2-data-handoff.md) for the remaining evidence and commands. Code repair does not supply independently benign traffic, UDP examples or independent split groups.
+
+## Original candidate evidence (version 1)
+
 Status: candidate evidence for Ayden's and Ali's review. **Not reviewed, not usable for training.** It follows steps 2-4 of Ayden's issue #3 handoff for the SYN candidate only. Nothing here labels benign traffic, assigns a split or claims accuracy.
 
 Inputs (kept outside Git, on Vince's PC): `Syn.csv` from `CSV-01-12.zip`, and pieces `SAT-01-12-2018_0618`, `_0619`, `_0620` from `PCAP-01-12_0500-0749.zip`. Piece and CSV SHA-256 values are in [`samples/cic-syn-0618-0620/manifest.json`](samples/cic-syn-0618-0620/manifest.json); the inspector from PR #27 gives the per-piece inventory.
