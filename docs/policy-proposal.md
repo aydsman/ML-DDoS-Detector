@@ -88,23 +88,23 @@ Read from the running `ddos-server` on 2026-11-08 over SSH (read-only, no sudo; 
 
 Proposed allowlist entries are in [policy-defaults.json](policy-defaults.json): 10.10.10.10, 10.10.10.20, 127.0.0.0/8, 10.0.2.2, 10.0.2.3 and 10.0.2.15. Management traffic is expected on `enp0s3`, but routing or forged source fields mean the adapter must not assume these addresses can never appear on the lab NIC. Apply allowlist checks before every action and scope enforcement to the verified lab interface/protected destination. The adapter must enforce both the allowlist check before any action and lab-interface/protected-destination scoping; it is not implemented yet.
 
-`allowlist.verified` stays `false`. Enforcement must not be enabled with it: the runtime values above are observed, but the firewall state and the adapter's scope are not. Observed but not enough: `ufw` is active and `nginx` is active on the server (`systemctl is-active`), and `iptables` and `nft` are installed, so the adapter has to coexist with `ufw`.
+`allowlist.verified` stays `false`. Enforcement must not be enabled with it: the runtime interface values above are observed, but the adapter's scope and allowlist handling are not implemented or tested.
 
-### Questions for Vince (need sudo or a running VM)
+Firewall and netplan state, reported by Vince from `ddos-server` on 2026-11-08 (with sudo; not independently reproduced):
 
-Run on `ddos-server` (`ssh -i ~/.ssh/ddoslab -p 2222 lab@127.0.0.1`, needs the NAT link on):
+| Item | Reported result |
+| --- | --- |
+| `ufw status verbose` | `Status: inactive` (the `ufw` service unit is enabled, but the firewall is off; an earlier note here that `ufw` was active was wrong) |
+| `nft list ruleset` | empty |
+| `iptables -S` | only the default policies: INPUT, FORWARD and OUTPUT all `ACCEPT`, no rules |
+| netplan | `00-installer-config.yaml` (DHCP on `enp0s3`, matched by MAC), `60-lab.yaml` (`enp0s8` 10.10.10.10/24), `70-nat-routes.yaml` (`enp0s3` 10.0.2.15/24, default route via 10.0.2.2, DNS 10.0.2.3, DHCP off). The later file overrides the DHCP setting; the effective addresses and routes match the `ip` output above. |
 
-```sh
-sudo ufw status verbose
-sudo nft list ruleset
-sudo iptables -S
-sudo cat /etc/netplan/*.yaml
-```
+So the server currently has no packet filtering at all. A block rule from the firewall adapter would be the first rule on the host, which means the adapter must create its own chain or table, scope its rules to `enp0s8` and destination 10.10.10.10, and never touch SSH on `enp0s3`. This is a requirement for Mujtaba's adapter, not something verified here. `nginx` is active (`systemctl is-active`), and `iptables` and `nft` are installed.
 
-1. What do `ufw`, `nft` and `iptables` currently contain? The firewall adapter has to add rules without breaking SSH and without conflicting with `ufw`.
-2. Do the netplan files still pin `enp0s8` to `10.10.10.10/24` and `enp0s3` to `10.0.2.15/24` with gateway `10.0.2.2`?
-3. Is any machine other than the host PC and the two VMs meant to reach the server (a presentation laptop, for example)? If so its address belongs on the allowlist.
-4. On the client and attacker VMs (ports 2223 and 2224): `ip -br a` should show `10.10.10.20/24` and `10.10.10.30/24` on `enp0s8`. I verified these only as packet sources in saved captures, not on the VMs.
+### Remaining questions for Vince
+
+1. Is any machine other than the host PC and the two VMs meant to reach the server (a presentation laptop, for example)? If so its address belongs on the allowlist.
+2. On the client and attacker VMs (ports 2223 and 2224): `ip -br a` should show `10.10.10.20/24` and `10.10.10.30/24` on `enp0s8`. I verified these only as packet sources in saved captures, not on the VMs.
 
 ## 5. Version-one scope
 
@@ -139,7 +139,7 @@ Proposal: keep the twelve version-one features unchanged for the first validatio
 | --- | --- | --- |
 | Threshold values and `min_share` | Vince, then Ayden | Evidence from section 2 (benign ceiling, attack floor, mixed run) |
 | Block rules 3 to 6 above | Ayden / Mujtaba | Owner accepted with the November 8 clarifications below; implementation/interface tests remain |
-| Firewall and `ufw` state, allowlist scope | Vince, Mujtaba | Answers to section 4 questions |
+| Allowlist scope in the firewall adapter (own chain/table, `enp0s8` and destination scoping) | Mujtaba, Vince | Adapter design and tests; the server's current firewall state is now reported (empty) |
 | `allowlist.verified` | Vince, Ayden | Only after the above; until then enforcement stays off |
 | Feature `syn_ack_ratio` decision | Ayden | Retain all twelve version-one features for the baseline; record redundancy and revisit only in a separately versioned, retrained validation experiment |
 | Offline/live adapter parity and coverage evidence | Vince, Ali | Not provided by this proposal |
