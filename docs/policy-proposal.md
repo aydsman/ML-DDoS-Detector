@@ -18,6 +18,39 @@ Vince reports computing all figures below on 2026-11-08 from the saved lab PCAPs
 
 What this means: the largest benign rate we have measured is 18 pps total from a single client, and the attack rates we have are either 10 pps (lab generator) or about 20,000 SYN/s (unreviewed public data). Any number between about 18 and 19,000 would be a guess, so this proposal sets none. There is no evidence at all for UDP or ICMP flood rates, for any minimum share, or for a legitimate client running next to an attacker.
 
+### Lab runs added on 2026-11-08 (reported by Vince; raw files not in Git)
+
+Run on the three lab VMs with the same normalization and one-second epoch windows as above. Every capture is `tcpdump -i enp0s8 'host 10.10.10.10'` on `ddos-server` with 0 kernel drops. No sudo was needed on the server or client; the attacker ran `ddos_detector.scenarios` as root. Raw files are in `data/lab-runs/policy-2026-11-08/` on Vince's PC.
+
+Benign load: the legitimate client at 20, 50 and 100 requests/s offered (30 s each, concurrency 4, 8, 16), reaching 5.3, 38.3 and 96.0 achieved requests/s.
+
+| Offered / achieved requests/s | Client packets/s per window: median, max | Client SYN-only/s: max |
+| --- | --- | --- |
+| 20 / 5.3 | 11, 24 | 1 |
+| 50 / 38.3 | 54, 62 | 1 |
+| 100 / 96.0 | 100, 104 | 1 |
+
+Attack ladder with the same client running in the background (about 22 packets/s median, 42 at most in client-only windows). Each row is one 20 s run, except the 1000 packets/s rows (10 s, and the sender reached 817 SYN/s and 900 UDP packets/s because of timer lag). Windows at the start and end of a run are dropped because they hold part of the neighbouring interval, so each row uses 19 windows (9 for the 1000 rows). The attacker's TCP rate counts its inbound RSTs, so it is about twice its SYN rate.
+
+| Scenario | Offered | Attacker packets/s per window: min to max | Attacker SYN-only/s: min to max | Attacker share of all inbound packets: min | Client share: max |
+| --- | --- | --- | --- | --- | --- |
+| SYN | 50 | 100 to 100 | 50 to 50 | 0.758 | 0.242 |
+| SYN | 200 | 388 to 402 | 194 to 201 | 0.934 | 0.066 |
+| SYN | 500 | 956 to 1000 | 478 to 500 | 0.964 | 0.036 |
+| SYN | 1000 | 1548 to 1802 | 774 to 902 | 0.977 | 0.023 |
+| UDP | 50 | 50 to 50 | 0 | 0.641 | 0.359 |
+| UDP | 200 | 193 to 200 | 0 | 0.870 | 0.130 |
+| UDP | 500 | 462 to 500 | 0 | 0.931 | 0.069 |
+| UDP | 1000 | 848 to 923 | 0 | 0.955 | 0.045 |
+
+What this does and does not show:
+
+- TCP packets/s alone does not separate the cases: the weakest SYN run (100 packets/s) is no higher than the benign client's 104 packets/s at high load. SYN-only/s does separate them in these runs: the benign client never exceeded 2 SYN-only/s (1 at high load) and the weakest attack was 50. Any value in that gap would be consistent with this data, and none is proposed here.
+- The benign SYN figure is a lower bound for real clients. The HTTP client reuses connections, so it rarely opens new ones. A client that opens a connection per request would show a much higher SYN rate. The benign ceiling for SYN/s therefore still needs a run with new connections per request before a threshold can be chosen.
+- There is no benign UDP or ICMP in the lab, so the benign UDP ceiling measured here is 0, which is not a usable ceiling.
+- Minimum share: in the mixed windows the attacker's share was at least 0.64 and the client's at most 0.36 (UDP at 50 packets/s). One share value between those would have separated them here, but only for a single client at about 22 packets/s and a single attacker, so this is not enough to set it.
+- Single-source runs only; no multi-source or spoofed run, and no validation split. These are lab runs for the method in section 2, not tuned results.
+
 ## 2. Thresholds and minimum share
 
 ### Rule shape (proposed)
@@ -46,6 +79,8 @@ Pick every value only from lab and validation runs, never from 03-11 or other fi
 4. `min_share`: pick from runs where the attacker and the client send at the same time. The value must keep the client's group below the rate threshold in every window and let the attacker through. Report how many validation windows change with each candidate value.
 
 ### Evidence to collect (proposed commands, run on the lab VMs)
+
+Status on 2026-11-08: the higher benign load, the SYN and UDP rate ladder and the mixed run were done (tables in section 1). Still missing: a benign run that opens a new connection per request, benign UDP/ICMP traffic, a multi-source attack, the Week 2 baseline collection, and separate validation runs.
 
 - Benign ceiling, several repetitions on `ddos-client`, with a server capture on `enp0s8`: the Week 2 baseline collector, then higher load on the same code.
 
