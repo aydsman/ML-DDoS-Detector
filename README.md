@@ -356,6 +356,14 @@ See [the version-one ML feature contract](docs/feature-contract.md) and [ordered
 
 See [Ayden's week-one status](docs/week1-status.md) for prepared deliverables and explicit remaining dependencies, and [dataset selection/label rules](docs/dataset-plan.md) before starting training.
 
+### Week 2 measurement and fixture checks
+
+Ali's [baseline collection and review guide](docs/week2-baselines.md) provides repeated
+legitimate-client collection, JSON/CSV validation and per-run success/latency
+statistics. [Saved synthetic packet fixtures](docs/week2-feature-fixtures.md) have
+independently calculated expectations for all twelve features. Actual VM baseline
+and paired lab-capture evidence remain required before the Week 2 QA card is complete.
+
 ### Offline baseline training (Week 2)
 
 See [the training guide](docs/training.md) for labelled-window preparation, deterministic Random Forest training, validation metrics and model save/reload. A synthetic demo checks the code without downloading data. Verified data/labels/splits and extraction evidence are still required before real training or accuracy claims.
