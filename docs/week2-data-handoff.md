@@ -35,3 +35,5 @@ python -m tools.cic_flow_join `
 Use a genuinely fresh output path. Retain `windows.json`, `manifest.json` and `coverage.json`, plus raw-source identities and review evidence. Do not change the generated manifest to reviewed or allocate this one run across splits. This command checks the existing SYN candidate; it cannot create missing benign/UDP data or independent runs.
 
 The detailed feature/label input format and final training commands remain in [training.md](training.md); the original candidate method and limitations are in [cic-syn-join.md](cic-syn-join.md). Keep [issue #3](https://github.com/aydsman/ML-DDoS-Detector/issues/3) open until its real acceptance evidence is met.
+
+Current inspection/sourcing decisions: [November 8 dataset next steps](dataset-next-steps.md).
