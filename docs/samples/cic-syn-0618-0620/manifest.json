@@ -1,0 +1,52 @@
+{
+  "captures": {
+    "SAT-01-12-2018_0618": {
+      "label_metadata_reference": "Syn.csv (CIC flow CSV), csv sha256 05a272a7005be14262d3929ad16877db42fc74a03032a3a5b58d0230ab08896a",
+      "sha256": "6f06d83da47e1d479031787852d38c96bd0df5e807bdc1fccad8841f4b633f48"
+    },
+    "SAT-01-12-2018_0619": {
+      "label_metadata_reference": "Syn.csv (CIC flow CSV), csv sha256 05a272a7005be14262d3929ad16877db42fc74a03032a3a5b58d0230ab08896a",
+      "sha256": "73ad9bd8c4fd42dcea5a41c8ddeb0a7f9daaa2e2b60fc8c4714660937f380e59"
+    },
+    "SAT-01-12-2018_0620": {
+      "label_metadata_reference": "Syn.csv (CIC flow CSV), csv sha256 05a272a7005be14262d3929ad16877db42fc74a03032a3a5b58d0230ab08896a",
+      "sha256": "de9c10214d2c4378d5900728321a2bb1a85a3490101031a3dc69416de8e6a911"
+    }
+  },
+  "data_kind": "candidate_unreviewed_packet_windows",
+  "feature_names": [
+    "packet_rate",
+    "byte_rate",
+    "syn_count",
+    "syn_ack_ratio",
+    "syn_no_ack_share",
+    "pkt_size_mean",
+    "pkt_size_std",
+    "unique_src_ips",
+    "src_ip_entropy",
+    "tcp_share",
+    "udp_share",
+    "icmp_share"
+  ],
+  "feature_schema_version": "1",
+  "review_refs": {
+    "feature_parity": null,
+    "labels": null,
+    "splits": null
+  },
+  "runs": {
+    "cic-2018-12-01-syn-a": {
+      "capture_ids": [
+        "SAT-01-12-2018_0618",
+        "SAT-01-12-2018_0619",
+        "SAT-01-12-2018_0620"
+      ],
+      "split": null
+    }
+  },
+  "scope": "protected_server_inbound_ipv4_tcp_udp_icmp",
+  "size_definition": "ipv4_total_length_bytes",
+  "status_note": "NOT reviewed and NOT usable for training: one run, no verified benign windows, split unassigned. Same structure as docs/training.md.",
+  "window_alignment": "unix_epoch",
+  "window_seconds": 1.0
+}
