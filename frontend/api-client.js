@@ -14,6 +14,10 @@ export async function loadApiSnapshot(request = fetch) {
       if (!['empty','current','stale','unavailable','stopped','historical'].includes(freshness) || !['none','live','replay'].includes(source) || !['none','synthetic','reviewed_packet_windows'].includes(kind)) throw new Error(`${section} freshness/provenance headers missing or invalid`);
       return {section, data:await response.json(), freshness, source, kind};
     }));
+    const {source, kind} = results[0];
+    if (results.some(result => result.source !== source || result.kind !== kind)) {
+      throw new Error('API provenance changed during refresh');
+    }
     const snapshot = validateSnapshot(Object.fromEntries(results.map(r=>[r.section,r.data])));
     return {snapshot, observations:results.map(({section,freshness,source,kind})=>({section,freshness,source,kind}))};
   } finally {clearTimeout(timeout);controller.abort();}

@@ -24,13 +24,15 @@ function chart(points, field, title, unit, color) {
 }
 
 function render(data) {
-  const chartState=captureChartState();
-  $('updated').textContent = `Snapshot: ${time(data.health.updated_at)}`;
+  $('updated').textContent = `${apiMode() ? 'API response' : 'Snapshot'}: ${time(data.health.updated_at)}`;
   $('health').innerHTML = [['Capture',data.health.capture_status],['Model',data.health.model_status],['Firewall',data.health.firewall_status],['Mitigation mode',data.health.mitigation_mode]].map(([name,value])=>`<div class="health-card"><small>${name}</small><strong class="${['running','loaded','available'].includes(value)?'good':'warn'}">${escape(label(value))}</strong></div>`).join('');
-  const points = [...data.metrics.points].sort((a,b)=>Date.parse(a.window_start)-Date.parse(b.window_start));
-  $('charts').innerHTML = chart(points,'packets_per_second','Packet rate','packets/s','#087f83') + chart(points,'bytes_per_second','Byte rate','bytes/s','#516cb0');
-  if ($('overview-charts')) $('overview-charts').innerHTML = $('charts').innerHTML.replaceAll('Exact values in table below.', 'Exact values available on the Traffic page.');
-  mountCharts(chartState);
+  if (JSON.stringify(data.metrics.points) !== JSON.stringify(snapshot?.metrics.points)) {
+    const chartState=captureChartState();
+    const points = [...data.metrics.points].sort((a,b)=>Date.parse(a.window_start)-Date.parse(b.window_start));
+    $('charts').innerHTML = chart(points,'packets_per_second','Packet rate','packets/s','#087f83') + chart(points,'bytes_per_second','Byte rate','bytes/s','#516cb0');
+    if ($('overview-charts')) $('overview-charts').innerHTML = $('charts').innerHTML.replaceAll('Exact values in table below.', 'Exact values available on the Traffic page.');
+    mountCharts(chartState);
+  }
   const detections = [...data.detections.detections].sort((a,b)=>Date.parse(b.detected_at)-Date.parse(a.detected_at)||a.id.localeCompare(b.id));
   $('detection-count').textContent = `${detections.length} records`;
   $('detections').innerHTML = detections.length ? table(['Time / event','Scope / source','Aggregate model score','Source-rule evidence','Decision'],detections.map(d=>{
@@ -43,13 +45,33 @@ function render(data) {
   $('blocks').innerHTML=blocks.length?table(['Source / record','Reason','Confirmed at (Toronto)','Planned expiry (Toronto)'],blocks.map(b=>`<tr><td><strong>${escape(b.source_ip)}</strong><small>${escape(b.id)}</small></td><td>${escape(b.reason)}</td><td>${escape(time(b.blocked_at))}</td><td>${escape(time(b.expires_at))}</td></tr>`)):empty('No confirmed blocks in this snapshot');
 }
 
+function setNotice(text, tone = '') {
+  const notice = $('notice');
+  notice.className = tone;
+  if (notice.textContent !== text) notice.textContent = text;
+}
+
+function setApiStatuses(data, summary) {
+  const statuses = {
+    detection: data ? `${data.detections.detections.length} API records · ${summary.current ? 'current input' : 'see freshness warning'}` : summary.text,
+    mitigation: data ? `${data.health.mitigation_mode.replaceAll('_', ' ')} · ${data.blocks.blocks.length} confirmed records` : summary.text
+  };
+  for (const [name, text] of Object.entries(statuses)) {
+    const item = $(`${name}-status`);
+    item.dataset.tone = 'unknown';
+    $(`${name}-summary`).textContent = text;
+    item.setAttribute('aria-label', `${name === 'detection' ? 'Detection' : 'Mitigation'} API: ${text}`);
+    $(`${name}-tip`).textContent = summary.text;
+  }
+}
+
 async function refresh() {
   if (busy) return;
   busy = true;
   clearTimeout(pollTimer);
   const scenario=$('scenario').value;
   $('reload').disabled=true; $('scenario').disabled=true; $('source').disabled=true;
-  $('notice').className=''; $('notice').textContent=apiMode() ? 'Loading API data…' : 'Loading sample data…';
+  if (!apiMode() || !snapshot && $('notice').className !== 'error') setNotice(apiMode() ? 'Loading API data…' : 'Loading sample data…');
   try {
     const apiResult=apiMode() ? await loadApiSnapshot() : null;
     const nextSnapshot=apiResult ? apiResult.snapshot : await loadSnapshot(scenario);
@@ -57,24 +79,17 @@ async function refresh() {
     snapshot=nextSnapshot;
     if (apiResult) {
       const summary=describeApi(apiResult.observations);
-      $('notice').className=summary.current?'':'warning';
-      $('notice').textContent=summary.text;
-      updateStatusIndicators(null, 'api');
-      for (const name of ['detection','mitigation']) {
-        const text=name==='detection' ? `${snapshot.detections.detections.length} API records · ${summary.current?'current input':'see freshness warning'}` : `${snapshot.health.mitigation_mode.replaceAll('_',' ')} · ${snapshot.blocks.blocks.length} confirmed records`;
-        $(`${name}-summary`).textContent=text;
-        $(`${name}-status`).setAttribute('aria-label',text);
-        $(`${name}-tip`).textContent=summary.text;
-      }
+      setNotice(summary.text, summary.current ? '' : 'warning');
+      setApiStatuses(snapshot, summary);
       return;
     }
     updateStatusIndicators(snapshot, scenario);
     $('notice').className=['stale','unavailable'].includes(scenario)?'warning':'';
     $('notice').textContent=scenario==='stale'?'STALE SNAPSHOT DEMO — showing an older example. Status and records may no longer reflect system state.':scenario==='unavailable'?'CAPTURE UNAVAILABLE DEMO — rates are unavailable, not zero. Previous example events remain visible.':'MOCK MODE — fixed October 22 example data. No live capture, model inference, or firewall connection.';
   } catch(error) {
-    updateStatusIndicators(snapshot, 'error');
-    $('notice').className='error';
-    $('notice').textContent=`${error.name === 'AbortError' ? 'API request timed out' : error instanceof TypeError ? 'Cannot reach the selected data server' : error.message}. ${snapshot?'Retaining the last successful snapshot; all displayed data is stale.':'No data loaded. System state is unknown.'}`;
+    if (apiMode()) setApiStatuses(null, {text: snapshot ? 'Stale API snapshot' : 'API data unavailable'});
+    else updateStatusIndicators(snapshot, 'error');
+    setNotice(`${error.name === 'AbortError' ? 'API request timed out' : error instanceof TypeError ? 'Cannot reach the selected data server' : error.message}. ${snapshot?'Retaining the last successful snapshot; all displayed data is stale.':'No data loaded. System state is unknown.'}`, 'error');
     if(!snapshot) for(const id of ['health','charts','overview-charts','detections','blocks'].filter(id => $(id))) $(id).innerHTML=empty('Data unavailable');
   } finally {
     busy=false;
@@ -84,6 +99,9 @@ async function refresh() {
 }
 function changeSource() {
   snapshot=null;
+  if (apiMode()) setApiStatuses(null, {text: 'Awaiting API data'});
+  else updateStatusIndicators(null);
+  setNotice(apiMode() ? 'Loading API data…' : 'Loading sample data…');
   for(const id of ['health','charts','overview-charts','detections','blocks'].filter(id=>$(id))) $(id).innerHTML=empty('Awaiting selected data source');
   $('updated').textContent='Awaiting snapshot';
   $('detection-count').textContent=''; $('block-count').textContent='';
