@@ -28,7 +28,9 @@ test('the 30 fabricated windows retain original final measurements',()=>{
  for(const p of data.slice(-2)){assert.equal(p.packets_per_second,4212);assert.equal(p.bytes_per_second,252720);}
  assert.deepEqual(segments(data.map(p=>point(Date.parse(p.window_start),p.packets_per_second,p.window_seconds))),[Array.from({length:30},(_,i)=>i)]);
 });
-const loaderSource=readFileSync(new URL('../frontend/data.js',import.meta.url),'utf8');
+const validationSource=readFileSync(new URL('../frontend/validation.js',import.meta.url),'utf8');
+const validationUrl='data:text/javascript;base64,'+Buffer.from(validationSource).toString('base64');
+const loaderSource=readFileSync(new URL('../frontend/data.js',import.meta.url),'utf8').replace('./validation.js',validationUrl);
 const {loadSnapshot}=await import(`data:text/javascript;base64,${Buffer.from(loaderSource).toString('base64')}`);
 const fixture=readFileSync(new URL('../docs/api-examples.json',import.meta.url),'utf8');
 globalThis.fetch=async()=>({ok:true,json:async()=>JSON.parse(fixture)});

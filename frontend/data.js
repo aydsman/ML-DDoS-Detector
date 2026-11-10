@@ -1,6 +1,8 @@
+import { validateSnapshot } from './validation.js';
 // Replace this loader with the four API calls when the backend contract is reviewed.
 export async function loadSnapshot(scenario = 'sample') {
   if (scenario === 'error') throw new Error('Simulated connection failure');
+  if (scenario === 'loading') await new Promise(resolve => setTimeout(resolve, 1500));
   const response = await fetch('../docs/api-examples.json', { cache: 'no-store' });
   if (!response.ok) throw new Error(`Sample request failed (${response.status})`);
   const data = await response.json();
@@ -19,5 +21,6 @@ export async function loadSnapshot(scenario = 'sample') {
     data.health.mitigation_mode = 'monitor_only';
     data.metrics.points.forEach(p => { p.packets_per_second = null; p.bytes_per_second = null; });
   }
-  return data;
+  if (scenario === 'invalid') delete data.metrics.points;
+  return validateSnapshot(data);
 }
