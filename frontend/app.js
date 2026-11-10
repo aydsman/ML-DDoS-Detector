@@ -1,4 +1,5 @@
 import { loadSnapshot } from './data.js';
+import { loadApiSnapshot, describeApi } from './api-client.js';
 import { updateStatusIndicators } from './status.js';
 import { mountCharts, captureChartState } from './graphs.js';
 
@@ -10,6 +11,9 @@ const label = value => String(value).replaceAll('_', ' ');
 const empty = text => `<div class="empty">${escape(text)}</div>`;
 const table = (headers, rows) => `<table><thead><tr>${headers.map(h=>`<th scope="col">${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>`;
 let snapshot = null;
+let pollTimer;
+let busy = false;
+const apiMode = () => $('source').value === 'api';
 
 function chart(points, field, title, unit, color) {
   if (!points.length) return `<div class="chart"><h3>${title}</h3>${empty('No measurements in this snapshot')}</div>`;
@@ -40,23 +44,57 @@ function render(data) {
 }
 
 async function refresh() {
+  if (busy) return;
+  busy = true;
+  clearTimeout(pollTimer);
   const scenario=$('scenario').value;
-  $('reload').disabled=true; $('scenario').disabled=true;
-  $('notice').className=''; $('notice').textContent='Loading sample data…';
+  $('reload').disabled=true; $('scenario').disabled=true; $('source').disabled=true;
+  $('notice').className=''; $('notice').textContent=apiMode() ? 'Loading API data…' : 'Loading sample data…';
   try {
-    const nextSnapshot=await loadSnapshot(scenario);
+    const apiResult=apiMode() ? await loadApiSnapshot() : null;
+    const nextSnapshot=apiResult ? apiResult.snapshot : await loadSnapshot(scenario);
     render(nextSnapshot);
     snapshot=nextSnapshot;
+    if (apiResult) {
+      const summary=describeApi(apiResult.observations);
+      $('notice').className=summary.current?'':'warning';
+      $('notice').textContent=summary.text;
+      updateStatusIndicators(null, 'api');
+      for (const name of ['detection','mitigation']) {
+        const text=name==='detection' ? `${snapshot.detections.detections.length} API records · ${summary.current?'current input':'see freshness warning'}` : `${snapshot.health.mitigation_mode.replaceAll('_',' ')} · ${snapshot.blocks.blocks.length} confirmed records`;
+        $(`${name}-summary`).textContent=text;
+        $(`${name}-status`).setAttribute('aria-label',text);
+        $(`${name}-tip`).textContent=summary.text;
+      }
+      return;
+    }
     updateStatusIndicators(snapshot, scenario);
     $('notice').className=['stale','unavailable'].includes(scenario)?'warning':'';
     $('notice').textContent=scenario==='stale'?'STALE SNAPSHOT DEMO — showing an older example. Status and records may no longer reflect system state.':scenario==='unavailable'?'CAPTURE UNAVAILABLE DEMO — rates are unavailable, not zero. Previous example events remain visible.':'MOCK MODE — fixed October 22 example data. No live capture, model inference, or firewall connection.';
   } catch(error) {
     updateStatusIndicators(snapshot, 'error');
     $('notice').className='error';
-    $('notice').textContent=`${error instanceof TypeError ? 'Cannot reach the sample data. Check that this preview server is running and reachable' : error.message}. ${snapshot?'Retaining the last successful snapshot; all displayed data is stale.':'No data loaded. System state is unknown.'}`;
+    $('notice').textContent=`${error.name === 'AbortError' ? 'API request timed out' : error instanceof TypeError ? 'Cannot reach the selected data server' : error.message}. ${snapshot?'Retaining the last successful snapshot; all displayed data is stale.':'No data loaded. System state is unknown.'}`;
     if(!snapshot) for(const id of ['health','charts','overview-charts','detections','blocks'].filter(id => $(id))) $(id).innerHTML=empty('Data unavailable');
-  } finally { $('reload').disabled=false; $('scenario').disabled=false; }
+  } finally {
+    busy=false;
+    $('reload').disabled=false; $('scenario').disabled=apiMode(); $('source').disabled=false;
+    if(apiMode()) pollTimer=setTimeout(refresh,1000);
+  }
 }
+function changeSource() {
+  snapshot=null;
+  for(const id of ['health','charts','overview-charts','detections','blocks'].filter(id=>$(id))) $(id).innerHTML=empty('Awaiting selected data source');
+  $('updated').textContent='Awaiting snapshot';
+  $('detection-count').textContent=''; $('block-count').textContent='';
+  document.querySelector('.sample').textContent=apiMode()?'● API DATA':'● SAMPLE DATA';
+  $('reload').textContent=apiMode()?'Refresh now':'Reload sample';
+  document.querySelector('footer span').textContent=apiMode()?'API schema v1 · Refresh after each completed request':'API schema v1 · Fixed example snapshot';
+  for(const name of ['detection','mitigation']) document.querySelector(`#${name}-status small`).textContent=`${name==='detection'?'Detection':'Mitigation'} · ${apiMode()?'API':'demo'}`;
+  refresh();
+}
+$('source').addEventListener('change',changeSource);
+$('source').value=new URLSearchParams(location.search).get('source')==='api'?'api':'mock';
 $('reload').addEventListener('click',refresh);
 $('scenario').addEventListener('change',refresh);
-refresh();
+changeSource();

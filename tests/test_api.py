@@ -43,6 +43,14 @@ def test_empty_store_exposes_read_only_contract():
         assert client.post(f"/api/{section}", json={}).status_code == 405
 
 
+def test_frontend_and_mock_fixture_share_api_origin():
+    client = TestClient(api.create_app())
+    assert client.get('/frontend/').status_code == 200
+    assert 'Data source' in client.get('/frontend/').text
+    assert client.get('/frontend/api-client.js').status_code == 200
+    assert client.get('/docs/api-examples.json').json()['health']['schema_version'] == '1'
+
+
 def test_live_freshness_failure_and_bounded_history():
     now = [14]
     store = api.DashboardStore(history_limit=2, clock=lambda: now[0])
