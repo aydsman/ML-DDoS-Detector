@@ -1,4 +1,12 @@
-# Week 1 mock dashboard
+# Mock dashboard — Weeks 1 and 2
+
+## Week 2 verification (November 10)
+
+The current redesigned Overview, Traffic, Detections and Blocks views use the shared API fixture. Added display-contract validation in `validation.js` rejects missing arrays/rates, invalid timestamps, negative rates, invalid scores, missing source evidence and invalid block expiry before a snapshot is displayed. Invalid responses use the existing error path and retain the previous successful snapshot as stale.
+
+Use **Slow sample load** to observe the loading message and disabled controls for 1.5 seconds, and **Malformed response** to demonstrate rejected data and stale retention. Existing zero, empty, capture-unavailable, stale and connection-failure demos remain available. These are mock scenarios; live requests/refresh remain Week 3 work.
+
+Checks: `node --test tests/frontend-validation.mjs tests/frontend-status.mjs tests/frontend-graphs.mjs` (23 passed); Python suite (492 passed, 4 skipped). Browser verified all eight scenarios, recovery, detection evidence and the confirmed-block table. [Week 2 block screenshot](../docs/screenshots/week2-blocks.png). Review is pending; no live-backend readiness is claimed.
 
 Aadi's display-only dashboard reads the shared `docs/api-examples.json`. Plain HTML/CSS/JavaScript and native SVG; no external libraries, fonts, npm install, or build step.
 
