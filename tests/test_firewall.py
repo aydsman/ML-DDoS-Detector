@@ -254,3 +254,69 @@ def test_remove_cannot_target_an_untracked_action(scope, request_record):
     with pytest.raises(ValueError, match="existing reserved request"):
         adapter.remove(request_record)
     assert firewall.removed == []
+
+
+def test_apply_retry_observing_absence_reports_failed_installation(scope, request_record):
+    firewall = FakeFirewall()
+    firewall.state = RuleState.UNKNOWN
+    adapter = FirewallAdapter(firewall, scope)
+    assert adapter.apply(request_record).rule_state == RuleState.UNKNOWN
+
+    firewall.state = RuleState.ABSENT
+    result = adapter.apply(request_record)
+    assert result.operation == "apply"
+    assert result.rule_state == RuleState.ABSENT
+    assert not result.success
+    assert firewall.applied == []
+    assert adapter.reserved_count == 0
+
+
+def test_poll_confirms_and_expires_uncertain_installation(scope, request_record):
+    firewall = FakeFirewall()
+    now = datetime(2026, 11, 10, tzinfo=timezone.utc)
+    adapter = FirewallAdapter(firewall, scope, clock=lambda: now)
+
+    def apply_with_uncertain_result(request, scope):
+        firewall.state = RuleState.UNKNOWN
+
+    firewall.apply = apply_with_uncertain_result
+    assert adapter.apply(request_record).rule_state == RuleState.UNKNOWN
+    assert adapter.expire_due() == ()
+
+    now += timedelta(seconds=20)
+    firewall.state = RuleState.INSTALLED
+    assert adapter.expire_due() == ()
+    confirmed, = adapter.confirmed_blocks
+    assert confirmed.blocked_at == now
+
+    now += timedelta(seconds=request_record.duration_seconds)
+    expired, = adapter.expire_due()
+    assert expired.success and expired.rule_state == RuleState.ABSENT
+    assert adapter.reserved_count == 0
+
+
+@pytest.mark.parametrize("source", [168430090, b"\x0a\x0a\x0a\x0a"])
+def test_request_rejects_non_string_ipv4_aliases(source):
+    with pytest.raises(ValueError, match="IPv4 string"):
+        BlockRequest("block-1", source, "Explicit request")
+
+
+@pytest.mark.parametrize("duration", [1e-12, -1e100, 1e100, 10**400])
+def test_request_rejects_unrepresentable_duration(duration):
+    with pytest.raises(ValueError, match="representable"):
+        BlockRequest("block-1", "10.10.10.30", "Explicit request", duration)
+
+
+def test_confirmed_action_cannot_restart_after_verifying_absence(scope, request_record):
+    firewall = FakeFirewall()
+    adapter = FirewallAdapter(firewall, scope)
+    assert adapter.apply(request_record).success
+    firewall.state = RuleState.ABSENT
+
+    assert adapter.verify(request_record).rule_state == RuleState.ABSENT
+    assert adapter.reserved_count == 0
+    result = adapter.remove(request_record)
+    assert result.operation == "remove" and result.success
+    with pytest.raises(ValueError, match="new block ID"):
+        adapter.apply(request_record)
+    assert len(firewall.applied) == 1

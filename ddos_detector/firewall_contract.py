@@ -1,6 +1,6 @@
 """Proposed W3 adapter messages, pending component-owner review."""
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from ipaddress import IPv4Address
 import math
@@ -25,12 +25,16 @@ class BlockRequest:
         if (not isinstance(self.block_id, str) or not self.block_id.strip()
                 or not isinstance(self.reason, str) or not self.reason.strip()):
             raise ValueError("Block ID and reason must be nonempty")
+        if not isinstance(self.source_ip, str):
+            raise ValueError("Source IP must be a dotted-decimal IPv4 string")
         IPv4Address(self.source_ip)
         if (not isinstance(self.duration_seconds, (int, float))
                 or isinstance(self.duration_seconds, bool)
+                or self.duration_seconds <= 0
+                or self.duration_seconds >= timedelta.max.total_seconds()
                 or not math.isfinite(self.duration_seconds)
-                or self.duration_seconds <= 0):
-            raise ValueError("Block duration must be finite and positive")
+                or timedelta(seconds=self.duration_seconds) <= timedelta(0)):
+            raise ValueError("Block duration must be finite, positive, and representable")
 
 
 @dataclass(frozen=True)

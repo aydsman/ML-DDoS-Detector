@@ -3,7 +3,7 @@
 The transport must check the exact scoped rule and report UNKNOWN on ambiguous
 outcomes. A real UFW-compatible transport and restart recovery need lab review.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from ipaddress import IPv4Address, IPv4Network
 from threading import RLock
@@ -123,10 +123,10 @@ class FirewallAdapter:
                     request, observed_at, observed_at + timedelta(seconds=request.duration_seconds))
         elif state == RuleState.ABSENT:
             self._requests.pop(request.block_id, None)
-            self._confirmed.pop(request.block_id, None)
+            previously_confirmed = self._confirmed.pop(request.block_id, None)
+            if operation in {"remove", "expire"} or previously_confirmed is not None:
+                self._removed[request.block_id] = (request, result)
         self._audit.append(result)
-        if success and operation in {"remove", "expire"}:
-            self._removed[request.block_id] = (request, result)
         return result
 
     def apply(self, request: BlockRequest):
@@ -137,9 +137,15 @@ class FirewallAdapter:
             if request.block_id in self._requests:
                 # Retrying a reserved request only reconciles it. An uncertain
                 # installation must never cause a second insertion or renewal.
-                return self.verify(request)
+                state, error = self._observe(request)
+                return self._record(request, "apply", state, error)
             if len(self._requests) >= self.max_blocks:
                 raise ValueError("Block capacity reached")
+            # Reject a duration beyond the clock's range before touching the transport.
+            try:
+                self.clock() + timedelta(seconds=request.duration_seconds)
+            except OverflowError as exc:
+                raise ValueError("Block deadline exceeds the clock range") from exc
             self._requests[request.block_id] = request
             state, error = self._observe(request)
             if state == RuleState.ABSENT:
@@ -170,6 +176,8 @@ class FirewallAdapter:
             original, result = self._removed[request.block_id]
             if original != request:
                 raise ValueError("Block ID is already associated with a different request")
+            if result.operation in {"apply", "verify"}:
+                return replace(result, operation=operation, success=True, error=None)
             return result
         if self._requests.get(request.block_id) != request:
             raise ValueError("Removal requires an existing reserved request")
@@ -186,10 +194,15 @@ class FirewallAdapter:
     def expire_due(self):
         """Check deadlines when polled; confirm removal before releasing slots.
 
-        The caller must invoke this regularly. Failed/unknown removals remain
-        due for retry on the next poll, using the original expiry time.
+        Polling also reconciles uncertain installations. A first confirmed
+        installation starts its timer. Failed or unknown removals remain due
+        for retry on the next poll, using the original deadline.
         """
         with self._lock:
+            pending = [request for block_id, request in self._requests.items()
+                       if block_id not in self._confirmed]
+            for request in pending:
+                self.verify(request)
             now = self.clock()
             due = [block.request for block in self._confirmed.values()
                    if block.expires_at <= now]
