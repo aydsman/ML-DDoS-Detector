@@ -5,8 +5,11 @@ from datetime import datetime, timezone
 import math
 from threading import Lock
 import time
+from pathlib import Path
 
 from fastapi import FastAPI, Response
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 
 def utc_timestamp(value):
@@ -178,6 +181,13 @@ def create_app(store=None):
     def blocks(response: Response):
         return respond("blocks", response)
 
+    root = Path(__file__).resolve().parents[1]
+    if (root / "frontend").is_dir():
+        @app.get("/docs/api-examples.json", include_in_schema=False)
+        def mock_examples():
+            return FileResponse(root / "docs" / "api-examples.json")
+
+        app.mount("/frontend", StaticFiles(directory=root / "frontend", html=True), name="frontend")
     return app
 
 
