@@ -20,7 +20,7 @@ What this means: the largest benign rate we have measured is 18 pps total from a
 
 ### Lab runs added on 2026-11-08 (reported by Vince; raw files not in Git)
 
-Run on the three lab VMs with the same normalization and one-second epoch windows as above. Every capture is `tcpdump -i enp0s8 'host 10.10.10.10'` on `ddos-server` with 0 kernel drops. No sudo was needed on the server or client; the attacker ran `ddos_detector.scenarios` as root. Raw files are in `data/lab-runs/policy-2026-11-08/` on Vince's PC.
+Vince reported zero kernel drops on the server capture. The analysis used the same normalization and one-second epoch windows as above. Raw files are in `data/lab-runs/policy-2026-11-08/` on Vince's PC.
 
 Benign load: the legitimate client at 20, 50 and 100 requests/s offered (30 s each, concurrency 4, 8, 16), reaching 5.3, 38.3 and 96.0 achieved requests/s.
 
@@ -53,7 +53,7 @@ What this does and does not show:
 
 ### Benign and attack validation runs, session 2 (2026-11-08 and 2026-11-11)
 
-Done to fill the gaps listed above. Every run has its own capture (`tcpdump -i enp0s8 'host 10.10.10.10'` on `ddos-server`, 0 kernel drops in all 61), client and attacker logs, and clock samples before and after. Raw files: `data/lab-runs/policy-2026-11-08b/` on Vince's PC (outside Git, 111 MB); summaries in its `analysis/`. Windows are one-second epoch windows from the server capture timestamps, computed with `tools/lab_window_summary.py` (first and last window of a capture dropped; for attack sources the source's own first and last window dropped as well). Nothing from 03-11 was used. These are lab runs by one person on one set of VMs, not independently reproduced.
+Vince reported 61 server captures with zero kernel drops, accompanying sender logs, and clock samples before and after each run. Raw files are in `data/lab-runs/policy-2026-11-08b/` outside Git. The summary helper uses one-second server capture timestamps. It drops the first and last selected windows and, for trimmed groups, each group's first and last remaining observations. Gaps do not establish capture coverage. These measurements come from one lab and have not been independently reproduced.
 
 **Benign senders** (client 10.10.10.20, 20 s per run, two separate whole runs per rate, `b1` and `b2`). Values are the larger of the two runs; the paced Python senders reached the offered rate except where noted.
 
@@ -79,7 +79,7 @@ Done to fill the gaps listed above. Every run has its own capture (`tcpdump -i e
 
 A client that opens a new connection per request sends about 5 packets and 1 SYN-only per request, so its SYN-only/s is about its request rate. The earlier "at most 2 SYN-only/s" figure was only because that HTTP client reused connections.
 
-**Attack runs**, each its own capture. "Mixed" runs have the HTTP client in the background (about 20 requests/s, concurrency 4). Two whole repetitions (`v1`, `v2`). SYN and UDP used `ddos_detector.scenarios` from 10.10.10.30. The scenario tool has no ICMP and no multi-source mode, so the ICMP and multi-source runs used `hping3` on the attacker, with real extra addresses 10.10.10.31 to 10.10.10.40 added to its `enp0s8` for the runs and removed afterwards (not spoofed). Ranges are over both repetitions, trimmed windows.
+**Attack runs.** The mixed measurements include concurrent legitimate HTTP traffic. Ranges describe the two reported repetitions and exclude the group-edge observations.
 
 | Scenario | Offered | Attacker packets/s | Attacker SYN-only/s | Attacker share of all inbound |
 | --- | --- | --- | --- | --- |
@@ -93,13 +93,13 @@ A client that opens a new connection per request sends about 5 packets and 1 SYN
 | | 1000 (10 s) | 923 to 1026 | 0 | 0.96 to 0.98 |
 | SYN, alone | 50 / 1000 | 108 to 110 / 1617 to 2045 | 54 to 55 / 809 to 1022 | 1.0 |
 | UDP, alone | 50 / 1000 | 54 to 55 / 953 to 1029 | 0 | 1.0 |
-| ICMP, alone (hping3) | 50 | 51 to 52 | 0 | 1.0 |
+| ICMP, alone | 50 | 51 to 52 | 0 | 1.0 |
 | | 200 | 183 to 193 | 0 | 1.0 |
 | | 1000 (10 s) | 698 to 764 | 0 | 1.0 |
 
 The attacker's TCP packets/s is about twice its SYN-only/s because its inbound RSTs count. The observed UDP rate at 200 offered (about 216) is higher than the sender reported (198 mean); I did not find the cause.
 
-**Multi-source** (hping3, one run each, HTTP client in the background, 20 s):
+**Multi-source** (one run each with concurrent legitimate HTTP traffic):
 
 | Scenario | Sources | Per-source packets/s | Per-source SYN-only/s | Per-source share of all inbound |
 | --- | --- | --- | --- | --- |
@@ -116,10 +116,9 @@ The attacker's TCP packets/s is about twice its SYN-only/s because its inbound R
 
 **Limits and problems in these runs:**
 
-- Single lab, one benign generator per protocol (paced Python), one attack generator for SYN/UDP and hping3 for ICMP and multi-source. SYN, UDP and benign rates have two repetitions; the multi-source, ICMP and "alone" runs have one.
-- VM clocks: after the VMs were reset the client and attacker clocks were about 28 hours behind the host and the server (the server matched the host within about 1.5 s). The analysis uses only server capture timestamps, but the client and attacker timestamps in their own logs cannot be compared with the captures. During `b2-udp-500` the VM clocks jumped by about 6 hours (the client log shows `achieved_per_s` 0.44). The capture still shows 500 packets/s with one low window (220), and its maximum is unaffected.
-- The client and attacker VMs hung on the first boot of this session (no SSH, boot output stopped) and were reset with `controlvm reset`; the first attempt to start the attacker script also stopped waiting for a sudo password, so the attack runs happened on 2026-11-11 instead of 2026-11-08.
-- The 1000 packets/s runs are 10 s (scenario tool cap of 10,000 packets), so each has 8 to 9 usable windows.
+- Single lab, one benign generator per protocol (paced Python), limited generator coverage for each attack class. SYN, UDP and benign rates have two repetitions; the multi-source, ICMP and "alone" runs have one.
+- VM clock offsets and jumps prevented alignment between sender and server records. The analysis uses only the server capture timestamps.
+- The shortest runs contributed only eight or nine usable windows. Longer independent runs are needed to assess variability.
 
 ## 2. Thresholds and minimum share
 
@@ -204,7 +203,7 @@ Firewall and netplan state, reported by Vince from `ddos-server` on 2026-11-08 (
 | `iptables -S` | only the default policies: INPUT, FORWARD and OUTPUT all `ACCEPT`, no rules |
 | netplan | `00-installer-config.yaml` (DHCP on `enp0s3`, matched by MAC), `60-lab.yaml` (`enp0s8` 10.10.10.10/24), `70-nat-routes.yaml` (`enp0s3` 10.0.2.15/24, default route via 10.0.2.2, DNS 10.0.2.3, DHCP off). The later file overrides the DHCP setting; the effective addresses and routes match the `ip` output above. |
 
-So the server currently has no packet filtering at all. A block rule from the firewall adapter would be the first rule on the host, which means the adapter must create its own chain or table, scope its rules to `enp0s8` and destination 10.10.10.10, and never touch SSH on `enp0s3`. This is a requirement for Mujtaba's adapter, not something verified here. `nginx` is active (`systemctl is-active`), and `iptables` and `nft` are installed.
+That inspection found no active filtering rules on the server. A block rule from the firewall adapter would be the first rule on the host, which means the adapter must create its own chain or table, scope its rules to `enp0s8` and destination 10.10.10.10, and never touch SSH on `enp0s3`. This is a requirement for Mujtaba's adapter, not something verified here. `nginx` is active (`systemctl is-active`), and `iptables` and `nft` are installed.
 
 ### Remaining questions for Vince
 
@@ -215,7 +214,7 @@ So the server currently has no packet filtering at all. A block rule from the fi
 
 IPv4 TCP, UDP and ICMP only, inbound to the protected host. IPv6 is deferred until capture, address validation, API and firewall support are specified together. IPv6 frames are skipped and counted under `ipv6`, not scored, so an IPv6 flood would be invisible to this version. Source grouping, the share denominator and the block list are IPv4 only; the allowlist must hold IPv4 addresses or networks only.
 
-ICMP: groups are built like TCP and UDP, but no ICMP flood evidence exists, so its threshold is unset (never qualifies) until ICMP runs are collected.
+ICMP uses the same grouping as TCP and UDP. The reported benign and attack rates overlap, so its threshold remains unset and no ICMP group qualifies for an automatic block.
 
 ## 6. One window rule for offline and live
 

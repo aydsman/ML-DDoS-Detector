@@ -1,13 +1,15 @@
 """Per-source, per-protocol one-second window summary of lab server captures.
 
 Read-only. Uses the repository's own iter_packets (inbound IPv4 TCP/UDP/ICMP to the
-protected host) and one-second epoch windows. The first and last window of each
-capture hold part of a neighbouring interval and are dropped. Each group's own first and last window are additionally dropped in the trim_* fields.
+protected host) and one-second epoch windows. Drop the first and last observed
+selected windows, which may be partial. The trim_* fields also drop each group's
+first and last remaining observations. Gaps do not establish capture coverage.
 
 Usage: python -m tools.lab_window_summary CAPTURE.pcap [...] [--json out.json]
 """
 import argparse
 import json
+import math
 import statistics
 from collections import defaultdict
 
@@ -21,13 +23,13 @@ def summarize(path):
     wins = defaultdict(lambda: defaultdict(lambda: [0, 0]))  # window -> (src, proto) -> [pkts, syn_only]
     skips = SkipCounter()
     for p in iter_packets(path, skips=skips):
-        g = wins[int(p.ts)][(p.src, p.proto)]
+        g = wins[math.floor(p.ts)][(p.src, p.proto)]
         g[0] += 1
         if p.proto == "tcp" and p.flags is not None and p.flags & SYN and not p.flags & ACK:
             g[1] += 1
     keys = sorted(wins)
     inner = keys[1:-1] if len(keys) > 2 else []
-    per = defaultdict(lambda: {"pps": [], "syn": [], "share": [], "win": []})
+    per = defaultdict(lambda: {"pps": [], "syn": [], "share": []})
     total = []
     for w in inner:
         all_pk = sum(v[0] for v in wins[w].values())
@@ -37,10 +39,9 @@ def summarize(path):
             d["pps"].append(n)
             d["syn"].append(syn)
             d["share"].append(n / all_pk)
-            d["win"].append(w)
     out = {"windows_used": len(inner), "windows_dropped_edges": len(keys) - len(inner),
            "total_pps": {"median": statistics.median(total) if total else None, "max": max(total, default=None)},
-           "skipped": dict(getattr(skips, "counts", {}) or {}), "groups": {}}
+           "skipped": dict(skips), "groups": {}}
     for g, d in sorted(per.items()):
         out["groups"][g] = {"windows": len(d["pps"]), "pps_min": min(d["pps"]), "pps_median": statistics.median(d["pps"]),
                             "pps_max": max(d["pps"]), "syn_only_min": min(d["syn"]), "syn_only_max": max(d["syn"]),
@@ -62,7 +63,7 @@ def main():
     args = ap.parse_args()
     result = {path: summarize(path) for path in args.captures}
     if args.json:
-        with open(args.json, "w") as f:
+        with open(args.json, "x", encoding="utf-8") as f:
             json.dump(result, f, indent=1)
     for path, r in result.items():
         print(path, "windows", r["windows_used"], "total pps", r["total_pps"])
