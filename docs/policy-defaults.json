@@ -63,7 +63,7 @@
       {
         "address": "10.10.10.20",
         "why": "legitimate client",
-        "source": "docs; source address of the HTTP client pcaps"
+        "source": "ip -br a on the client VM, 2026-11-11 (verified); source address of the HTTP client pcaps"
       },
       {
         "address": "127.0.0.0/8",

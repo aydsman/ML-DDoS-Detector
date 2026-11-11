@@ -6,11 +6,12 @@ Protected-port rate limiting is a separate proposal and is not covered here.
 
 ## 1. Evidence available today, and what it cannot support
 
-Vince reports computing all figures below on 2026-11-08 from the saved lab PCAPs under `data/lab-runs/` (inbound to 10.10.10.10, one-second epoch windows, the repository's own `iter_packets`) and from the reported candidate windows in `docs/samples/cic-syn-0618-0620/windows.json` (PR #29, training-day only, labels and offsets not independently verified). No final-test (03-11) data was used. Vince reports no output of `tools/collect_baseline.py` in his checkout/lab folder. The raw lab inputs and runtime command outputs are unavailable to this owner review, so the numerical/runtime observations remain collaborator-reported; a source list is not independent reproduction.
+Vince reported these observations from saved lab captures, the November 11 baseline collection and the candidate training-day windows in [PR #29](https://github.com/aydsman/ML-DDoS-Detector/pull/29). The candidate labels and offsets remain unverified. The raw lab inputs and runtime output are outside Git. No final-test data was used.
 
 | Evidence | What it shows | Limits |
 | --- | --- | --- |
 | Legitimate HTTP client, 2 runs (`http-client-2026-10-28-rerun`) | One source (10.10.10.20), TCP only. 72 and 57 windows. Total inbound pps: median 10 and 8, maximum 18 in both. SYN-only: at most 2 per second. | One client, one nginx page, target 5 req/s (about 4 achieved). No concurrency, no larger load. Lab VM timers jitter up to about 3 s. |
+| Week 2 baseline collection, 2026-11-11 (`baseline-2026-11-11`, reported by Vince) | `tools.collect_baseline` on `ddos-client` with the section 2 command: 3 trials of 30 s at 2 requests/s, 60 attempts each, all 180 requests returned 2xx; `tools.review_measurements` reported `valid: true`. Server capture on `enp0s8`: 91 one-second windows, one source (10.10.10.20), TCP only. Inbound packets per window: median 4, maximum 8. SYN-only: at most 1 per second. | Same single client, one nginx page and low rate as the 2026-10-28 runs, so it adds a repetition, not a higher load. The client had no git checkout, so code provenance in `collection.json` is unavailable. Host load, firewall rules and nginx configuration were not recorded. Raw files are outside Git under `data/lab-runs/baseline-2026-11-11/`. |
 | Controlled SYN, 3 runs (`pr16-syn-run1`, `syn-run2`, `ctrlc-syn`) | One source (10.10.10.30). 10 SYN/s offered; the source's TCP packets are 20 per second because its inbound RSTs count too. Share of all inbound packets: 1.0 in every window. | Generator test rate, not a flood. The offered SYN-only rate is 10/s, while the observed source packet rate includes RSTs and is 20/s. Do not compare those different quantities as though both were total packet rates. |
 | Controlled UDP, 3 runs (`pr16-udp-run1`, `udp-run2`, `ctrlc-udp`) | One source, 10 UDP packets/s, share 1.0. | Same: a pipeline test, not a flood. |
 | Inbound ICMP from 10.10.10.30 | 1 packet/s in 2 windows of each of four scenario captures. | Low-rate ICMP observation; no independently labelled ICMP flood or benign-window evidence is established here. |
@@ -149,7 +150,7 @@ Pick every value only from lab and validation runs, never from 03-11 or other fi
 
 ### Evidence to collect (proposed commands, run on the lab VMs)
 
-Status 2026-11-11: the higher benign load, the SYN and UDP rate ladder, the mixed run, new-connection benign runs, benign UDP and ICMP, ICMP and multi-source attack runs, and separate repeated runs are done (tables in section 1). Still missing: the Week 2 baseline collection (`tools.collect_baseline`) and a larger or more varied benign population.
+Status 2026-11-11: the higher benign load, the SYN and UDP rate ladder, the mixed run, new-connection benign runs, benign UDP and ICMP, ICMP and multi-source attack runs, and separate repeated runs are done (tables in section 1). The November 11 baseline adds three successful low-rate runs. A larger, more varied benign population and the missing resource and configuration records are still needed.
 
 - Benign ceiling, several repetitions on `ddos-client`, with a server capture on `enp0s8`: the Week 2 baseline collector, then higher load on the same code.
 
@@ -186,8 +187,8 @@ Read from the running `ddos-server` on 2026-11-08 over SSH (read-only, no sudo; 
 | Management NIC | `enp0s3`, `10.0.2.15/24`, default route via `10.0.2.2`, DNS `10.0.2.3` | `ip route`, `resolvectl dns` |
 | Management session | SSH peer address `10.0.2.2` (the NAT gateway) | `ss -tn` |
 | Protected server | `10.10.10.10` | above |
-| Legitimate client | `10.10.10.20`: source address of all HTTP client captures | pcaps |
-| Attacker | `10.10.10.30`: source address of all scenario captures; never allowlisted | pcaps |
+| Legitimate client | `10.10.10.20/24` on `enp0s8` (MAC 08:00:27:c4:df:b2); `enp0s3` `10.0.2.15/24`, default via `10.0.2.2`, `10.10.10.0/24` on-link via `enp0s8`, no other routes | `ip -br a`, `ip route` over SSH on the client VM, 2026-11-11 (verified); also the source address of all HTTP client captures |
+| Attacker | `10.10.10.30/24` on `enp0s8` (MAC 08:00:27:bc:96:41); `enp0s3` `10.0.2.15/24`, default via `10.0.2.2`, `10.10.10.0/24` on-link via `enp0s8`, no other routes; never allowlisted | `ip -br a`, `ip route` over SSH on the attacker VM, 2026-11-11 (verified); also the source address of all scenario captures |
 | Capture drops | 0 packets dropped by kernel in the `ctrlc-syn` capture | `ctrlc-syn.log` |
 
 Proposed allowlist entries are in [policy-defaults.json](policy-defaults.json): 10.10.10.10, 10.10.10.20, 127.0.0.0/8, 10.0.2.2, 10.0.2.3 and 10.0.2.15. Management traffic is expected on `enp0s3`, but routing or forged source fields mean the adapter must not assume these addresses can never appear on the lab NIC. Apply allowlist checks before every action and scope enforcement to the verified lab interface/protected destination. The adapter must enforce both the allowlist check before any action and lab-interface/protected-destination scoping; it is not implemented yet.
@@ -205,10 +206,9 @@ Firewall and netplan state, reported by Vince from `ddos-server` on 2026-11-08 (
 
 That inspection found no active filtering rules on the server. A block rule from the firewall adapter would be the first rule on the host, which means the adapter must create its own chain or table, scope its rules to `enp0s8` and destination 10.10.10.10, and never touch SSH on `enp0s3`. This is a requirement for Mujtaba's adapter, not something verified here. `nginx` is active (`systemctl is-active`), and `iptables` and `nft` are installed.
 
-### Remaining questions for Vince
+### Remaining lab verification
 
-1. Is any machine other than the host PC and the two VMs meant to reach the server (a presentation laptop, for example)? If so its address belongs on the allowlist.
-2. On the client and attacker VMs (ports 2223 and 2224): `ip -br a` should show `10.10.10.20/24` and `10.10.10.30/24` on `enp0s8`. I verified these only as packet sources in saved captures, not on the VMs.
+Vince reported that the client and test sender addresses, the server address and its routes matched the table when rechecked on November 11. Recheck filtering and netplan before runtime enforcement, confirm any other legitimate clients, and verify the adapter's scope and allowlist handling in the lab.
 
 ## 5. Version-one scope
 
