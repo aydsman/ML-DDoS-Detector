@@ -11,6 +11,7 @@ Vince reports computing all figures below on 2026-11-08 from the saved lab PCAPs
 | Evidence | What it shows | Limits |
 | --- | --- | --- |
 | Legitimate HTTP client, 2 runs (`http-client-2026-10-28-rerun`) | One source (10.10.10.20), TCP only. 72 and 57 windows. Total inbound pps: median 10 and 8, maximum 18 in both. SYN-only: at most 2 per second. | One client, one nginx page, target 5 req/s (about 4 achieved). No concurrency, no larger load. Lab VM timers jitter up to about 3 s. |
+| Week 2 baseline collection, 2026-11-11 (`baseline-2026-11-11`, verified by running it) | `tools.collect_baseline` on `ddos-client` with the section 2 command: 3 trials of 30 s at 2 requests/s, 60 attempts each, all 180 requests returned 2xx; `tools.review_measurements` reported `valid: true`. Server capture on `enp0s8`: 91 one-second windows, one source (10.10.10.20), TCP only. Inbound packets per window: median 4, maximum 8. SYN-only: at most 1 per second. | Same single client, one nginx page and low rate as the 2026-10-28 runs, so it adds a repetition, not a higher load. The client had no git checkout, so code provenance in `collection.json` is unavailable. Host load, firewall rules and nginx configuration were not recorded. Raw files are outside Git under `data/lab-runs/baseline-2026-11-11/`. |
 | Controlled SYN, 3 runs (`pr16-syn-run1`, `syn-run2`, `ctrlc-syn`) | One source (10.10.10.30). 10 SYN/s offered; the source's TCP packets are 20 per second because its inbound RSTs count too. Share of all inbound packets: 1.0 in every window. | Generator test rate, not a flood. The offered SYN-only rate is 10/s, while the observed source packet rate includes RSTs and is 20/s. Do not compare those different quantities as though both were total packet rates. |
 | Controlled UDP, 3 runs (`pr16-udp-run1`, `udp-run2`, `ctrlc-udp`) | One source, 10 UDP packets/s, share 1.0. | Same: a pipeline test, not a flood. |
 | Inbound ICMP from 10.10.10.30 | 1 packet/s in 2 windows of each of four scenario captures. | Low-rate ICMP observation; no independently labelled ICMP flood or benign-window evidence is established here. |
@@ -82,8 +83,8 @@ Read from the running `ddos-server` on 2026-11-08 over SSH (read-only, no sudo; 
 | Management NIC | `enp0s3`, `10.0.2.15/24`, default route via `10.0.2.2`, DNS `10.0.2.3` | `ip route`, `resolvectl dns` |
 | Management session | SSH peer address `10.0.2.2` (the NAT gateway) | `ss -tn` |
 | Protected server | `10.10.10.10` | above |
-| Legitimate client | `10.10.10.20`: source address of all HTTP client captures | pcaps |
-| Attacker | `10.10.10.30`: source address of all scenario captures; never allowlisted | pcaps |
+| Legitimate client | `10.10.10.20/24` on `enp0s8` (MAC 08:00:27:c4:df:b2); `enp0s3` `10.0.2.15/24`, default via `10.0.2.2`, `10.10.10.0/24` on-link via `enp0s8`, no other routes | `ip -br a`, `ip route` over SSH on the client VM, 2026-11-11 (verified); also the source address of all HTTP client captures |
+| Attacker | `10.10.10.30/24` on `enp0s8` (MAC 08:00:27:bc:96:41); `enp0s3` `10.0.2.15/24`, default via `10.0.2.2`, `10.10.10.0/24` on-link via `enp0s8`, no other routes; never allowlisted | `ip -br a`, `ip route` over SSH on the attacker VM, 2026-11-11 (verified); also the source address of all scenario captures |
 | Capture drops | 0 packets dropped by kernel in the `ctrlc-syn` capture | `ctrlc-syn.log` |
 
 Proposed allowlist entries are in [policy-defaults.json](policy-defaults.json): 10.10.10.10, 10.10.10.20, 127.0.0.0/8, 10.0.2.2, 10.0.2.3 and 10.0.2.15. Management traffic is expected on `enp0s3`, but routing or forged source fields mean the adapter must not assume these addresses can never appear on the lab NIC. Apply allowlist checks before every action and scope enforcement to the verified lab interface/protected destination. The adapter must enforce both the allowlist check before any action and lab-interface/protected-destination scoping; it is not implemented yet.
@@ -104,7 +105,7 @@ sudo cat /etc/netplan/*.yaml
 1. What do `ufw`, `nft` and `iptables` currently contain? The firewall adapter has to add rules without breaking SSH and without conflicting with `ufw`.
 2. Do the netplan files still pin `enp0s8` to `10.10.10.10/24` and `enp0s3` to `10.0.2.15/24` with gateway `10.0.2.2`?
 3. Is any machine other than the host PC and the two VMs meant to reach the server (a presentation laptop, for example)? If so its address belongs on the allowlist.
-4. On the client and attacker VMs (ports 2223 and 2224): `ip -br a` should show `10.10.10.20/24` and `10.10.10.30/24` on `enp0s8`. I verified these only as packet sources in saved captures, not on the VMs.
+4. On the client and attacker VMs (ports 2223 and 2224): `ip -br a` shows `10.10.10.20/24` and `10.10.10.30/24` on `enp0s8`. Answered on 2026-11-11: both confirmed by reading the VMs (see the table above). The server's `enp0s8` `10.10.10.10/24` and routes were re-read in the same session and are unchanged. This confirms the address entries only; questions 1 to 3 (firewall state, netplan, other machines) are still open and need sudo on the server.
 
 ## 5. Version-one scope
 
