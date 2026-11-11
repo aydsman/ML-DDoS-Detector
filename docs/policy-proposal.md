@@ -46,10 +46,80 @@ Attack ladder with the same client running in the background (about 22 packets/s
 What this does and does not show:
 
 - TCP packets/s alone does not separate the cases: the weakest SYN run (100 packets/s) is no higher than the benign client's 104 packets/s at high load. SYN-only/s does separate them in these runs: the benign client never exceeded 2 SYN-only/s (1 at high load) and the weakest attack was 50. Any value in that gap would be consistent with this data, and none is proposed here.
-- The benign SYN figure is a lower bound for real clients. The HTTP client reuses connections, so it rarely opens new ones. A client that opens a connection per request would show a much higher SYN rate. The benign ceiling for SYN/s therefore still needs a run with new connections per request before a threshold can be chosen.
-- There is no benign UDP or ICMP in the lab, so the benign UDP ceiling measured here is 0, which is not a usable ceiling.
+- The benign SYN figure above is a lower bound for real clients: the HTTP client reuses connections. Runs with a new connection per request are in the next subsection and show a much higher SYN-only/s.
+- This table had no benign UDP or ICMP; those are measured in the next subsection.
 - Minimum share: in the mixed windows the attacker's share was at least 0.64 and the client's at most 0.36 (UDP at 50 packets/s). One share value between those would have separated them here, but only for a single client at about 22 packets/s and a single attacker, so this is not enough to set it.
 - Single-source runs only; no multi-source or spoofed run, and no validation split. These are lab runs for the method in section 2, not tuned results.
+
+### Benign and attack validation runs, session 2 (2026-11-08 and 2026-11-11)
+
+Done to fill the gaps listed above. Every run has its own capture (`tcpdump -i enp0s8 'host 10.10.10.10'` on `ddos-server`, 0 kernel drops in all 61), client and attacker logs, and clock samples before and after. Raw files: `data/lab-runs/policy-2026-11-08b/` on Vince's PC (outside Git, 111 MB); summaries in its `analysis/`. Windows are one-second epoch windows from the server capture timestamps, computed with `tools/lab_window_summary.py` (first and last window of a capture dropped; for attack sources the source's own first and last window dropped as well). Nothing from 03-11 was used. These are lab runs by one person on one set of VMs, not independently reproduced.
+
+**Benign senders** (client 10.10.10.20, 20 s per run, two separate whole runs per rate, `b1` and `b2`). Values are the larger of the two runs; the paced Python senders reached the offered rate except where noted.
+
+| Sender | Offered per s | Source packets/s: median, max | SYN-only/s: max |
+| --- | --- | --- | --- |
+| New TCP connection per request | 5 | 25, 50 | 10 |
+| | 20 | 100, 115 | 23 |
+| | 50 | 250, 295 | 59 |
+| | 100 | 500, 534 | 107 |
+| | 200 | 1000, 1110 | 222 |
+| | 400 | about 2000, 2270 | 454 |
+| UDP datagrams | 10 | 10, 14 | 0 |
+| | 50 | 50, 57 | 0 |
+| | 200 | 200, 214 | 0 |
+| | 500 | 500, 501 | 0 |
+| | 1000 | 1000, 1243 | 0 |
+| | 2000 | 2000, 2356 | 0 |
+| ICMP echo | 1 | 1, 1 | 0 |
+| | 5 | 5, 10 | 0 |
+| | 20 | 20, 25 | 0 |
+| | 100 | 100, 112 | 0 |
+| | 500 | 500, 577 | 0 |
+
+A client that opens a new connection per request sends about 5 packets and 1 SYN-only per request, so its SYN-only/s is about its request rate. The earlier "at most 2 SYN-only/s" figure was only because that HTTP client reused connections.
+
+**Attack runs**, each its own capture. "Mixed" runs have the HTTP client in the background (about 20 requests/s, concurrency 4). Two whole repetitions (`v1`, `v2`). SYN and UDP used `ddos_detector.scenarios` from 10.10.10.30. The scenario tool has no ICMP and no multi-source mode, so the ICMP and multi-source runs used `hping3` on the attacker, with real extra addresses 10.10.10.31 to 10.10.10.40 added to its `enp0s8` for the runs and removed afterwards (not spoofed). Ranges are over both repetitions, trimmed windows.
+
+| Scenario | Offered | Attacker packets/s | Attacker SYN-only/s | Attacker share of all inbound |
+| --- | --- | --- | --- | --- |
+| SYN, mixed | 50 | 108 to 110 | 54 to 55 | 0.71 to 0.90 |
+| | 200 | 420 to 434 | 210 to 217 | 0.91 to 0.97 |
+| | 500 | 751 to 1081 | 375 to 541 | 0.96 to 0.99 |
+| | 1000 (10 s) | 1493 to 2072 | 747 to 1036 | 0.98 to 0.99 |
+| UDP, mixed | 50 | 54 to 55 | 0 | 0.60 to 0.78 |
+| | 200 | 202 to 217 | 0 | 0.82 to 0.96 |
+| | 500 | 478 to 541 | 0 | 0.92 to 0.98 |
+| | 1000 (10 s) | 923 to 1026 | 0 | 0.96 to 0.98 |
+| SYN, alone | 50 / 1000 | 108 to 110 / 1617 to 2045 | 54 to 55 / 809 to 1022 | 1.0 |
+| UDP, alone | 50 / 1000 | 54 to 55 / 953 to 1029 | 0 | 1.0 |
+| ICMP, alone (hping3) | 50 | 51 to 52 | 0 | 1.0 |
+| | 200 | 183 to 193 | 0 | 1.0 |
+| | 1000 (10 s) | 698 to 764 | 0 | 1.0 |
+
+The attacker's TCP packets/s is about twice its SYN-only/s because its inbound RSTs count. The observed UDP rate at 200 offered (about 216) is higher than the sender reported (198 mean); I did not find the cause.
+
+**Multi-source** (hping3, one run each, HTTP client in the background, 20 s):
+
+| Scenario | Sources | Per-source packets/s | Per-source SYN-only/s | Per-source share of all inbound |
+| --- | --- | --- | --- | --- |
+| SYN | 5 x 100 offered | 196 to 208 | 98 to 104 | 0.19 to 0.20 |
+| SYN | 10 x 50 offered | 94 to 107 | 47 to 54 | 0.095 to 0.10 |
+| UDP | 5 x 100 offered | 99 to 105 | 0 | 0.18 to 0.20 |
+| UDP | 10 x 50 offered | 51 to 53 | 0 | 0.09 to 0.10 |
+
+**What the data supports:**
+
+- No clear gap on any rate. For every protocol the benign ceiling measured here is above the lowest attack rate I sent: TCP SYN-only/s benign 454 vs attack 54; TCP packets/s 2270 vs 108; UDP packets/s 2356 vs 54; ICMP packets/s 577 vs 51. So `packet_rate_thresholds` and `syn_rate_threshold` stay `null`. The benign numbers are also not true ceilings: the highest rates I tried were 400 requests/s, 2000 UDP packets/s and 500 ICMP/s with paced Python senders, and a real client could go higher.
+- Share does not separate benign from attack. A lone benign client has share 1.0, the same as a lone attacker. In the single-attacker mixed runs the attacker's share was at least 0.60 (UDP at 50 packets/s), but with 5 or 10 sources each source's share is only about 0.2 or 0.1, so a `min_share` above 0.2 would never qualify a distributed attack, as described in section 2. Per-source rates in the multi-source runs (about 50 to 105 TCP packets/s, 47 to 54 SYN-only/s with 10 sources) are within what a benign client at 20 to 50 requests/s produces.
+- One observation, not a proposed threshold: the SYN-only fraction of a source's TCP packets was about 0.2 for the new-connection benign client (for example 107 of 500) and 0.50 for the SYN attacker in every run. In this lab the 0.5 is because the kernel's RSTs are counted; against spoofed or silent sources it would be higher. This is a possible feature or condition for Ayden to consider, with one generator on one lab.
+
+**Limits and problems in these runs:**
+
+- Single lab, one benign generator per protocol (paced Python), one attack generator for SYN/UDP and hping3 for ICMP and multi-source. SYN, UDP and benign rates have two repetitions; the multi-source, ICMP and "alone" runs have one.
+- VM clocks: after the VMs were reset the client and attacker clocks were about 28 hours behind the host and the server (the server matched the host within about 1.5 s). The analysis uses only server capture timestamps, but the client and attacker timestamps in their own logs cannot be compared with the captures. During `b2-udp-500` the VM clocks jumped by about 6 hours (the client log shows `achieved_per_s` 0.44). The capture still shows 500 packets/s with one low window (220), and its maximum is unaffected.
+- The client and attacker VMs hung on the first boot of this session (no SSH, boot output stopped) and were reset with `controlvm reset`; the first attempt to start the attacker script also stopped waiting for a sudo password, so the attack runs happened on 2026-11-11 instead of 2026-11-08.
+- The 1000 packets/s runs are 10 s (scenario tool cap of 10,000 packets), so each has 8 to 9 usable windows.
 
 ## 2. Thresholds and minimum share
 
@@ -80,7 +150,7 @@ Pick every value only from lab and validation runs, never from 03-11 or other fi
 
 ### Evidence to collect (proposed commands, run on the lab VMs)
 
-Status on 2026-11-08: the higher benign load, the SYN and UDP rate ladder and the mixed run were done (tables in section 1). Still missing: a benign run that opens a new connection per request, benign UDP/ICMP traffic, a multi-source attack, the Week 2 baseline collection, and separate validation runs.
+Status 2026-11-11: the higher benign load, the SYN and UDP rate ladder, the mixed run, new-connection benign runs, benign UDP and ICMP, ICMP and multi-source attack runs, and separate repeated runs are done (tables in section 1). Still missing: the Week 2 baseline collection (`tools.collect_baseline`) and a larger or more varied benign population.
 
 - Benign ceiling, several repetitions on `ddos-client`, with a server capture on `enp0s8`: the Week 2 baseline collector, then higher load on the same code.
 
@@ -172,7 +242,7 @@ Proposal: keep the twelve version-one features unchanged for the first validatio
 
 | Item | Owner | Needed to close |
 | --- | --- | --- |
-| Threshold values and `min_share` | Vince, then Ayden | Evidence from section 2 (benign ceiling, attack floor, mixed run) |
+| Threshold values and `min_share` | Vince, then Ayden | The lab data in section 1 shows overlap between benign and attack rates for every protocol, so no value is proposed. Needs a different signal (for example the SYN-only fraction) or a decision on the margin and on a benign load model |
 | Block rules 3 to 6 above | Ayden / Mujtaba | Owner accepted with the November 8 clarifications below; implementation/interface tests remain |
 | Allowlist scope in the firewall adapter (own chain/table, `enp0s8` and destination scoping) | Mujtaba, Vince | Adapter design and tests; the server's current firewall state is now reported (empty) |
 | `allowlist.verified` | Vince, Ayden | Only after the above; until then enforcement stays off |
