@@ -17,7 +17,7 @@ Vince reported these observations from saved lab captures, the November 11 basel
 | Inbound ICMP from 10.10.10.30 | 1 packet/s in 2 windows of each of four scenario captures. | Low-rate ICMP observation; no independently labelled ICMP flood or benign-window evidence is established here. |
 | CIC-DDoS2019 candidate SYN windows (PR #29) | 8 candidate attack windows, one source, TCP share about 1.0. 19,062 to 20,912 packets/s per window, all but a handful SYN-only (SYN-only 19,060 to 20,912). | Training-day, one run, unreviewed ground truth, unresolved time offset. No benign windows, no UDP windows. Not a lab measurement. |
 
-What this means: the largest benign rate we have measured is 18 pps total from a single client, and the attack rates we have are either 10 pps (lab generator) or about 20,000 SYN/s (unreviewed public data). Any number between about 18 and 19,000 would be a guess, so this proposal sets none. There is no evidence at all for UDP or ICMP flood rates, for any minimum share, or for a legitimate client running next to an attacker.
+These early observations establish measurement context. The later lab runs below provide the basis for the current decision to leave rate and share thresholds unset.
 
 ### Lab runs added on 2026-11-08 (reported by Vince; raw files not in Git)
 
@@ -241,7 +241,7 @@ Proposal: keep the twelve version-one features unchanged for the first validatio
 
 | Item | Owner | Needed to close |
 | --- | --- | --- |
-| Threshold values and `min_share` | Vince, then Ayden | The lab data in section 1 shows overlap between benign and attack rates for every protocol, so no value is proposed. Needs a different signal (for example the SYN-only fraction) or a decision on the margin and on a benign load model |
+| Threshold values and `min_share` | Vince, then Ayden | Keep the values unset. The reported rates overlap and the source shares vary with the traffic mix. The draft policy remains monitor-only while evidence for a blocking rule and runtime allowlist verification are pending. |
 | Block rules 3 to 6 above | Ayden / Mujtaba | Owner accepted with the November 8 clarifications below; implementation/interface tests remain |
 | Allowlist scope in the firewall adapter (own chain/table, `enp0s8` and destination scoping) | Mujtaba, Vince | Adapter design and tests; the server's current firewall state is now reported (empty) |
 | `allowlist.verified` | Vince, Ayden | Only after the above; until then enforcement stays off |

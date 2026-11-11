@@ -1,4 +1,4 @@
-# Dataset decisions and remaining W2 evidence — November 8
+# Dataset decisions and remaining W2 evidence
 
 These are Ayden's project decisions following Vince's [new collection findings](https://github.com/aydsman/ML-DDoS-Detector/issues/3#issuecomment-6725846803). They authorize bounded inspection and preparation, not reviewed labels, a final split or model performance claims.
 
@@ -22,6 +22,15 @@ In parallel, prepare a separately identified **controlled-lab pilot proposal** i
 
 Do not make a classifier from public attacks versus only lab benign traffic: it could learn differences between collection environments. A lab pilot needs benign and attack traffic from that lab and must be reported separately from the public-data experiment. This preparation is not a silent replacement of CIC-DDoS2019 or approval to mark W2 complete. Bring the actual class/run inventory and proposed split back for Ayden's final acceptance.
 
-## Handoff now
+## November 11 decision for the Week 2 pilot
+
+Vince reports zero verified benign windows and two independent SYN runs among the CIC captures he checked. Proceed with a separate lab pilot by reviewing existing captures and their logs offline. The CIC candidates remain a separate dataset investigation. The pilot is pending an inspectable set of lab inputs.
+
+- Identify three independently documented lab sessions. Assign one whole session to training, one to validation and one to final test before window selection. Each split needs verified benign examples and examples from the intended SYN and UDP scope. If the available records cannot support that split, document the shortage and keep training pending.
+- For each session retain capture names and SHA-256 hashes, capture coverage and timing evidence, and the corresponding service and run records. Reconcile those records against the captured traffic before applying labels. Mark unsupported windows excluded and keep the exclusion counts.
+- Apply the existing [window label and feature contract](training.md#real-data-handoff-format), including its provisional 80% attack-packet rule. Use at most 300 eligible windows per binary class per split for this pilot. Fix a deterministic selection rule before training and record the retained and excluded counts by traffic type. Keep the final test out of model and threshold selection.
+- Vince supplies the capture inventory and a small traceable window sample. Ayden can independently reproduce the sample's labels and features from the supplied inputs, then review the full split before training. Save the reviewed manifest with the inputs used for the run.
+
+## CIC evidence handoff
 
 Vince supplies fresh version-2 JSON outputs and raw/sliced PCAP/CSV evidence as specified in the owner recheck on PR #29. Ayden may perform the label/feature review; it does not depend on Ali personally. The reviewer must record actual checks. Acknowledged rerun totals are collaborator-reported until the files can be inspected. Keep candidate manifests unreviewed, issue #3 open, and final test outcomes out of tuning.
