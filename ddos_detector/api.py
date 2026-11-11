@@ -2,6 +2,7 @@
 import argparse
 from collections import deque
 from datetime import datetime, timezone
+import json
 import math
 from threading import Lock
 import time
@@ -34,6 +35,7 @@ class DashboardStore:
         self._clock = clock
         self._stale_after = stale_after
         self._lock = Lock()
+        self._archived = False
         self._state = "idle"
         self._source = "none"
         self._data_kind = "none"
@@ -55,6 +57,33 @@ class DashboardStore:
             else:
                 raise ValueError("Unsupported monitor event")
 
+    @classmethod
+    def from_audit_log(cls, lines):
+        """Read a terminated monitor run into a bounded, historical store."""
+        store = cls()
+        store._archived = True
+        window_count = 0
+        for line_number, line in enumerate(lines, 1):
+            if not line.strip():
+                continue
+            try:
+                event = json.loads(line)
+                if not isinstance(event, dict) or event.get("monitor_only") is not True:
+                    raise ValueError("Expected a monitor-only record")
+                if event.get("record_type") == "window":
+                    utc_timestamp(event["logged_at"])
+                    store._ingest_window(event, None)
+                    window_count += 1
+                else:
+                    store.ingest(event)
+                    if event.get("status") in ("completed", "unavailable") and event.get("windows") != window_count:
+                        raise ValueError("Terminal window count does not match audit records")
+            except (KeyError, TypeError, ValueError, OverflowError) as exc:
+                raise ValueError(f"Invalid monitor audit record at line {line_number}: {exc}") from exc
+        if store._state not in ("completed", "unavailable"):
+            raise ValueError("Monitor audit log has no terminal status")
+        return store
+
     def _ingest_status(self, event):
         state = event["status"]
         source = event["source_mode"]
@@ -73,21 +102,27 @@ class DashboardStore:
         self._state = state
 
     def _ingest_window(self, event, record):
-        start, end = record.window_start, record.window_end
+        start, end = event["window_start"], event["window_end"]
         timestamp = utc_timestamp(start)
         utc_timestamp(end)
         if (self._state != "started" or end - start != 1 or start % 1
-                or event["window_start"] != start or event["window_end"] != end
-                or event["packet_count"] != record.packet_count
                 or self._last_window_end is not None and start < self._last_window_end):
             raise ValueError("Expected an ordered finalized one-second monitor window")
-        rates = {key: record.features[name] for key, name in (
-            ("packets_per_second", "packet_rate"), ("bytes_per_second", "byte_rate"))}
-        if any(type(value) not in (int, float) or not math.isfinite(value) or value < 0
-               for value in rates.values()):
-            raise ValueError("Invalid window rate")
-        if type(record.packet_count) is not int or record.packet_count != rates["packets_per_second"]:
-            raise ValueError("Window rate and packet count disagree")
+        packet_count = event["packet_count"]
+        if type(packet_count) is not int or packet_count < 0:
+            raise ValueError("Invalid packet count")
+        rates = {"packets_per_second": packet_count, "bytes_per_second": None}
+        if record is not None:
+            if (start, end, packet_count) != (record.window_start, record.window_end, record.packet_count):
+                raise ValueError("Monitor event and window disagree")
+            features = record.features
+            byte_rate = features["byte_rate"]
+            if type(byte_rate) not in (int, float) or not math.isfinite(byte_rate) or byte_rate < 0:
+                raise ValueError("Invalid byte rate")
+            packet_rate = features["packet_rate"]
+            if type(packet_rate) not in (int, float) or packet_count != packet_rate:
+                raise ValueError("Window rate and packet count disagree")
+            rates.update(packets_per_second=packet_rate, bytes_per_second=byte_rate)
         scored = event["scored"]
         if type(scored) is not bool:
             raise ValueError("Invalid scoring status")
@@ -95,7 +130,7 @@ class DashboardStore:
         if scored:
             score = event["attack_score"]
             threshold = event["decision_threshold"]
-            if (record.capped or not record.packet_count
+            if (not packet_count or (record is not None and record.capped)
                     or event["model_sha256"] != self._model or event["data_kind"] != self._data_kind
                     or any(type(value) not in (int, float) or not 0 <= value <= 1
                            for value in (score, threshold))
@@ -138,14 +173,15 @@ class DashboardStore:
                 data = {"blocks": []}
             else:
                 raise ValueError("Unknown dashboard section")
+            source = f"recorded_{self._source}" if self._archived else self._source
             headers = {"Cache-Control": "no-store", "X-Dashboard-Freshness": freshness,
-                       "X-Dashboard-Source": self._source, "X-Dashboard-Data-Kind": self._data_kind}
+                       "X-Dashboard-Source": source, "X-Dashboard-Data-Kind": self._data_kind}
             return {"schema_version": "1", "updated_at": utc_timestamp(now), **data}, headers
 
     def _freshness(self, now):
         if self._state == "unavailable":
             return "unavailable"
-        if self._source == "replay":
+        if self._archived or self._source == "replay":
             return "historical"
         if self._state == "started":
             last = self._last_window_end if self._last_window_end is not None else self._started_at
@@ -192,10 +228,12 @@ def create_app(store=None):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Serve a dashboard snapshot from an offline monitor replay")
-    parser.add_argument("--replay", required=True)
-    parser.add_argument("--model", required=True)
-    parser.add_argument("--log", required=True)
+    parser = argparse.ArgumentParser(description="Serve a monitor replay or recorded audit log")
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--replay", metavar="PCAP")
+    source.add_argument("--audit-log", type=Path, metavar="JSONL")
+    parser.add_argument("--model")
+    parser.add_argument("--log")
     parser.add_argument("--victim")
     parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args(argv)
@@ -203,14 +241,25 @@ def main(argv=None):
         parser.error("--port must be between 1 and 65535")
 
     import uvicorn
-    from .monitor import main as run_monitor
+    if args.audit_log is not None:
+        if any(option is not None for option in (args.model, args.log, args.victim)):
+            parser.error("--model, --log and --victim apply only to --replay")
+        try:
+            with args.audit_log.open(encoding="utf-8") as handle:
+                store = DashboardStore.from_audit_log(handle)
+        except (OSError, ValueError) as exc:
+            parser.error(str(exc))
+    else:
+        if not args.model or not args.log:
+            parser.error("--replay requires --model and --log")
+        from .monitor import main as run_monitor
 
-    store = DashboardStore()
-    monitor_args = ["--replay", args.replay, "--model", args.model, "--log", args.log]
-    if args.victim:
-        monitor_args.extend(("--victim", args.victim))
-    if run_monitor(monitor_args, deliver=store.ingest):
-        return 1
+        store = DashboardStore()
+        monitor_args = ["--replay", args.replay, "--model", args.model, "--log", args.log]
+        if args.victim:
+            monitor_args.extend(("--victim", args.victim))
+        if run_monitor(monitor_args, deliver=store.ingest):
+            return 1
     uvicorn.run(create_app(store), host="127.0.0.1", port=args.port)
     return 0
 

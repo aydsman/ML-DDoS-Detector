@@ -128,7 +128,7 @@ Each response uses `Cache-Control: no-store` and three headers:
 | Header | Values |
 | --- | --- |
 | `X-Dashboard-Freshness` | `empty`, `current`, `stale`, `unavailable`, `stopped`, or `historical` |
-| `X-Dashboard-Source` | `none`, `live`, or `replay` |
+| `X-Dashboard-Source` | `none`, `live`, `replay`, `recorded_live`, or `recorded_replay` |
 | `X-Dashboard-Data-Kind` | `none`, `synthetic`, or `reviewed_packet_windows` |
 
 Replay remains historical even when served now. Live input is current after its first finalized window. If five seconds pass without fresh window evidence (or without an initial window after startup), live input is stale. Capture failure or staleness preserves earlier points and detections while marking capture status as error. A finished live run reports stopped. Freshness describes receipt of measurements; it does not establish complete capture coverage. The frontend integration should use the headers for freshness and provenance, because `updated_at` describes when a response was assembled.
@@ -141,3 +141,5 @@ Replay remains historical even when served now. Live input is current after its 
 - Ayden and Aadi: confirm the display fields, history limits, error responses, and stale-data behavior before treating version 1 as finalized.
 
 Remaining infrastructure, policy, and dataset work is tracked in [Vince's follow-up issue #5](https://github.com/aydsman/ML-DDoS-Detector/issues/5).
+
+Use `--audit-log JSONL` in place of the replay inputs to serve a terminated monitor audit. Recorded runs retain their capture origin in the source header and report historical freshness, or unavailable if capture failed. The audit has packet counts but no byte counts, so its byte rates are null.
