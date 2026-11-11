@@ -36,7 +36,7 @@ A live run on `ddos-server` `enp0s8` used a 100 s capture with the current devel
 | Traffic, capture, timestamps | Real: lab VM traffic on `enp0s8`, AF_PACKET kernel receive times from the server only. |
 | Feature extraction, windowing | Real: the same pipeline as replay, run on live frames. |
 | Prediction | Real inference with a **synthetic demo model** (`data_kind: synthetic`). It shows the plumbing works; it is not evidence of detection accuracy. Lab rates overlap between benign and attack in the policy study, so no threshold is validated. |
-| Dashboard | Display of the real monitor output after conversion, **not a live feed**. No backend store or API exists yet; `tools/monitor_log_to_api.py` converts a finished log to the API snapshot format and the existing dashboard opens it via `?snapshot=`. Banners still say mock mode, bytes/s is unavailable, and only aggregate alerts appear (no sources, no blocks). |
+| Dashboard | Display of the real monitor output after conversion, **not a live feed**. The read-only API from PR #33 (`ddos_detector.api`) serves a replayed run, and the frontend does not poll it yet, so `tools/monitor_log_to_api.py` converts a finished live log to the API snapshot format and the existing dashboard opens it via `?snapshot=`. Banners still say mock mode, bytes/s is unavailable, and only aggregate alerts appear (no sources, no blocks). |
 
 To view a run, from the repository root:
 
@@ -63,10 +63,10 @@ Consumers must filter by record type. A missing/old terminal state or an old las
 
 ## Ayden's integration decision
 
-**Use direct validated delivery to a backend-owned state store for the future API. Keep JSONL as an audit/replay artifact, not the live API's primary database.** In a single Python process, the orchestrator can load/construct `Monitor`, call `handle(record)` and ingest its returned window event into the store; status returns its event too. Keep the ingestion step explicit and bounded. A separate capture process/VM will need a defined IPC/transport adapter; a Python return value alone does not cross that boundary.
+Use direct validated delivery to a backend-owned state store. The monitor accepts an optional in-process delivery callback and sends window and lifecycle events after each audit write. The API pairs each window event with its original aggregate record for rates. A separate capture process or VM needs a transport adapter.
 
-The future API maps the store into the existing metrics/detections/blocks/health contract, with freshness and failure handling. This PR does not implement that store, transport or API, and the current frontend remains in demo mode. JSONL is still useful for later review and deterministic replay, with provenance retained. Do not let the frontend read model packages or raw capture logs directly, and do not infer firewall state from predictions.
+See [Backend replay and freshness](api-contract.md#backend-replay-and-freshness) for the replay server, history limits and response metadata.
 
 ## Verification and remaining lab evidence
 
-Offline tests exercise replay, no-overwrite/model refusal, model reuse, incompatible settings, capped windows and durable failure/gap events. `score_record` keeps its original behavior; the runner uses the same scoring guard with its already validated model package. Capture drops/clock behavior, processing performance under load, store/transport integration and real-data scoring remain pending. No real data was trained or live traffic generated in these checks.
+Offline tests exercise replay, no-overwrite/model refusal, model reuse, incompatible settings, capped windows and durable failure/gap events. `score_record` keeps its original behavior; the runner uses the same scoring guard with its already validated model package. Capture drops/clock behavior, processing performance under load, cross-process transport and real-data scoring remain pending. No real data was trained or live traffic generated in these checks.
