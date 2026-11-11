@@ -6,6 +6,7 @@ import pytest
 from ddos_detector.frames import frame_to_packet, iter_packets
 from ddos_detector.normalize import SkipCounter
 from test_pcap import build_pcap
+from tools.lab_window_summary import summarize
 
 VICTIM = "10.10.10.10"
 LAB_PCAP = Path(__file__).resolve().parent.parent / "data/lab-runs/pr16-syn-run1/syn1.pcap"
@@ -103,6 +104,23 @@ def test_iter_packets_records_skips(tmp_path):
     packets = list(iter_packets(path, VICTIM, skips))
     assert [p.ts for p in packets] == [1.0, 4.0]
     assert skips == {"non_ip": 1, "not_inbound": 1}
+
+
+def test_lab_summary_counts_skips_and_excludes_edge_windows(tmp_path):
+    path = build_pcap(tmp_path / "summary.pcap", records=[
+        (1.0, eth(0x0800, ipv4())),
+        (2.0, eth(0x0806, bytes(28))),
+        (2.1, eth(0x0800, ipv4())),
+        (2.2, eth(0x0800, ipv4(proto=17, total_length=28))),
+        (3.0, eth(0x0800, ipv4())),
+    ])
+
+    result = summarize(path)
+    assert result["skipped"] == {"non_ip": 1}
+    assert result["windows_used"] == 1
+    assert result["windows_dropped_edges"] == 2
+    assert result["total_pps"] == {"median": 2, "max": 2}
+    assert result["groups"]["10.10.10.30/tcp"]["share_max"] == 0.5
 
 
 def test_scapy_cross_check(tmp_path):
