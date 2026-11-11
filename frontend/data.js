@@ -3,7 +3,9 @@ import { validateSnapshot } from './validation.js';
 export async function loadSnapshot(scenario = 'sample') {
   if (scenario === 'error') throw new Error('Simulated connection failure');
   if (scenario === 'loading') await new Promise(resolve => setTimeout(resolve, 1500));
-  const response = await fetch('../docs/api-examples.json', { cache: 'no-store' });
+  // ?snapshot=<path under the served root> shows a converted monitor log (tools/monitor_log_to_api.py).
+  const custom = new URLSearchParams(globalThis.location?.search).get('snapshot');
+  const response = await fetch(custom ? '../' + custom.replace(/^\/+/, '') : '../docs/api-examples.json', { cache: 'no-store' });
   if (!response.ok) throw new Error(`Sample request failed (${response.status})`);
   const data = await response.json();
   for (const key of ['health', 'metrics', 'detections', 'blocks']) {
