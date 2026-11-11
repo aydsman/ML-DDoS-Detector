@@ -29,22 +29,22 @@ Without `--duration` it runs until stopped. A bad interface, missing permission 
 
 ## Lab validation (November 11) and what is real
 
-A live run on `ddos-server` `enp0s8` used a 100 s capture with the current development code. A client sent about 3 new HTTP connections per second (225 of 225 succeeded), and after about 45 s the attacker sent a 30 s SYN scenario at a requested 200 packets/s to port 80. Result: 72 windows, all scored, none unscored, 0 late drops, maximum processing delay 1.44 s. The 28 windows fully inside the attack averaged about 410 packets/s and were all predicted attack; the quiet windows before the attack were about 15 packets/s and none were predicted attack. A tcpdump on the same NIC ran alongside as an independent check.
+Vince reported a 100-second live run on the lab server's internal interface. All 225 legitimate HTTP requests succeeded. The monitor scored 72 completed windows, reported zero late arrivals and recorded a maximum processing delay of 1.44 s. Raw artifacts are outside Git. This records a lab observation with a synthetic model.
 
 | Stage | Real or replayed |
 | --- | --- |
 | Traffic, capture, timestamps | Real: lab VM traffic on `enp0s8`, AF_PACKET kernel receive times from the server only. |
 | Feature extraction, windowing | Real: the same pipeline as replay, run on live frames. |
 | Prediction | Real inference with a **synthetic demo model** (`data_kind: synthetic`). It shows the plumbing works; it is not evidence of detection accuracy. Lab rates overlap between benign and attack in the policy study, so no threshold is validated. |
-| Dashboard | Display of the real monitor output after conversion, **not a live feed**. No backend store or API exists yet; `tools/monitor_log_to_api.py` converts a finished log to the API snapshot format and the existing dashboard opens it via `?snapshot=`. Banners still say mock mode, bytes/s is unavailable, and only aggregate alerts appear (no sources, no blocks). |
+| Dashboard | A terminated audit log is served as a recorded monitor run. Packet rates and aggregate decisions come from the recorded windows. Byte rate is unavailable because these logs omit it. A capture that ended unavailable retains that status. |
 
-To view a run, from the repository root:
+To review a finished run locally, start the dashboard API with the saved audit file:
 
 ```sh
-python tools/monitor_log_to_api.py results/run.jsonl run-dashboard.json
-python -m http.server 8000 --bind 127.0.0.1
-# open http://127.0.0.1:8000/frontend/?snapshot=run-dashboard.json
+python -m ddos_detector.api --audit-log results/run.jsonl --port 8002
 ```
+
+Open [the dashboard in API mode](http://127.0.0.1:8002/frontend/?source=api). The API reads the file at startup, checks the run lifecycle and model provenance, and serves bounded history. Incomplete or invalid files are rejected before the server starts.
 
 Raw captures stay under `data/lab-runs/` outside Git.
 

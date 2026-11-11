@@ -118,3 +118,39 @@ def test_replay_cli_feeds_actual_monitor_events_to_api(tmp_path, model_dir, monk
     scores = [e["attack_score"] for e in windows if e["scored"]]
     assert sorted(d["attack_score"] for d in client.get("/api/detections").json()["detections"]) == sorted(scores)
     assert events[-1]["status"] == "completed"
+
+    assert api.main(["--audit-log", str(log)]) == 0
+    app, options = servers[1]
+    assert options["host"] == "127.0.0.1"
+    recorded = TestClient(app)
+    health = recorded.get("/api/health")
+    assert health.headers["X-Dashboard-Freshness"] == "historical"
+    assert health.headers["X-Dashboard-Source"] == "recorded_replay"
+    assert health.headers["X-Dashboard-Data-Kind"] == "synthetic"
+    assert health.json()["capture_status"] == "stopped"
+    assert health.json()["mitigation_mode"] == "monitor_only"
+    archived_points = recorded.get("/api/metrics").json()["points"]
+    assert archived_points == [dict(point, bytes_per_second=None) for point in points]
+    assert recorded.get("/api/detections").json()["detections"] == client.get("/api/detections").json()["detections"]
+    assert recorded.get("/api/blocks").json()["blocks"] == []
+
+
+def test_archived_live_failure_preserves_unavailable_state_and_observations():
+    records = [status("started"), window(10)[0], dict(status("unavailable"), windows=1)]
+    store = api.DashboardStore.from_audit_log(map(json.dumps, records))
+    health, headers = store.snapshot("health")
+    assert headers["X-Dashboard-Source"] == "recorded_live"
+    assert headers["X-Dashboard-Freshness"] == "unavailable"
+    assert health["capture_status"] == "error"
+    assert store.snapshot("metrics")[0]["points"][0]["packets_per_second"] == 2
+
+
+def test_archive_rejects_incomplete_mismatched_and_mixed_logs():
+    records = [status("started"), window(10)[0]]
+    with pytest.raises(ValueError, match="no terminal status"):
+        api.DashboardStore.from_audit_log(map(json.dumps, records))
+    with pytest.raises(ValueError, match="window count"):
+        api.DashboardStore.from_audit_log(map(json.dumps, [*records, dict(status("completed"), windows=2)]))
+    bad_window = dict(records[1], model_sha256="other")
+    with pytest.raises(ValueError, match="provenance"):
+        api.DashboardStore.from_audit_log(map(json.dumps, [records[0], bad_window]))

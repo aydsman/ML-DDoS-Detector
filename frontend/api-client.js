@@ -11,7 +11,7 @@ export async function loadApiSnapshot(request = fetch) {
       const freshness = response.headers.get('X-Dashboard-Freshness');
       const source = response.headers.get('X-Dashboard-Source');
       const kind = response.headers.get('X-Dashboard-Data-Kind');
-      if (!['empty','current','stale','unavailable','stopped','historical'].includes(freshness) || !['none','live','replay'].includes(source) || !['none','synthetic','reviewed_packet_windows'].includes(kind)) throw new Error(`${section} freshness/provenance headers missing or invalid`);
+      if (!['empty','current','stale','unavailable','stopped','historical'].includes(freshness) || !['none','live','replay','recorded_live','recorded_replay'].includes(source) || !['none','synthetic','reviewed_packet_windows'].includes(kind)) throw new Error(`${section} freshness/provenance headers missing or invalid`);
       return {section, data:await response.json(), freshness, source, kind};
     }));
     const {source, kind} = results[0];
@@ -26,5 +26,6 @@ export async function loadApiSnapshot(request = fetch) {
 export function describeApi(observations) {
   const details=observations.map(r=>`${r.section}: ${r.freshness}, ${r.source}, ${r.kind}`).join(' · ');
   const current=observations.every(r=>r.freshness==='current' && r.source==='live');
-  return {current, text:`API DATA — ${details}. Freshness is measurement status; response time is not capture time.`};
+  const title=observations.some(r=>r.source.startsWith('recorded_')) ? 'RECORDED MONITOR RUN' : 'API DATA';
+  return {current, text:`${title} — ${details}. Freshness is measurement status; response time is not capture time.`};
 }
