@@ -29,12 +29,13 @@ def window_record(record, window_seconds):
 class Monitor:
     """Score finished windows and write one log line each. Monitor-only."""
 
-    def __init__(self, model_dir, log, window_seconds, clock=time.time, live=False, loaded_model=None):
+    def __init__(self, model_dir, log, window_seconds, clock=time.time, live=False, loaded_model=None, deliver=None):
         self.model_dir = model_dir
         self.loaded_model = load_model(model_dir) if loaded_model is None else loaded_model
         self.log = log
         self.window_seconds = window_seconds
         self.clock = clock
+        self.deliver = deliver
         self.live = live  # only live windows have a meaningful processing delay
         self.windows = self.scored = self.not_scored = self.predicted_attack = 0
         self.max_delay = None
@@ -64,6 +65,8 @@ class Monitor:
         self.windows += 1
         self.log.write(json.dumps(line) + "\n")
         self.log.flush()
+        if self.deliver is not None:
+            self.deliver(line, record)
         return line
 
     def status(self, pipeline, state, reason=None):
@@ -83,10 +86,12 @@ class Monitor:
                 "coverage_note": "Processing status is not proof of complete capture; backlog/kernel drops are unmeasured."}
         self.log.write(json.dumps(line) + "\n")
         self.log.flush()
+        if self.deliver is not None:
+            self.deliver(line)
         return line
 
 
-def main(argv=None):
+def main(argv=None, *, deliver=None):
     parser = argparse.ArgumentParser(
         prog="python -m ddos_detector.monitor",
         description="Monitor-only: score live or replayed windows and log the predictions.")
@@ -115,7 +120,8 @@ def main(argv=None):
     except OSError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
-    monitor = Monitor(args.model, log, args.window, live=bool(args.interface), loaded_model=loaded_model)
+    monitor = Monitor(args.model, log, args.window, live=bool(args.interface),
+                      loaded_model=loaded_model, deliver=deliver)
     exit_code = 0
     try:
         monitor.status(pipeline, "started")
@@ -135,7 +141,7 @@ def main(argv=None):
                 for record in pipeline.stop(pipeline.clock()):
                     monitor.handle(record)
         monitor.status(pipeline, "completed" if pipeline.status == "ok" else "unavailable")
-    except (PcapError, OSError, NotImplementedError) as exc:
+    except (PcapError, OSError, NotImplementedError, ValueError) as exc:
         pipeline.fail(f"{type(exc).__name__}: {exc}")
         try:
             monitor.status(pipeline, "unavailable", str(exc))

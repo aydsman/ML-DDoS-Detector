@@ -63,10 +63,10 @@ Consumers must filter by record type. A missing/old terminal state or an old las
 
 ## Ayden's integration decision
 
-**Use direct validated delivery to a backend-owned state store for the future API. Keep JSONL as an audit/replay artifact, not the live API's primary database.** In a single Python process, the orchestrator can load/construct `Monitor`, call `handle(record)` and ingest its returned window event into the store; status returns its event too. Keep the ingestion step explicit and bounded. A separate capture process/VM will need a defined IPC/transport adapter; a Python return value alone does not cross that boundary.
+Use direct validated delivery to a backend-owned state store. The monitor accepts an optional in-process delivery callback and sends window and lifecycle events after each audit write. The API pairs each window event with its original aggregate record for rates. A separate capture process or VM needs a transport adapter.
 
-The future API maps the store into the existing metrics/detections/blocks/health contract, with freshness and failure handling. This PR does not implement that store, transport or API, and the current frontend remains in demo mode. JSONL is still useful for later review and deterministic replay, with provenance retained. Do not let the frontend read model packages or raw capture logs directly, and do not infer firewall state from predictions.
+See [Backend replay and freshness](api-contract.md#backend-replay-and-freshness) for the replay server, history limits and response metadata.
 
 ## Verification and remaining lab evidence
 
-Offline tests exercise replay, no-overwrite/model refusal, model reuse, incompatible settings, capped windows and durable failure/gap events. `score_record` keeps its original behavior; the runner uses the same scoring guard with its already validated model package. Capture drops/clock behavior, processing performance under load, store/transport integration and real-data scoring remain pending. No real data was trained or live traffic generated in these checks.
+Offline tests cover replay, model refusal and reuse, incompatible settings, capped windows and failure/gap records. Vince's lab run is reported above. Kernel drop measurements for the monitor, capture under sustained load, cross-process transport and real-data scoring remain pending.
