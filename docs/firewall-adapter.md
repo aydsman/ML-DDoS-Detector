@@ -94,6 +94,11 @@ sudo .venv/bin/python -m ddos_detector.firewall_cli cleanup --execute --config r
 process cannot open the same state while the first owns it. Stop the current
 owner before running a maintenance command. SQLite state-path changes or
 configuration changes must be reconciled explicitly with the original scope.
+The report includes the session's structured events. Exit 2 indicates any failed
+or uncertain observation during the session, even if a later reconciliation
+resolves it. Exit 130 indicates operator interruption. After a process crash,
+rules can remain until this polling process is restarted and confirms cleanup;
+lab acceptance must exercise that recovery procedure.
 
 Vince should record rule listings, actual blocked attacker traffic, successful
 legitimate HTTP/management traffic, timed expiry, repeated cleanup, permission

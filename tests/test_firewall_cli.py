@@ -44,7 +44,9 @@ def test_poll_drives_expiry_and_reports_original_api_fields():
         now += timedelta(seconds=seconds)
 
     poll(adapter, 1, sleep=advance)
-    assert report(adapter) == {"reserved_slots": 0, "blocks": []}
+    assert report(adapter)["reserved_slots"] == 0
+    assert report(adapter)["blocks"] == []
+    assert report(adapter)["events"][-1]["operation"] == "expire"
 
 
 def test_cli_manual_apply_uses_journal_and_polls_to_verified_removal(tmp_path, monkeypatch, capsys):
@@ -65,3 +67,23 @@ def test_cli_manual_apply_uses_journal_and_polls_to_verified_removal(tmp_path, m
                  "--state", str(tmp_path / "state.sqlite")]) == 0
     assert json.loads(capsys.readouterr().out)["reserved_slots"] == 0
     assert len(firewall.applied) == len(firewall.removed) == 1
+
+
+def test_cli_reports_failed_installation_and_returns_failure(tmp_path, monkeypatch, capsys):
+    from ddos_detector import firewall_cli
+    document = json.loads((Path(__file__).resolve().parents[1] / "docs/policy-defaults.json").read_text())
+    document["allowlist"]["verified"] = True
+    config = tmp_path / "lab.json"
+    config.write_text(json.dumps(document))
+    requests = tmp_path / "requests.json"
+    requests.write_text(json.dumps([{"block_id": "a", "source_ip": "10.10.10.30", "reason": "Manual"}]))
+    firewall = FakeFirewall()
+    firewall.apply_error = PermissionError("Denied")
+    firewall.check_inventory = lambda requests, scope: None
+    monkeypatch.setattr(firewall_cli, "validate_lab_runtime", lambda scope: None)
+    monkeypatch.setattr(firewall_cli, "NftablesTransport", lambda: firewall)
+    assert main(["apply", "--execute", "--config", str(config), "--requests", str(requests),
+                 "--state", str(tmp_path / "state.sqlite")]) == 2
+    output = json.loads(capsys.readouterr().out)
+    assert output["events"][0]["success"] is False
+    assert "PermissionError" in output["events"][0]["error"]

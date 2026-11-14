@@ -162,6 +162,11 @@ class FirewallAdapter:
         with self._lock:
             return tuple(self._audit)
 
+    @property
+    def audit_records(self):
+        with self._lock:
+            return tuple(self._event(result) for result in self._audit)
+
     def _check_request(self, request):
         if self._faulted:
             raise RuntimeError("Firewall journal failed; restart and reconcile before further actions")

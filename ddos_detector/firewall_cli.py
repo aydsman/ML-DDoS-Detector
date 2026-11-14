@@ -31,7 +31,8 @@ def report(adapter):
                "expires_at": block.expires_at.isoformat().replace("+00:00", "Z")}
               for block in adapter.confirmed_blocks]
     blocks.sort(key=lambda block: (-datetime.fromisoformat(block["blocked_at"]).timestamp(), block["id"]))
-    return {"reserved_slots": adapter.reserved_count, "blocks": blocks}
+    return {"reserved_slots": adapter.reserved_count, "blocks": blocks,
+            "events": list(adapter.audit_records)}
 
 
 def poll(adapter, interval, *, sleep=time.sleep):
@@ -91,7 +92,9 @@ def main(argv=None):
                 print(json.dumps(report(adapter), indent=2))
                 return 130
             print(json.dumps(report(adapter), indent=2))
-            return 0 if args.action == "status" or not adapter.reserved_count else 2
+            failed = any(not result.success for result in adapter.audit_events)
+            unresolved = args.action != "status" and adapter.reserved_count > 0
+            return 2 if failed or unresolved else 0
     except Exception as exc:
         parser.exit(2, f"Firewall operation stopped: {type(exc).__name__}: {exc}\n")
 
