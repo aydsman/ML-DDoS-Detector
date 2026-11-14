@@ -3,11 +3,12 @@
 The transport must check the exact scoped rule and report UNKNOWN on ambiguous
 outcomes. A real UFW-compatible transport and restart recovery need lab review.
 """
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timedelta, timezone
 from ipaddress import IPv4Address, IPv4Network
 from threading import RLock
 from typing import Protocol
+import re
 
 from .firewall_contract import BlockRequest, FirewallResult, RuleState
 
@@ -20,7 +21,7 @@ class FirewallScope:
     verified: bool = False
 
     def __post_init__(self):
-        if not self.interface or not self.interface.strip():
+        if not isinstance(self.interface, str) or not re.fullmatch(r"[A-Za-z0-9_.:-]{1,15}", self.interface):
             raise ValueError("A lab interface is required")
         IPv4Address(self.protected_ip)
         # Copy mutable caller input so checks cannot change during an action.
@@ -29,6 +30,16 @@ class FirewallScope:
             IPv4Network(entry)
         if not isinstance(self.verified, bool):
             raise ValueError("Scope verification must be a boolean")
+
+    def check_source(self, source_ip):
+        if not self.verified:
+            raise ValueError("Lab scope and allowlist must be verified before use")
+        address = IPv4Address(source_ip)
+        if (address == IPv4Address(self.protected_ip) or address == IPv4Address("10.10.10.20")
+                or address.is_loopback or address.is_multicast or address.is_unspecified
+                or address == IPv4Address("255.255.255.255")
+                or any(address in IPv4Network(entry) for entry in self.allowlist)):
+            raise ValueError("Source is protected or allowlisted")
 
 
 class FirewallTransport(Protocol):
@@ -52,12 +63,12 @@ class ConfirmedBlock:
 class FirewallAdapter:
     """Serialize local requests and reserve capacity until verified absent.
 
-    One instance must own the transport. Reservations and audit results are
-    currently in memory; a live implementation needs restart reconciliation.
+    Live callers supply a FirewallState journal and reconcile before accepting
+    requests. The journal locks out another owner and preserves original times.
     """
 
     def __init__(self, transport: FirewallTransport, scope: FirewallScope,
-                 max_blocks=20, clock=None):
+                 max_blocks=20, clock=None, state_store=None):
         if isinstance(max_blocks, bool) or not isinstance(max_blocks, int) or max_blocks < 1:
             raise ValueError("Block capacity must be a positive integer")
         self.transport = transport
@@ -67,8 +78,69 @@ class FirewallAdapter:
         self._requests = {}
         self._confirmed = {}
         self._removed = {}
+        self._removing = set()
         self._audit = []
         self._lock = RLock()
+        self._state_store = state_store
+        self._faulted = False
+        if state_store is not None:
+            snapshot = state_store.load()
+            if snapshot is not None:
+                self._restore(snapshot)
+
+    def _snapshot(self):
+        return {
+            "version": 1, "scope": {**asdict(self.scope), "allowlist": list(self.scope.allowlist)},
+            "max_blocks": self.max_blocks,
+            "requests": [asdict(request) for request in self._requests.values()],
+            "removing": sorted(self._removing),
+            "confirmed": [{"request": asdict(block.request), "blocked_at": block.blocked_at.isoformat(),
+                           "expires_at": block.expires_at.isoformat()} for block in self._confirmed.values()],
+            "removed": [{"request": asdict(request), "result": self._event(result)}
+                        for request, result in self._removed.values()],
+        }
+
+    @staticmethod
+    def _event(result):
+        return {**asdict(result), "rule_state": result.rule_state.value,
+                "observed_at": result.observed_at.isoformat()}
+
+    def _restore(self, snapshot):
+        expected = self._snapshot()
+        if any(snapshot[key] != expected[key] for key in ("version", "scope", "max_blocks")):
+            raise ValueError("Saved firewall scope/capacity differs; reconcile with the original configuration")
+        for row in snapshot["requests"]:
+            request = BlockRequest(**row)
+            self.scope.check_source(request.source_ip)
+            if request.block_id in self._requests or any(r.source_ip == request.source_ip for r in self._requests.values()):
+                raise ValueError("Duplicate saved block reservation")
+            self._requests[request.block_id] = request
+        for row in snapshot["confirmed"]:
+            request = BlockRequest(**row["request"])
+            start, end = datetime.fromisoformat(row["blocked_at"]), datetime.fromisoformat(row["expires_at"])
+            if (self._requests.get(request.block_id) != request or start.utcoffset() is None
+                    or end.utcoffset() is None or end != start + timedelta(seconds=request.duration_seconds)):
+                raise ValueError("Invalid saved block deadline or reservation")
+            self._confirmed[request.block_id] = ConfirmedBlock(request, start, end)
+        for row in snapshot["removed"]:
+            request = BlockRequest(**row["request"])
+            result = row["result"]
+            result = FirewallResult(**{**result, "rule_state": RuleState(result["rule_state"]),
+                                      "observed_at": datetime.fromisoformat(result["observed_at"])})
+            if result.block_id != request.block_id or result.rule_state != RuleState.ABSENT or request.block_id in self._requests:
+                raise ValueError("Invalid saved retired action")
+            self._removed[request.block_id] = (request, result)
+        self._removing = set(snapshot["removing"])
+        if not self._removing.issubset(self._requests):
+            raise ValueError("Removal intent has no saved reservation")
+
+    def _save(self, result=None):
+        if self._state_store is not None:
+            try:
+                self._state_store.save(self._snapshot(), None if result is None else self._event(result))
+            except Exception:
+                self._faulted = True
+                raise
 
     @property
     def confirmed_blocks(self):
@@ -81,20 +153,19 @@ class FirewallAdapter:
             return len(self._requests)
 
     @property
+    def pending_requests(self):
+        with self._lock:
+            return tuple(self._requests.values())
+
+    @property
     def audit_events(self):
         with self._lock:
             return tuple(self._audit)
 
     def _check_request(self, request):
-        if not self.scope.verified:
-            raise ValueError("Lab scope and allowlist must be verified before use")
-        address = IPv4Address(request.source_ip)
-        protected = IPv4Address(self.scope.protected_ip)
-        if (address == protected or address == IPv4Address("10.10.10.20")
-                or address.is_loopback or address.is_multicast
-                or address.is_unspecified or address == IPv4Address("255.255.255.255")
-                or any(address in IPv4Network(entry) for entry in self.scope.allowlist)):
-            raise ValueError("Source is protected or allowlisted")
+        if self._faulted:
+            raise RuntimeError("Firewall journal failed; restart and reconcile before further actions")
+        self.scope.check_source(request.source_ip)
         for pending in self._requests.values():
             if pending.block_id == request.block_id and pending != request:
                 raise ValueError("Block ID is already associated with a different request")
@@ -124,9 +195,11 @@ class FirewallAdapter:
         elif state == RuleState.ABSENT:
             self._requests.pop(request.block_id, None)
             previously_confirmed = self._confirmed.pop(request.block_id, None)
-            if operation in {"remove", "expire"} or previously_confirmed is not None:
+            if operation in {"remove", "expire"} or previously_confirmed is not None or request.block_id in self._removing:
                 self._removed[request.block_id] = (request, result)
+            self._removing.discard(request.block_id)
         self._audit.append(result)
+        self._save(result)
         return result
 
     def apply(self, request: BlockRequest):
@@ -147,6 +220,7 @@ class FirewallAdapter:
             except OverflowError as exc:
                 raise ValueError("Block deadline exceeds the clock range") from exc
             self._requests[request.block_id] = request
+            self._save()  # Write-ahead reservation before any firewall command.
             state, error = self._observe(request)
             if state == RuleState.ABSENT:
                 try:
@@ -156,6 +230,24 @@ class FirewallAdapter:
                 state, verification_error = self._observe(request)
                 error = verification_error or error
             return self._record(request, "apply", state, error)
+
+    def validate_batch(self, requests):
+        """Validate a complete explicit batch before its first mutation."""
+        with self._lock:
+            by_id = self._requests.copy()
+            by_source = {request.source_ip: request for request in self._requests.values()}
+            for request in requests:
+                self._check_request(request)
+                if request.block_id in self._removed:
+                    raise ValueError("Removed action requires a new block ID")
+                if request.block_id in by_id and by_id[request.block_id] != request:
+                    raise ValueError("Conflicting block IDs in request batch")
+                if request.source_ip in by_source and by_source[request.source_ip] != request:
+                    raise ValueError("Conflicting source actions in request batch")
+                by_id[request.block_id] = request
+                by_source[request.source_ip] = request
+            if len(by_id) > self.max_blocks:
+                raise ValueError("Request batch exceeds block capacity")
 
     def verify(self, request: BlockRequest):
         with self._lock:
@@ -181,6 +273,8 @@ class FirewallAdapter:
             return result
         if self._requests.get(request.block_id) != request:
             raise ValueError("Removal requires an existing reserved request")
+        self._removing.add(request.block_id)
+        self._save()  # A crash must preserve the intent to finish removal.
         state, error = self._observe(request)
         if state != RuleState.ABSENT:
             try:
@@ -204,6 +298,17 @@ class FirewallAdapter:
             for request in pending:
                 self.verify(request)
             now = self.clock()
-            due = [block.request for block in self._confirmed.values()
-                   if block.expires_at <= now]
+            due = [request for block_id, request in self._requests.items()
+                   if block_id in self._removing or (block_id in self._confirmed
+                   and self._confirmed[block_id].expires_at <= now)]
             return tuple(self._remove(request, "expire") for request in due)
+
+    def reconcile(self):
+        """Observe all saved actions before accepting new requests after restart."""
+        with self._lock:
+            return tuple(self.verify(request) for request in list(self._requests.values()))
+
+    def cleanup(self):
+        """Remove only journal-owned actions; uncertain outcomes retain slots."""
+        with self._lock:
+            return tuple(self._remove(request, "remove") for request in list(self._requests.values()))
