@@ -1,5 +1,23 @@
 # Mock dashboard — Weeks 1 and 2
 
+## Week 3 API integration
+
+This branch includes Ayden's API PR #33 plus Week 2 PR #34 as dependencies. Start the backend from the repository root:
+
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn ddos_detector.api:app --host 127.0.0.1 --port 8002
+```
+
+Open http://127.0.0.1:8002/frontend/?source=api. This starts an empty store; it does not start packet capture. To display actual monitor replay outputs, use the `python -m ddos_detector.api --replay ... --model ... --log ... --port 8002` command documented in `docs/api-contract.md`, supplying a trusted model package and capture. Replay is historical, even when fetched now. Real live capture requires the monitor producer to deliver into the same `DashboardStore`; see the backend documentation.
+
+The Data source selector switches between mocks and API data. A switch clears the previous source's records. `api-client.js` fetches all four same-origin endpoints, validates bodies and provenance headers, then renders the complete candidate snapshot. Any failed endpoint rejects that candidate; the last successful snapshot remains visible with a stale warning. Requests time out after four seconds. Each API cycle schedules the next cycle one second after completion, preventing overlap. Source selection and manual refresh are disabled during requests. Mock mode does not poll. API endpoints are separately fetched and are not a transactional snapshot.
+
+Freshness comes from each endpoint's `X-Dashboard-Freshness`, source and data-kind headers. Historical, empty, stopped, stale, unavailable and synthetic provenance remain visible. A newly assembled `updated_at` never proves fresh packet input. No source records or firewall successes are fabricated.
+
+Verification: 27 frontend tests passed; five backend API tests passed, including real monitor replay-to-HTTP comparison using a synthetic PCAP. Browser checked the running empty backend, periodic requests, and disconnection retaining stale state. Real lab traffic and end-to-end live capture are **not verified on this Windows machine** and remain the final integration acceptance check with the lab owner. No real-traffic readiness is claimed.
+
+Frontend checks: `node --test tests/frontend-api.mjs tests/frontend-validation.mjs tests/frontend-status.mjs tests/frontend-graphs.mjs`.
+
 ## Week 2 verification (November 10)
 
 The current redesigned Overview, Traffic, Detections and Blocks views use the shared API fixture. Added display-contract validation in `validation.js` rejects missing arrays/rates, invalid timestamps, negative rates, invalid scores, missing source evidence and invalid block expiry before a snapshot is displayed. Invalid responses use the existing error path and retain the previous successful snapshot as stale.

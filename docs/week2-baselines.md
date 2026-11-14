@@ -8,7 +8,7 @@ independent packet-feature fixtures, and generator identity/timestamp review.
 
 | Deliverable | Available evidence | Remaining evidence |
 | --- | --- | --- |
-| Saved normal-service baseline | Repeated-run collector and export reviewer; local smoke validation is separate | Run on the legitimate-client VM against the protected server; retain the raw exports and actual server/client resource records |
+| Saved normal-service baseline | Vince reported three trials on November 11 with 180 successful requests. See [the lab report](policy-proposal.md#1-evidence-available-today-and-what-it-cannot-support). | Review the raw exports and capture, and obtain the missing server/client resource and service configuration records. |
 | Saved packet fixtures and expected values | Two tiny synthetic Ethernet PCAPs, literal twelve-feature expectations, hand arithmetic, saved-byte hashes, offline and replay tests | Vince's real lab captures still need independent review when shared |
 | Generator output/identity/timing review | Current HTTP and SYN/UDP export validation, outcome/slot accounting, UUID and UTC/epoch tests | Matched real scenario exports, server captures, source identities and bounded cross-host clock evidence |
 

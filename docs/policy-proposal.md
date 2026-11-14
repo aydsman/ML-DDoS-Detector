@@ -6,17 +6,120 @@ Protected-port rate limiting is a separate proposal and is not covered here.
 
 ## 1. Evidence available today, and what it cannot support
 
-Vince reports computing all figures below on 2026-11-08 from the saved lab PCAPs under `data/lab-runs/` (inbound to 10.10.10.10, one-second epoch windows, the repository's own `iter_packets`) and from the reported candidate windows in `docs/samples/cic-syn-0618-0620/windows.json` (PR #29, training-day only, labels and offsets not independently verified). No final-test (03-11) data was used. Vince reports no output of `tools/collect_baseline.py` in his checkout/lab folder. The raw lab inputs and runtime command outputs are unavailable to this owner review, so the numerical/runtime observations remain collaborator-reported; a source list is not independent reproduction.
+Vince reported these observations from saved lab captures, the November 11 baseline collection and the candidate training-day windows in [PR #29](https://github.com/aydsman/ML-DDoS-Detector/pull/29). The candidate labels and offsets remain unverified. The raw lab inputs and runtime output are outside Git. No final-test data was used.
 
 | Evidence | What it shows | Limits |
 | --- | --- | --- |
 | Legitimate HTTP client, 2 runs (`http-client-2026-10-28-rerun`) | One source (10.10.10.20), TCP only. 72 and 57 windows. Total inbound pps: median 10 and 8, maximum 18 in both. SYN-only: at most 2 per second. | One client, one nginx page, target 5 req/s (about 4 achieved). No concurrency, no larger load. Lab VM timers jitter up to about 3 s. |
+| Week 2 baseline collection, 2026-11-11 (`baseline-2026-11-11`, reported by Vince) | `tools.collect_baseline` on `ddos-client` with the section 2 command: 3 trials of 30 s at 2 requests/s, 60 attempts each, all 180 requests returned 2xx; `tools.review_measurements` reported `valid: true`. Server capture on `enp0s8`: 91 one-second windows, one source (10.10.10.20), TCP only. Inbound packets per window: median 4, maximum 8. SYN-only: at most 1 per second. | Same single client, one nginx page and low rate as the 2026-10-28 runs, so it adds a repetition, not a higher load. The client had no git checkout, so code provenance in `collection.json` is unavailable. Host load, firewall rules and nginx configuration were not recorded. Raw files are outside Git under `data/lab-runs/baseline-2026-11-11/`. |
 | Controlled SYN, 3 runs (`pr16-syn-run1`, `syn-run2`, `ctrlc-syn`) | One source (10.10.10.30). 10 SYN/s offered; the source's TCP packets are 20 per second because its inbound RSTs count too. Share of all inbound packets: 1.0 in every window. | Generator test rate, not a flood. The offered SYN-only rate is 10/s, while the observed source packet rate includes RSTs and is 20/s. Do not compare those different quantities as though both were total packet rates. |
 | Controlled UDP, 3 runs (`pr16-udp-run1`, `udp-run2`, `ctrlc-udp`) | One source, 10 UDP packets/s, share 1.0. | Same: a pipeline test, not a flood. |
 | Inbound ICMP from 10.10.10.30 | 1 packet/s in 2 windows of each of four scenario captures. | Low-rate ICMP observation; no independently labelled ICMP flood or benign-window evidence is established here. |
 | CIC-DDoS2019 candidate SYN windows (PR #29) | 8 candidate attack windows, one source, TCP share about 1.0. 19,062 to 20,912 packets/s per window, all but a handful SYN-only (SYN-only 19,060 to 20,912). | Training-day, one run, unreviewed ground truth, unresolved time offset. No benign windows, no UDP windows. Not a lab measurement. |
 
-What this means: the largest benign rate we have measured is 18 pps total from a single client, and the attack rates we have are either 10 pps (lab generator) or about 20,000 SYN/s (unreviewed public data). Any number between about 18 and 19,000 would be a guess, so this proposal sets none. There is no evidence at all for UDP or ICMP flood rates, for any minimum share, or for a legitimate client running next to an attacker.
+These early observations establish measurement context. The later lab runs below provide the basis for the current decision to leave rate and share thresholds unset.
+
+### Lab runs added on 2026-11-08 (reported by Vince; raw files not in Git)
+
+Vince reported zero kernel drops on the server capture. The analysis used the same normalization and one-second epoch windows as above. Raw files are in `data/lab-runs/policy-2026-11-08/` on Vince's PC.
+
+Benign load: the legitimate client at 20, 50 and 100 requests/s offered (30 s each, concurrency 4, 8, 16), reaching 5.3, 38.3 and 96.0 achieved requests/s.
+
+| Offered / achieved requests/s | Client packets/s per window: median, max | Client SYN-only/s: max |
+| --- | --- | --- |
+| 20 / 5.3 | 11, 24 | 1 |
+| 50 / 38.3 | 54, 62 | 1 |
+| 100 / 96.0 | 100, 104 | 1 |
+
+Attack ladder with the same client running in the background (about 22 packets/s median, 42 at most in client-only windows). Each row is one 20 s run, except the 1000 packets/s rows (10 s, and the sender reached 817 SYN/s and 900 UDP packets/s because of timer lag). Windows at the start and end of a run are dropped because they hold part of the neighbouring interval, so each row uses 19 windows (9 for the 1000 rows). The attacker's TCP rate counts its inbound RSTs, so it is about twice its SYN rate.
+
+| Scenario | Offered | Attacker packets/s per window: min to max | Attacker SYN-only/s: min to max | Attacker share of all inbound packets: min | Client share: max |
+| --- | --- | --- | --- | --- | --- |
+| SYN | 50 | 100 to 100 | 50 to 50 | 0.758 | 0.242 |
+| SYN | 200 | 388 to 402 | 194 to 201 | 0.934 | 0.066 |
+| SYN | 500 | 956 to 1000 | 478 to 500 | 0.964 | 0.036 |
+| SYN | 1000 | 1548 to 1802 | 774 to 902 | 0.977 | 0.023 |
+| UDP | 50 | 50 to 50 | 0 | 0.641 | 0.359 |
+| UDP | 200 | 193 to 200 | 0 | 0.870 | 0.130 |
+| UDP | 500 | 462 to 500 | 0 | 0.931 | 0.069 |
+| UDP | 1000 | 848 to 923 | 0 | 0.955 | 0.045 |
+
+What this does and does not show:
+
+- TCP packets/s alone does not separate the cases: the weakest SYN run (100 packets/s) is no higher than the benign client's 104 packets/s at high load. SYN-only/s does separate them in these runs: the benign client never exceeded 2 SYN-only/s (1 at high load) and the weakest attack was 50. Any value in that gap would be consistent with this data, and none is proposed here.
+- The benign SYN figure above is a lower bound for real clients: the HTTP client reuses connections. Runs with a new connection per request are in the next subsection and show a much higher SYN-only/s.
+- This table had no benign UDP or ICMP; those are measured in the next subsection.
+- Minimum share: in the mixed windows the attacker's share was at least 0.64 and the client's at most 0.36 (UDP at 50 packets/s). One share value between those would have separated them here, but only for a single client at about 22 packets/s and a single attacker, so this is not enough to set it.
+- Single-source runs only; no multi-source or spoofed run, and no validation split. These are lab runs for the method in section 2, not tuned results.
+
+### Benign and attack validation runs, session 2 (2026-11-08 and 2026-11-11)
+
+Vince reported 61 server captures with zero kernel drops, accompanying sender logs, and clock samples before and after each run. Raw files are in `data/lab-runs/policy-2026-11-08b/` outside Git. The summary helper uses one-second server capture timestamps. It drops the first and last selected windows and, for trimmed groups, each group's first and last remaining observations. Gaps do not establish capture coverage. These measurements come from one lab and have not been independently reproduced.
+
+**Benign senders** (client 10.10.10.20, 20 s per run, two separate whole runs per rate, `b1` and `b2`). Values are the larger of the two runs; the paced Python senders reached the offered rate except where noted.
+
+| Sender | Offered per s | Source packets/s: median, max | SYN-only/s: max |
+| --- | --- | --- | --- |
+| New TCP connection per request | 5 | 25, 50 | 10 |
+| | 20 | 100, 115 | 23 |
+| | 50 | 250, 295 | 59 |
+| | 100 | 500, 534 | 107 |
+| | 200 | 1000, 1110 | 222 |
+| | 400 | about 2000, 2270 | 454 |
+| UDP datagrams | 10 | 10, 14 | 0 |
+| | 50 | 50, 57 | 0 |
+| | 200 | 200, 214 | 0 |
+| | 500 | 500, 501 | 0 |
+| | 1000 | 1000, 1243 | 0 |
+| | 2000 | 2000, 2356 | 0 |
+| ICMP echo | 1 | 1, 1 | 0 |
+| | 5 | 5, 10 | 0 |
+| | 20 | 20, 25 | 0 |
+| | 100 | 100, 112 | 0 |
+| | 500 | 500, 577 | 0 |
+
+A client that opens a new connection per request sends about 5 packets and 1 SYN-only per request, so its SYN-only/s is about its request rate. The earlier "at most 2 SYN-only/s" figure was only because that HTTP client reused connections.
+
+**Attack runs.** The mixed measurements include concurrent legitimate HTTP traffic. Ranges describe the two reported repetitions and exclude the group-edge observations.
+
+| Scenario | Offered | Attacker packets/s | Attacker SYN-only/s | Attacker share of all inbound |
+| --- | --- | --- | --- | --- |
+| SYN, mixed | 50 | 108 to 110 | 54 to 55 | 0.71 to 0.90 |
+| | 200 | 420 to 434 | 210 to 217 | 0.91 to 0.97 |
+| | 500 | 751 to 1081 | 375 to 541 | 0.96 to 0.99 |
+| | 1000 (10 s) | 1493 to 2072 | 747 to 1036 | 0.98 to 0.99 |
+| UDP, mixed | 50 | 54 to 55 | 0 | 0.60 to 0.78 |
+| | 200 | 202 to 217 | 0 | 0.82 to 0.96 |
+| | 500 | 478 to 541 | 0 | 0.92 to 0.98 |
+| | 1000 (10 s) | 923 to 1026 | 0 | 0.96 to 0.98 |
+| SYN, alone | 50 / 1000 | 108 to 110 / 1617 to 2045 | 54 to 55 / 809 to 1022 | 1.0 |
+| UDP, alone | 50 / 1000 | 54 to 55 / 953 to 1029 | 0 | 1.0 |
+| ICMP, alone | 50 | 51 to 52 | 0 | 1.0 |
+| | 200 | 183 to 193 | 0 | 1.0 |
+| | 1000 (10 s) | 698 to 764 | 0 | 1.0 |
+
+The attacker's TCP packets/s is about twice its SYN-only/s because its inbound RSTs count. The observed UDP rate at 200 offered (about 216) is higher than the sender reported (198 mean); I did not find the cause.
+
+**Multi-source** (one run each with concurrent legitimate HTTP traffic):
+
+| Scenario | Sources | Per-source packets/s | Per-source SYN-only/s | Per-source share of all inbound |
+| --- | --- | --- | --- | --- |
+| SYN | 5 x 100 offered | 196 to 208 | 98 to 104 | 0.19 to 0.20 |
+| SYN | 10 x 50 offered | 94 to 107 | 47 to 54 | 0.095 to 0.10 |
+| UDP | 5 x 100 offered | 99 to 105 | 0 | 0.18 to 0.20 |
+| UDP | 10 x 50 offered | 51 to 53 | 0 | 0.09 to 0.10 |
+
+**What the data supports:**
+
+- No clear gap on any rate. For every protocol the benign ceiling measured here is above the lowest attack rate I sent: TCP SYN-only/s benign 454 vs attack 54; TCP packets/s 2270 vs 108; UDP packets/s 2356 vs 54; ICMP packets/s 577 vs 51. So `packet_rate_thresholds` and `syn_rate_threshold` stay `null`. The benign numbers are also not true ceilings: the highest rates I tried were 400 requests/s, 2000 UDP packets/s and 500 ICMP/s with paced Python senders, and a real client could go higher.
+- Share does not separate benign from attack. A lone benign client has share 1.0, the same as a lone attacker. In the single-attacker mixed runs the attacker's share was at least 0.60 (UDP at 50 packets/s), but with 5 or 10 sources each source's share is only about 0.2 or 0.1, so a `min_share` above 0.2 would never qualify a distributed attack, as described in section 2. Per-source rates in the multi-source runs (about 50 to 105 TCP packets/s, 47 to 54 SYN-only/s with 10 sources) are within what a benign client at 20 to 50 requests/s produces.
+- One observation, not a proposed threshold: the SYN-only fraction of a source's TCP packets was about 0.2 for the new-connection benign client (for example 107 of 500) and 0.50 for the SYN attacker in every run. In this lab the 0.5 is because the kernel's RSTs are counted; against spoofed or silent sources it would be higher. This is a possible feature or condition for Ayden to consider, with one generator on one lab.
+
+**Limits and problems in these runs:**
+
+- Single lab, one benign generator per protocol (paced Python), limited generator coverage for each attack class. SYN, UDP and benign rates have two repetitions; the multi-source, ICMP and "alone" runs have one.
+- VM clock offsets and jumps prevented alignment between sender and server records. The analysis uses only the server capture timestamps.
+- The shortest runs contributed only eight or nine usable windows. Longer independent runs are needed to assess variability.
 
 ## 2. Thresholds and minimum share
 
@@ -46,6 +149,8 @@ Pick every value only from lab and validation runs, never from 03-11 or other fi
 4. `min_share`: pick from runs where the attacker and the client send at the same time. The value must keep the client's group below the rate threshold in every window and let the attacker through. Report how many validation windows change with each candidate value.
 
 ### Evidence to collect (proposed commands, run on the lab VMs)
+
+Status 2026-11-11: the higher benign load, the SYN and UDP rate ladder, the mixed run, new-connection benign runs, benign UDP and ICMP, ICMP and multi-source attack runs, and separate repeated runs are done (tables in section 1). The November 11 baseline adds three successful low-rate runs. A larger, more varied benign population and the missing resource and configuration records are still needed.
 
 - Benign ceiling, several repetitions on `ddos-client`, with a server capture on `enp0s8`: the Week 2 baseline collector, then higher load on the same code.
 
@@ -82,35 +187,34 @@ Read from the running `ddos-server` on 2026-11-08 over SSH (read-only, no sudo; 
 | Management NIC | `enp0s3`, `10.0.2.15/24`, default route via `10.0.2.2`, DNS `10.0.2.3` | `ip route`, `resolvectl dns` |
 | Management session | SSH peer address `10.0.2.2` (the NAT gateway) | `ss -tn` |
 | Protected server | `10.10.10.10` | above |
-| Legitimate client | `10.10.10.20`: source address of all HTTP client captures | pcaps |
-| Attacker | `10.10.10.30`: source address of all scenario captures; never allowlisted | pcaps |
+| Legitimate client | `10.10.10.20/24` on `enp0s8` (MAC 08:00:27:c4:df:b2); `enp0s3` `10.0.2.15/24`, default via `10.0.2.2`, `10.10.10.0/24` on-link via `enp0s8`, no other routes | `ip -br a`, `ip route` over SSH on the client VM, 2026-11-11 (verified); also the source address of all HTTP client captures |
+| Attacker | `10.10.10.30/24` on `enp0s8` (MAC 08:00:27:bc:96:41); `enp0s3` `10.0.2.15/24`, default via `10.0.2.2`, `10.10.10.0/24` on-link via `enp0s8`, no other routes; never allowlisted | `ip -br a`, `ip route` over SSH on the attacker VM, 2026-11-11 (verified); also the source address of all scenario captures |
 | Capture drops | 0 packets dropped by kernel in the `ctrlc-syn` capture | `ctrlc-syn.log` |
 
 Proposed allowlist entries are in [policy-defaults.json](policy-defaults.json): 10.10.10.10, 10.10.10.20, 127.0.0.0/8, 10.0.2.2, 10.0.2.3 and 10.0.2.15. Management traffic is expected on `enp0s3`, but routing or forged source fields mean the adapter must not assume these addresses can never appear on the lab NIC. Apply allowlist checks before every action and scope enforcement to the verified lab interface/protected destination. The adapter must enforce both the allowlist check before any action and lab-interface/protected-destination scoping; it is not implemented yet.
 
-`allowlist.verified` stays `false`. Enforcement must not be enabled with it: the runtime values above are observed, but the firewall state and the adapter's scope are not. Observed but not enough: `ufw` is active and `nginx` is active on the server (`systemctl is-active`), and `iptables` and `nft` are installed, so the adapter has to coexist with `ufw`.
+`allowlist.verified` stays `false`. Enforcement must not be enabled with it: the runtime interface values above are observed, but the adapter's scope and allowlist handling are not implemented or tested.
 
-### Questions for Vince (need sudo or a running VM)
+Firewall and netplan state, reported by Vince from `ddos-server` on 2026-11-08 (with sudo; not independently reproduced):
 
-Run on `ddos-server` (`ssh -i ~/.ssh/ddoslab -p 2222 lab@127.0.0.1`, needs the NAT link on):
+| Item | Reported result |
+| --- | --- |
+| `ufw status verbose` | `Status: inactive` (the `ufw` service unit is enabled, but the firewall is off; an earlier note here that `ufw` was active was wrong) |
+| `nft list ruleset` | empty |
+| `iptables -S` | only the default policies: INPUT, FORWARD and OUTPUT all `ACCEPT`, no rules |
+| netplan | `00-installer-config.yaml` (DHCP on `enp0s3`, matched by MAC), `60-lab.yaml` (`enp0s8` 10.10.10.10/24), `70-nat-routes.yaml` (`enp0s3` 10.0.2.15/24, default route via 10.0.2.2, DNS 10.0.2.3, DHCP off). The later file overrides the DHCP setting; the effective addresses and routes match the `ip` output above. |
 
-```sh
-sudo ufw status verbose
-sudo nft list ruleset
-sudo iptables -S
-sudo cat /etc/netplan/*.yaml
-```
+That inspection found no active filtering rules on the server. A block rule from the firewall adapter would be the first rule on the host, which means the adapter must create its own chain or table, scope its rules to `enp0s8` and destination 10.10.10.10, and never touch SSH on `enp0s3`. This is a requirement for Mujtaba's adapter, not something verified here. `nginx` is active (`systemctl is-active`), and `iptables` and `nft` are installed.
 
-1. What do `ufw`, `nft` and `iptables` currently contain? The firewall adapter has to add rules without breaking SSH and without conflicting with `ufw`.
-2. Do the netplan files still pin `enp0s8` to `10.10.10.10/24` and `enp0s3` to `10.0.2.15/24` with gateway `10.0.2.2`?
-3. Is any machine other than the host PC and the two VMs meant to reach the server (a presentation laptop, for example)? If so its address belongs on the allowlist.
-4. On the client and attacker VMs (ports 2223 and 2224): `ip -br a` should show `10.10.10.20/24` and `10.10.10.30/24` on `enp0s8`. I verified these only as packet sources in saved captures, not on the VMs.
+### Remaining lab verification
+
+Vince reported that the client and test sender addresses, the server address and its routes matched the table when rechecked on November 11. Recheck filtering and netplan before runtime enforcement, confirm any other legitimate clients, and verify the adapter's scope and allowlist handling in the lab.
 
 ## 5. Version-one scope
 
 IPv4 TCP, UDP and ICMP only, inbound to the protected host. IPv6 is deferred until capture, address validation, API and firewall support are specified together. IPv6 frames are skipped and counted under `ipv6`, not scored, so an IPv6 flood would be invisible to this version. Source grouping, the share denominator and the block list are IPv4 only; the allowlist must hold IPv4 addresses or networks only.
 
-ICMP: groups are built like TCP and UDP, but no ICMP flood evidence exists, so its threshold is unset (never qualifies) until ICMP runs are collected.
+ICMP uses the same grouping as TCP and UDP. The reported benign and attack rates overlap, so its threshold remains unset and no ICMP group qualifies for an automatic block.
 
 ## 6. One window rule for offline and live
 
@@ -137,9 +241,9 @@ Proposal: keep the twelve version-one features unchanged for the first validatio
 
 | Item | Owner | Needed to close |
 | --- | --- | --- |
-| Threshold values and `min_share` | Vince, then Ayden | Evidence from section 2 (benign ceiling, attack floor, mixed run) |
+| Threshold values and `min_share` | Vince, then Ayden | Keep the values unset. The reported rates overlap and the source shares vary with the traffic mix. The draft policy remains monitor-only while evidence for a blocking rule and runtime allowlist verification are pending. |
 | Block rules 3 to 6 above | Ayden / Mujtaba | Owner accepted with the November 8 clarifications below; implementation/interface tests remain |
-| Firewall and `ufw` state, allowlist scope | Vince, Mujtaba | Answers to section 4 questions |
+| Allowlist scope in the firewall adapter (own chain/table, `enp0s8` and destination scoping) | Mujtaba, Vince | Adapter design and tests; the server's current firewall state is now reported (empty) |
 | `allowlist.verified` | Vince, Ayden | Only after the above; until then enforcement stays off |
 | Feature `syn_ack_ratio` decision | Ayden | Retain all twelve version-one features for the baseline; record redundancy and revisit only in a separately versioned, retrained validation experiment |
 | Offline/live adapter parity and coverage evidence | Vince, Ali | Not provided by this proposal |

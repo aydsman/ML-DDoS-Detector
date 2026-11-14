@@ -1,6 +1,6 @@
 # Dashboard API contract
 
-Version 1 design draft. Owner: Ayden. Frontend: Aadi. These endpoints are proposed and are not implemented yet. Work on development; promote tested changes to main.
+Version 1 read-only backend. Owner: Ayden. Frontend: Aadi. The API serves the four response objects below from a bounded monitor store. Frontend polling remains a separate integration step.
 
 This file explains every field in [api-examples.json](api-examples.json). The JSON contains mock data, not measurements or a trained model. JSON cannot contain comments, so explanations belong here.
 
@@ -109,7 +109,29 @@ The `blocks` field is an array of blocks confirmed active by the firewall, sorte
 - Frontend polling starts at approximately one-second intervals. Avoid overlapping requests. Evaluate the overhead before finalizing the refresh rate.
 - Keep the first version display-only. Mitigation controls and their request/error schemas will be specified separately before implementation.
 - Agree history limits and pagination before live integration. These examples are small snapshots and do not define unlimited retention.
-- This is an API design draft, not an executable JSON Schema or backend implementation. Backend validation models can be added after review.
+- The backend validates monitor events before adding them to its in-memory store. Source attribution and confirmed firewall records require a separate integration.
+
+## Backend replay and freshness
+
+Run the dashboard API with a trusted local model package and an offline fixture from the repository root. Use a new log filename for each run.
+
+```powershell
+python -m ddos_detector.api --replay tests/fixtures/week2/synthetic-mixed-boundaries.pcap --model results/demo-model --log results/api-demo.jsonl
+```
+
+The command completes the replay, then serves HTTP on loopback at port 8000 (override with `--port`). A failed replay exits without opening the server. The Python entry points `DashboardStore.ingest` and `create_app(store)` allow a same-process producer to deliver finalized windows and lifecycle events directly. One store holds one run. The JSONL log remains an audit artifact. A separate monitor process needs its own transport.
+
+The store retains the newest 300 metric points and 300 scored predictions by default. Missing intervals remain absent. Empty and capped windows can carry observed traffic rates but do not create predictions. The detector emits aggregate alerts or no-action records. The firewall is unavailable and the blocks list is empty in monitor-only mode.
+
+Each response uses `Cache-Control: no-store` and three headers:
+
+| Header | Values |
+| --- | --- |
+| `X-Dashboard-Freshness` | `empty`, `current`, `stale`, `unavailable`, `stopped`, or `historical` |
+| `X-Dashboard-Source` | `none`, `live`, `replay`, `recorded_live`, or `recorded_replay` |
+| `X-Dashboard-Data-Kind` | `none`, `synthetic`, or `reviewed_packet_windows` |
+
+Replay remains historical even when served now. Live input is current after its first finalized window. If five seconds pass without fresh window evidence (or without an initial window after startup), live input is stale. Capture failure or staleness preserves earlier points and detections while marking capture status as error. A finished live run reports stopped. Freshness describes receipt of measurements; it does not establish complete capture coverage. The frontend integration should use the headers for freshness and provenance, because `updated_at` describes when a response was assembled.
 
 ## Decisions still requiring review
 
@@ -119,3 +141,5 @@ The `blocks` field is an array of blocks confirmed active by the firewall, sorte
 - Ayden and Aadi: confirm the display fields, history limits, error responses, and stale-data behavior before treating version 1 as finalized.
 
 Remaining infrastructure, policy, and dataset work is tracked in [Vince's follow-up issue #5](https://github.com/aydsman/ML-DDoS-Detector/issues/5).
+
+Use `--audit-log JSONL` in place of the replay inputs to serve a terminated monitor audit. Recorded runs retain their capture origin in the source header and report historical freshness, or unavailable if capture failed. The audit has packet counts but no byte counts, so its byte rates are null.
