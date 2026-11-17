@@ -6,7 +6,7 @@ import pytest
 
 from ddos_detector.firewall import FirewallAdapter, FirewallScope
 from ddos_detector.firewall_cli import load_settings, main, poll, report
-from ddos_detector.firewall_contract import BlockRequest
+from ddos_detector.firewall_contract import BlockRequest, RuleState
 from test_firewall import FakeFirewall
 
 
@@ -87,3 +87,25 @@ def test_cli_reports_failed_installation_and_returns_failure(tmp_path, monkeypat
     output = json.loads(capsys.readouterr().out)
     assert output["events"][0]["success"] is False
     assert "PermissionError" in output["events"][0]["error"]
+
+
+def test_report_distinguishes_uncertain_rule_from_confirmed_block():
+    firewall = FakeFirewall()
+    adapter = FirewallAdapter(firewall, FirewallScope("enp0s8", "10.10.10.10", (), True))
+    request = BlockRequest("a", "10.10.10.30", "Manual test")
+    assert adapter.apply(request).success
+    original, = adapter.confirmed_blocks
+
+    firewall.verify_error = TimeoutError("Verification unavailable")
+    assert adapter.verify(request).rule_state == RuleState.UNKNOWN
+    uncertain = report(adapter)
+    assert uncertain["blocks"] == []
+    assert uncertain["uncertain_block_ids"] == ["a"]
+    assert uncertain["reserved_slots"] == 1
+
+    firewall.verify_error = None
+    assert adapter.verify(request).rule_state == RuleState.INSTALLED
+    confirmed = report(adapter)
+    assert confirmed["blocks"][0]["id"] == "a"
+    assert confirmed["uncertain_block_ids"] == []
+    assert adapter.confirmed_blocks == (original,)

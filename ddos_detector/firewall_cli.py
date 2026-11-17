@@ -7,7 +7,7 @@ from pathlib import Path
 import time
 
 from .firewall import FirewallAdapter, FirewallScope
-from .firewall_contract import BlockRequest
+from .firewall_contract import BlockRequest, RuleState
 from .firewall_nft import NftablesTransport, validate_lab_runtime
 from .firewall_state import FirewallState
 
@@ -25,13 +25,18 @@ def load_settings(path):
 
 
 def report(adapter):
+    last_state = {event.block_id: event.rule_state for event in adapter.audit_events}
+    pending = adapter.pending_requests
     blocks = [{"id": block.request.block_id, "source_ip": block.request.source_ip,
                "reason": block.request.reason,
                "blocked_at": block.blocked_at.isoformat().replace("+00:00", "Z"),
                "expires_at": block.expires_at.isoformat().replace("+00:00", "Z")}
-              for block in adapter.confirmed_blocks]
+              for block in adapter.confirmed_blocks
+              if last_state.get(block.request.block_id) == RuleState.INSTALLED]
     blocks.sort(key=lambda block: (-datetime.fromisoformat(block["blocked_at"]).timestamp(), block["id"]))
-    return {"reserved_slots": adapter.reserved_count, "blocks": blocks,
+    return {"reserved_slots": len(pending), "blocks": blocks,
+            "uncertain_block_ids": sorted(request.block_id for request in pending
+                                          if last_state.get(request.block_id) != RuleState.INSTALLED),
             "events": list(adapter.audit_records)}
 
 
