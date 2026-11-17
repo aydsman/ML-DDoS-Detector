@@ -10,10 +10,42 @@ import time
 
 ETH_P_ALL = 0x0003
 SO_TIMESTAMPNS = 35  # Linux value; the socket module does not export it
+SOL_PACKET = 263  # Linux values; the socket module does not export them
+PACKET_STATISTICS = 6
 MAX_FRAME = 65535
 
 
-def capture_frames(interface, timeout=0.5, duration=None):
+class CaptureStats:
+    """Kernel receive counters of one capture socket; None until they are read.
+
+    packets counts every frame the kernel queued for the socket, including the
+    ones it then dropped. drops counts frames lost because the socket's receive
+    buffer was full. They describe this socket only, not the NIC or the wire.
+    """
+
+    def __init__(self):
+        self.packets = None
+        self.drops = None
+
+    def add(self, packets, drops):
+        self.packets = (self.packets or 0) + packets
+        self.drops = (self.drops or 0) + drops
+
+
+def read_kernel_stats(sock):
+    """Return (packets, drops) from PACKET_STATISTICS, or None if unreadable.
+
+    The kernel resets these counters each time they are read.
+    """
+    try:
+        data = sock.getsockopt(SOL_PACKET, PACKET_STATISTICS, struct.calcsize("@II"))
+        packets, drops = struct.unpack("@II", data[:struct.calcsize("@II")])
+    except (OSError, struct.error):
+        return None
+    return packets, drops
+
+
+def capture_frames(interface, timeout=0.5, duration=None, stats=None):
     """Return a generator of (ts, frame) from interface, with None after each idle timeout.
 
     ts is the kernel receive timestamp (SO_TIMESTAMPNS, epoch seconds) and
@@ -21,6 +53,9 @@ def capture_frames(interface, timeout=0.5, duration=None):
     items let LivePipeline.run tick the clock on a quiet link. The generator
     ends after duration seconds (wall clock) if given. Frames in both
     directions are returned; the frame parser keeps only inbound IPv4.
+
+    If a CaptureStats is passed, the kernel receive and drop counters are read
+    into it when the generator is closed or exhausted.
     """
     if not sys.platform.startswith("linux") or not hasattr(socket, "AF_PACKET"):
         raise NotImplementedError("live capture needs Linux (AF_PACKET); use --replay elsewhere")
@@ -35,10 +70,10 @@ def capture_frames(interface, timeout=0.5, duration=None):
     except PermissionError as exc:
         raise PermissionError("AF_PACKET capture needs root or CAP_NET_RAW") from exc
     sock.settimeout(timeout)
-    return _frames(sock, duration)
+    return _frames(sock, duration, stats)
 
 
-def _frames(sock, duration):
+def _frames(sock, duration, stats=None):
     deadline = None if duration is None else time.monotonic() + duration
     try:
         while deadline is None or time.monotonic() < deadline:
@@ -49,6 +84,10 @@ def _frames(sock, duration):
                 continue
             yield _timestamp(ancillary), frame
     finally:
+        if stats is not None:
+            counters = read_kernel_stats(sock)
+            if counters is not None:
+                stats.add(*counters)
         sock.close()
 
 

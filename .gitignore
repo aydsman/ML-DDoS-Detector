@@ -9,6 +9,7 @@ __pycache__/
 .env
 .env.*
 !.env.example
+deploy/monitor.env
 
 # Large captures and datasets
 data/

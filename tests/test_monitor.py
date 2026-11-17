@@ -138,3 +138,52 @@ def test_damaged_replay_has_failure_event_and_nonzero_exit(tmp_path, model_dir):
     rows = [json.loads(x) for x in log.read_text().splitlines()]
     assert rows[-1]['status'] == 'unavailable'
     assert rows[-1]['gaps'] and 'PcapError' in rows[-1]['gaps'][0]['reason']
+
+
+def test_live_status_reports_measured_kernel_drops(tmp_path, model_dir, monkeypatch):
+    from ddos_detector import capture, monitor
+
+    def fake_capture(interface, timeout=0.5, duration=None, stats=None):
+        def frames():
+            try:
+                yield 100.1, eth(0x0800, ipv4())
+                yield 102.5, eth(0x0800, ipv4())
+            finally:
+                stats.add(2, 1)
+        return frames()
+    monkeypatch.setattr(capture, "capture_frames", fake_capture)
+    log = tmp_path / "live.jsonl"
+    assert monitor.main(["--interface", "eth0", "--model", str(model_dir), "--log", str(log)]) == 0
+    rows = [json.loads(x) for x in log.read_text().splitlines()]
+    assert rows[0]["kernel_drops"] is None and rows[0]["status"] == "started"
+    assert rows[-1]["status"] == "completed"
+    assert rows[-1]["kernel_packets"] == 2 and rows[-1]["kernel_drops"] == 1
+    assert rows[-1]["backlog"] is None and "drop counter" in rows[-1]["coverage_note"]
+
+
+def test_replay_status_keeps_kernel_counters_unmeasured(tmp_path, model_dir):
+    log = tmp_path / "replay-status.jsonl"
+    assert main(["--replay", str(pcap(tmp_path)), "--model", str(model_dir), "--log", str(log)]) == 0
+    last = json.loads(log.read_text().splitlines()[-1])
+    assert last["kernel_packets"] is None and last["kernel_drops"] is None
+    assert "unmeasured" in last["coverage_note"]
+
+
+def test_sigterm_is_handled_like_ctrl_c(tmp_path, model_dir, monkeypatch):
+    import signal
+    from ddos_detector import capture
+
+    def fake_capture(interface, timeout=0.5, duration=None, stats=None):
+        yield 100.1, eth(0x0800, ipv4())
+        signal.raise_signal(signal.SIGTERM)  # what scripts/monitor-stop.sh sends
+        yield 101.2, eth(0x0800, ipv4())
+
+    monkeypatch.setattr(capture, "capture_frames", fake_capture)
+    previous = signal.getsignal(signal.SIGTERM)
+    try:
+        log = tmp_path / "term.jsonl"
+        assert main(["--interface", "eth0", "--model", str(model_dir), "--log", str(log)]) == 0
+    finally:
+        signal.signal(signal.SIGTERM, previous)
+    rows = [json.loads(x) for x in log.read_text().splitlines()]
+    assert rows[-1]["status"] == "completed"
