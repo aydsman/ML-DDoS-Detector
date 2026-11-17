@@ -75,6 +75,20 @@ Use direct validated delivery to a backend-owned state store. The monitor accept
 
 See [Backend replay and freshness](api-contract.md#backend-replay-and-freshness) for the replay server, history limits and response metadata.
 
+## Lab load test (November 17)
+
+Run on the lab server with the synthetic demo model, started with `scripts/monitor-start.sh`. One attacker VM (hping3 SYN) and one client VM (130 HTTP requests) were used. Each row is one run.
+
+| Run | Attacker sent | Windows scored | late_dropped | max delay | kernel_packets | kernel_drops | Monitor CPU |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Quiet | 6,000 SYNs (about 200/s requested) | 55 of 55 | 0 | 1.317 s | 19,307 | 0 | not recorded |
+| Rung 1 | 20,000 SYNs in 32.0 s (about 625/s) | 44 of 44 | 0 | 1.315 s | 61,308 | 0 | 3% average, 132 MB |
+| Rung 2 (flood) | 2,649,857 SYNs in 20.0 s (about 132,000/s) | 63 of 63 | 0 | 1.297 s | 711,352 | 1,817 | peak 48% of one core |
+
+During the flood the server VM was 14% to 19% user and 62% to 64% system CPU, with 19% to 22% idle. The server NIC counters since boot showed 0 errors, 0 dropped and 0 missed with 464,088 packets received. The attacker sent far more packets than the server's capture socket counted, so most of the loss happened before the server NIC (on the attacker VM or the virtual network; not located). `kernel_drops` counts only losses at the capture socket, so in a flood it understates real loss and should be read as a floor.
+
+Limits: one run per row, synthetic model, one attacker, VirtualBox networking. hping3's timer tops out near 625 packets/s without flood mode. These numbers describe this lab only, and backlog is still not measured.
+
 ## Verification and remaining lab evidence
 
-Offline tests cover replay, model refusal and reuse, incompatible settings, capped windows and failure/gap records. Vince's lab run is reported above. The kernel drop counter is implemented and unit-tested with simulated sockets. A measurement on the lab server, capture under sustained load, cross-process transport and real-data scoring remain pending.
+Offline tests cover replay, model refusal and reuse, incompatible settings, capped windows and failure/gap records. Vince's lab run is reported above. The kernel drop counter is unit-tested with simulated sockets and was measured on the lab server (see the load test above). Cross-process transport, loss between the attacker and the server, and real-data scoring remain pending.
