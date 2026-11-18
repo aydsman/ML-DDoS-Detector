@@ -3,9 +3,12 @@
 Owner: Mujtaba. PR #36 implements apply, verification, expiry polling, removal,
 SQLite state/audit storage, restart reconciliation and cleanup. The Linux
 transport uses a dedicated nftables table. Automated tests use simulated
-transports and command output. Real kernel rule parsing, packet blocking,
-management reachability and restart cleanup require Vince's isolated-lab
-verification before W3 acceptance. The interface remains under owner review.
+transports and command output. Vince reported manual isolated-Linux checks on
+November 17 at commit `2895768`, including rule scope, legitimate HTTP and
+management reachability, expiry, and interrupt/restart cleanup. See the
+[lab report](https://github.com/aydsman/ML-DDoS-Detector/pull/36#issuecomment-6958519180).
+That run covered a single block on the project's fixed lab interface and
+addresses. The later periodic verification change is covered by offline tests.
 
 ## Requests and results
 
@@ -25,7 +28,9 @@ observes saved actions and preserves original confirmation/expiry timestamps.
 An expired rule or failed removal remains reserved until absence is confirmed.
 
 The runtime must call `expire_due()` regularly. The CLI polls every second by
-default, including uncertain installations and pending removals. The state
+default, rechecking confirmed rules, uncertain installations and pending
+removals. A confirmed rule that disappears releases its reservation when
+the adapter verifies absence. The state
 database and its `.lock` file must be retained together in controlled local
 storage. Losing the journal requires manual reconciliation of the lab table.
 An unexpected owned-table rule aborts startup. Keep all generated state outside

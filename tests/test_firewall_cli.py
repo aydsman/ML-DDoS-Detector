@@ -109,3 +109,24 @@ def test_report_distinguishes_uncertain_rule_from_confirmed_block():
     assert confirmed["blocks"][0]["id"] == "a"
     assert confirmed["uncertain_block_ids"] == []
     assert adapter.confirmed_blocks == (original,)
+
+def test_poll_detects_external_removal_before_expiry():
+    firewall = FakeFirewall()
+    now = datetime(2026, 11, 17, tzinfo=timezone.utc)
+    adapter = FirewallAdapter(firewall, FirewallScope("enp0s8", "10.10.10.10", (), True),
+                              clock=lambda: now)
+    request = BlockRequest("a", "10.10.10.30", "Manual test")
+    assert adapter.apply(request).success
+
+    firewall.verify_error = TimeoutError("Verification unavailable")
+    assert adapter.expire_due() == ()
+    assert report(adapter)["uncertain_block_ids"] == ["a"]
+    assert adapter.reserved_count == 1
+
+    firewall.verify_error = None
+    firewall.state = RuleState.ABSENT
+    assert adapter.expire_due() == ()
+    assert report(adapter)["blocks"] == []
+    assert report(adapter)["uncertain_block_ids"] == []
+    assert adapter.reserved_count == 0
+    assert firewall.removed == []

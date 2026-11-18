@@ -79,9 +79,9 @@ def main(argv=None):
         with FirewallState(args.state) as store:
             adapter = FirewallAdapter(transport, scope, capacity, state_store=store)
             transport.check_inventory(adapter.pending_requests, scope)
-            adapter.reconcile()
-            adapter.validate_batch(requests)
             try:
+                adapter.reconcile()
+                adapter.validate_batch(requests)
                 if args.action == "cleanup":
                     adapter.cleanup()
                 elif args.action == "apply":

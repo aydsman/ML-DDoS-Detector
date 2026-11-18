@@ -293,20 +293,20 @@ class FirewallAdapter:
     def expire_due(self):
         """Check deadlines when polled; confirm removal before releasing slots.
 
-        Polling also reconciles uncertain installations. A first confirmed
-        installation starts its timer. Failed or unknown removals remain due
-        for retry on the next poll, using the original deadline.
+        Recheck active rules before their deadline so externally removed rules
+        release their slots. Unknown observations keep the original deadline.
+        Failed removals remain due for retry on the next poll.
         """
         with self._lock:
-            pending = [request for block_id, request in self._requests.items()
-                       if block_id not in self._confirmed]
-            for request in pending:
-                self.verify(request)
             now = self.clock()
-            due = [request for block_id, request in self._requests.items()
-                   if block_id in self._removing or (block_id in self._confirmed
-                   and self._confirmed[block_id].expires_at <= now)]
-            return tuple(self._remove(request, "expire") for request in due)
+            expired = []
+            for block_id, request in list(self._requests.items()):
+                block = self._confirmed.get(block_id)
+                if block_id in self._removing or (block is not None and block.expires_at <= now):
+                    expired.append(self._remove(request, "expire"))
+                else:
+                    self.verify(request)
+            return tuple(expired)
 
     def reconcile(self):
         """Observe all saved actions before accepting new requests after restart."""
