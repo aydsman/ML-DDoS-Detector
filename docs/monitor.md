@@ -27,6 +27,40 @@ Without `--duration` it runs until stopped. A bad interface, missing permission 
 
 **Health fields.** `processing_delay_s` on each live window is the time between the window ending and its record being written (about 1.0 s with the one-second grace period). `max_processing_delay_s`, `late_dropped`, `skips` and `gaps` are in the terminal status record and the printed summary. Backlog and kernel drops are not measured; do not read a clean run as proof of complete capture.
 
+## Live capture with the dashboard
+
+The API's live entry point runs the existing monitor in the foreground and
+serves its shared state concurrently. The server listens on loopback.
+It stops when capture finishes or the foreground monitor is interrupted.
+It refuses to start capture if the HTTP server cannot bind.
+
+Use the saved Week 2 model package with its recorded Python and dependency
+versions. Run from the checked-out repository on the Linux lab server, after
+confirming `enp0s8` has `10.10.10.10`:
+
+```sh
+mkdir -p results/week3
+sudo .venv/bin/python -m ddos_detector.api --interface enp0s8 --victim 10.10.10.10 \
+  --model results/week2-model --log results/week3/live-trained-model.jsonl --port 8002
+```
+
+Use a fresh log filename for each run. An optional `--duration 100` bounds the
+capture and API session. While it runs, open
+`http://127.0.0.1:8002/frontend/?source=api` on the lab server. For a browser on
+another computer, forward port 8002 through the team's established SSH
+connection. Keep the capture and API in the same process.
+
+Run the existing legitimate HTTP client on ddos-client. Record API responses
+from health, metrics and detections while traffic is arriving, plus a dashboard
+screenshot. Match the prediction model identity to the package metadata and
+compare window timestamps, rates and scores to the flushed audit records.
+Capture failure must show unavailable or stale state. The blocks list remains
+empty during this monitor-only run.
+
+This entry point has automated concurrent-delivery and startup-failure checks.
+Final Week 3 acceptance still needs a Linux lab run using the trained model.
+The earlier November 11 lab run below used the synthetic demo model.
+
 ## Lab validation (November 11) and what is real
 
 Vince reported a 100-second live run on the lab server's internal interface. All 225 legitimate HTTP requests succeeded. The monitor scored 72 completed windows, reported zero late arrivals and recorded a maximum processing delay of 1.44 s. Raw artifacts are outside Git. This records a lab observation with a synthetic model.
