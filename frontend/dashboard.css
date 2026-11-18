@@ -215,3 +215,25 @@ body:not(.sidebar-expanded) .nav-selection{border-radius:50%}
  body:not(.sidebar-expanded) .glass-nav nav a{width:100%;height:auto;min-height:0;aspect-ratio:1;justify-content:center;padding:0}
  body:not(.sidebar-expanded) .glass-nav nav a .nav-label{display:none}
 }
+
+/* Wrap to the actual workspace width, including an expanded desktop rail. */
+.toolbar{flex-wrap:wrap;min-width:0;align-items:center}
+.toolbar > .toolbar-controls{display:flex;flex:1 1 540px;min-width:0;max-width:100%;flex-wrap:wrap;align-items:center;gap:12px}
+.toolbar-controls .control-field{display:flex;flex:1 1 210px;align-items:center;gap:10px;min-width:0;max-width:100%}
+.toolbar-controls .scenario-field{flex-basis:280px}
+.toolbar .control-field label{width:auto;flex:0 0 auto;white-space:nowrap}
+.toolbar .control-field select{width:0;flex:1 1 auto;min-width:0;max-width:100%}
+.toolbar .refresh-control{display:flex;flex:0 1 auto;max-width:100%;flex-direction:column;align-items:flex-start;gap:3px}
+.toolbar #reload{white-space:nowrap;max-width:100%}
+.toolbar .shared-meta{flex:1 1 235px;min-width:0;overflow-wrap:anywhere}
+#refresh-state{display:inline-flex;align-items:center;gap:6px;min-width:15ch;font-size:11px;color:var(--muted);white-space:nowrap}
+#refresh-state::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.5}
+#refresh-state[data-busy=true]::before{background:#a8cfff;opacity:1}
+.data-details{font-size:12px;color:var(--muted);min-width:0}
+.data-details summary{cursor:pointer;width:fit-content;padding:4px 0;color:#e7dfd8}
+.data-details p{margin:5px 0 0;padding:10px 14px;background:var(--glass);border:1px solid var(--line);border-radius:12px;overflow-wrap:anywhere}
+@media(min-width:1800px){#refresh-state{font-size:13px}.data-details{font-size:15px}}
+@media(max-width:700px){.toolbar-controls .control-field{flex-basis:100%;flex-wrap:wrap}.toolbar .control-field label{width:100%}.toolbar .control-field select{width:100%;flex-basis:100%}.toolbar .shared-meta{text-align:left}}
+
+.overview-content{container-type:inline-size}
+@container(max-width:720px){.health-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
