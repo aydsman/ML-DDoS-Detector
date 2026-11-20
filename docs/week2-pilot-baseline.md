@@ -51,22 +51,36 @@ API. The previously recorded monitor run used the synthetic demo model.
 
 ## November 20 metadata correction
 
-[Vince reported](https://github.com/aydsman/ML-DDoS-Detector/issues/3#issuecomment-7046858680)
-that his local reconciliation README now states the actual 2.5-second boundary
-slack, and his S3 source manifest explicitly excludes the stale failed-attempt
-HTTP run `aab41db8-1313-44f9-81ea-0a84063c0d7c` and zero-sent orphan SYN run
-`39903db2-4acc-467e-86dc-2299da9fcf2a`. He reports windows/coverage unchanged
-and no recomputed labels. The corrected source-manifest SHA-256 is
+The [supplied correction archive](https://github.com/aydsman/ML-DDoS-Detector/issues/3#issuecomment-7048760662)
+was independently checked against the original lab-handoff and reconciliation
+archives. Its SHA-256 is
+`44cf9ae6fba60473a587149c9590a8c57e77f0e38c243fce3fefc087739ae2f6`.
+Both supplied before files match the corresponding original archive members
+byte for byte; all four metadata-file checksums match the supplied inventory.
+The [machine-readable review](reviews/lab-pilot-correction-2026-11-20.json)
+records those identities and limits.
+
+Only `excluded_runs` and `status_note` changed in the S3 source manifest. They
+explicitly exclude the stale failed-attempt HTTP run
+`aab41db8-1313-44f9-81ea-0a84063c0d7c` and zero-sent orphan SYN run
+`39903db2-4acc-467e-86dc-2299da9fcf2a`, retaining their original provenance
+references. The corrected manifest SHA-256 is
 `eb7f24d2fe59a2eeb28f077d31169ed9fc06c7817af3a3d64206887f9bb2451d`;
 the preceding source version was
 `54d09051c5eedd6543ce35638142e566aecfdfae631f89f392d71f332ad15ecc`.
-These are source-manifest identities, not the reviewed-splits hash above.
+These source-manifest identities differ from the reviewed-splits hash above.
+The source manifest still identifies an unreviewed candidate with unassigned
+splits and null review references; the separate owner-approved pilot inputs
+remain the frozen reviewed package.
 
-The corrected files have not yet been supplied here. Retain the originally
-reviewed reconciliation archive
-`691e9887215e0a2f7451ff547739ca813b9b15a4a640de8b3d866e99f9916651`
-and the frozen training inputs/model above. On receipt of the correction,
-compare it against that archive and verify that only the stated metadata
-changed before recording independent acceptance. Do not retrain, resplit or
-inspect S3 outcomes for this housekeeping update. This lab correction does
-not complete the separate CIC acceptance issue.
+The reconciliation README changes only `slack 1.0 s` to `slack 2.5 s`, matching
+`slack_seconds` in all three original session coverage files. Its corrected
+SHA-256 is `2bfab08ede7aad6fc5cd74a124f8bed6a1db2500a963d93752479d823497a06a`;
+the original is
+`06ae8af7c98d53899ea1c9bdadb4b34d5d638a8c6a24f5696c943979bbe35b00`.
+
+This metadata correction is accepted. The correction supplies no new windows,
+coverage, captures or labels. Hash checks confirm the existing frozen reviewed
+inputs and model are unchanged. No retraining, resplitting or final-test scoring
+was performed. Source PCAP bytes were not rehashed or replayed, and the separate
+CIC acceptance issue and Linux trained-model acceptance remain open.
