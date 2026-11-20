@@ -40,6 +40,8 @@ class WindowAccumulator:
         self.sizes = Counter()
         self.protos = Counter()
         self.srcs = Counter()
+        self.source_protocols = Counter()
+        self.source_syns = Counter()
         self.syn = self.synack = self.ack = 0
         self.untracked_source_packets = 0
 
@@ -53,6 +55,9 @@ class WindowAccumulator:
         self.protos[p.proto] += 1
         if p.src in self.srcs or self.max_sources is None or len(self.srcs) < self.max_sources:
             self.srcs[p.src] += 1
+            self.source_protocols[p.src, p.proto] += 1
+            if p.proto == "tcp" and p.flags is not None and p.flags & SYN and not p.flags & ACK:
+                self.source_syns[p.src, p.proto] += 1
         else:
             self.untracked_source_packets += 1
         # Packets with unknown flags (None) still count for size, protocol and source

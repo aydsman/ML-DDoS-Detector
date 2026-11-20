@@ -158,6 +158,12 @@ of this helper do not replace that lab result.
 
 ## W4 handoff
 
+The [W4 enforcement runner](w4-enforcement.md) now connects finalized-window
+source diagnostics and the accepted policy design to this adapter. Its default
+is monitor-only; approved thresholds, reviewed source-policy behavior and runtime
+scope are still required for automatic lab acceptance. The original monitor/API
+flow below continues to operate independently.
+
 The adapter accepts explicit `BlockRequest` objects. The existing monitor and
 dashboard continue their monitor-only flow. W4 policy integration needs actual
 per-source evidence, validated thresholds and owner-approved eligibility before

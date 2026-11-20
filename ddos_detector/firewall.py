@@ -4,6 +4,7 @@ The transport must check the exact scoped rule and report UNKNOWN on ambiguous
 outcomes. A real UFW-compatible transport and restart recovery need lab review.
 """
 from dataclasses import asdict, dataclass, replace
+from collections import deque
 from datetime import datetime, timedelta, timezone
 from ipaddress import IPv4Address, IPv4Network
 from threading import RLock
@@ -34,12 +35,16 @@ class FirewallScope:
     def check_source(self, source_ip):
         if not self.verified:
             raise ValueError("Lab scope and allowlist must be verified before use")
+        if self.is_protected(source_ip):
+            raise ValueError("Source is protected or allowlisted")
+
+    def is_protected(self, source_ip):
+        """Pure address check; live mutations additionally require verified scope."""
         address = IPv4Address(source_ip)
-        if (address == IPv4Address(self.protected_ip) or address == IPv4Address("10.10.10.20")
+        return (address == IPv4Address(self.protected_ip) or address == IPv4Address("10.10.10.20")
                 or address.is_loopback or address.is_multicast or address.is_unspecified
                 or address == IPv4Address("255.255.255.255")
-                or any(address in IPv4Network(entry) for entry in self.allowlist)):
-            raise ValueError("Source is protected or allowlisted")
+                or any(address in IPv4Network(entry) for entry in self.allowlist))
 
 
 class FirewallTransport(Protocol):
@@ -68,7 +73,7 @@ class FirewallAdapter:
     """
 
     def __init__(self, transport: FirewallTransport, scope: FirewallScope,
-                 max_blocks=20, clock=None, state_store=None):
+                 max_blocks=20, clock=None, state_store=None, audit_limit=None):
         if isinstance(max_blocks, bool) or not isinstance(max_blocks, int) or max_blocks < 1:
             raise ValueError("Block capacity must be a positive integer")
         self.transport = transport
@@ -79,7 +84,11 @@ class FirewallAdapter:
         self._confirmed = {}
         self._removed = {}
         self._removing = set()
-        self._audit = []
+        if audit_limit is not None and (type(audit_limit) is not int or audit_limit < 1):
+            raise ValueError("Audit memory limit must be a positive integer")
+        self._audit = deque(maxlen=audit_limit)
+        self._latest_states = {}
+        self.had_failures = False
         self._lock = RLock()
         self._state_store = state_store
         self._faulted = False
@@ -167,6 +176,11 @@ class FirewallAdapter:
         with self._lock:
             return tuple(self._event(result) for result in self._audit)
 
+    @property
+    def latest_rule_states(self):
+        with self._lock:
+            return self._latest_states.copy()
+
     def _check_request(self, request):
         if self._faulted:
             raise RuntimeError("Firewall journal failed; restart and reconcile before further actions")
@@ -204,6 +218,8 @@ class FirewallAdapter:
                 self._removed[request.block_id] = (request, result)
             self._removing.discard(request.block_id)
         self._audit.append(result)
+        self._latest_states[request.block_id] = state
+        self.had_failures |= not result.success
         self._save(result)
         return result
 

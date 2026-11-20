@@ -1,7 +1,9 @@
 {
   "schema": "policy-defaults-draft-1",
-  "status": "owner-accepted design defaults; unvalidated thresholds/allowlist; not loaded by runtime code",
+  "status": "owner-accepted design defaults; W4 runner reads these values; thresholds/allowlist remain unvalidated",
   "mode": "monitor_only",
+  "policy_review_ref": null,
+  "max_window_age_seconds": null,
   "scope": {
     "ip_version": 4,
     "protocols": [

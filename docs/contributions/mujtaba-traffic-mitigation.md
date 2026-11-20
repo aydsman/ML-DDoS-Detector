@@ -88,10 +88,13 @@ Implementation: `ddos_detector/firewall*.py`; commands and recovery procedure:
 | Vince's [November 17 lab report](https://github.com/aydsman/ML-DDoS-Detector/pull/36#issuecomment-6958519180), `2895768` | Reported scoped rule, attacker blocking, legitimate HTTP/SSH reachability, expiry, cleanup, permission failure, interruption and crash recovery | One run per case, one source/block, Python 3.14.4 rather than the project target 3.12; collaborator-reported evidence |
 | Ayden's `aa327a4` and regression tests | Active-rule polling and startup-interrupt fixes, after the reported lab run | Updated-head Linux retest and review remain pending |
 
-The monitor currently classifies aggregate windows and the dashboard serves
+The original monitor classifies aggregate windows and the dashboard serves
 monitor-only data. An aggregate attack score is not a per-source verdict.
-W4 must connect owner-approved source-policy requests to the adapter, preserve
-uncertainty and reset policy streaks after removal/mode changes. Rate/share
+The [W4 runner](../w4-enforcement.md) now connects finalized source/protocol
+counts, the accepted consecutive-window policy and the adapter, preserving
+uncertainty and resetting streaks after removal/mode changes. Its code is tested
+with simulated capture/scoring/firewall and requires owner review and actual
+lab acceptance. The dashboard does not yet consume automatic-run state. Rate/share
 thresholds remain unset because the reported benign and attack rates overlap.
 The committed allowlist remains unverified. Automatic policy-driven blocking
 and final detection/availability improvements have not been demonstrated.
