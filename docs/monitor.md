@@ -66,10 +66,13 @@ It contains `week2-model/model.joblib`, metadata and validation reports,
 `44f2ae879b63414c8af7d7c1165e7a0d462c9545f6190f7a8a7b2f00aa9e9fe7`.
 
 Transfer the archive outside Git and GitHub attachments through a restricted
-team share. Ayden has prepared a copy in his OneDrive project `handoff/`
-folder; that local placement alone does not give Vince access. The actual
-shared link or transfer is still required. Verify the ZIP hash before
-extracting it, then verify the model hash against `metadata.json`.
+team share. On November 20, Ayden sent Vince a recipient-restricted OneDrive
+view/download invitation and verified the link's recipient and permission.
+The link was delivered through OneDrive's email invitation rather than posted
+on GitHub, as Vince requested. This records access being granted; download,
+checksum verification and the Linux run still require Vince's confirmation.
+Verify the ZIP hash before extracting it, then verify the model hash against
+`metadata.json`.
 Only load this trusted team-generated joblib package.
 
 Use Python 3.12 (patch versions may differ) and the exact libraries recorded
