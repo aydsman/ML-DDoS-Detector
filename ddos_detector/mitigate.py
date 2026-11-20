@@ -5,6 +5,7 @@ from dataclasses import replace
 from datetime import datetime, timezone
 import hashlib
 import json
+import signal
 from pathlib import Path
 import sys
 import time
@@ -19,6 +20,10 @@ from .live import LivePipeline
 from .monitor import Monitor
 from .pcap import read_pcap
 from .training import load_model
+
+
+def _terminate_as_interrupt(signum, frame):
+    raise KeyboardInterrupt
 
 
 def run_source(source, pipeline, monitor, controller, *, replay=False, poll_seconds=1,
@@ -67,6 +72,8 @@ def main(argv=None):
     parser.add_argument("--poll-seconds", type=float, default=1)
     args = parser.parse_args(argv)
     controller = None
+    previous_term = None
+    term_installed = False
     try:
         finite(args.poll_seconds, "Polling interval", 0.1)
         if args.poll_seconds > 5:
@@ -114,6 +121,14 @@ def main(argv=None):
             controller = Enforcement(SourcePolicy(settings, scope), emit, mode=mode, adapter=adapter)
             # Keep cleanup inside the journal/log lifetimes, including startup Ctrl+C.
             try:
+                # SIGTERM is an ordinary service stop, so use the same cleanup
+                # path as Ctrl+C. Restore the caller's handler on every exit.
+                previous_term = signal.getsignal(signal.SIGTERM)
+                try:
+                    signal.signal(signal.SIGTERM, _terminate_as_interrupt)
+                    term_installed = True
+                except (ValueError, OSError):
+                    pass  # embedding outside the main thread cannot own signals
                 if adapter is not None:
                     adapter.reconcile()
                     controller.tick()
@@ -148,6 +163,9 @@ def main(argv=None):
     except Exception as exc:
         print(f"Mitigation stopped: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 2
+    finally:
+        if term_installed:
+            signal.signal(signal.SIGTERM, previous_term)
 
 
 if __name__ == "__main__":

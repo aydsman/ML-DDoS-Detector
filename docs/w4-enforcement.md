@@ -94,7 +94,7 @@ sudo .venv/bin/python -m ddos_detector.mitigate \
 
 Keep one owner of the journal; do not run the W3 CLI concurrently. A restart uses
 the same state and scope, reconciles saved rules before receiving new candidates
-and retains original deadlines. Stop new workload before switching modes or
+and retains original deadlines. SIGTERM and Ctrl+C both attempt cleanup before the process exits. Stop new workload before switching modes or
 resetting a trial. The library's `set_mode` resets streaks and attempts cleanup
 when leaving automatic mode; the CLI fixes its mode for each invocation.
 

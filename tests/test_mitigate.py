@@ -211,3 +211,25 @@ def test_idle_capture_ticks_expiry_without_any_finished_window():
     assert mitigate.run_source(idle(), LivePipeline(clock=lambda: now[0]), NoWindows(), controller,
                                 monotonic=lambda: now[0]) == 0
     assert adapter.reserved_count == 0 and not rules.rules
+
+
+def test_sigterm_after_installation_cleans_rules_and_restores_handler(tmp_path, runtime, monkeypatch):
+    import signal
+    original_frames = capture.capture_frames
+    prior = object()
+    handlers = []
+    monkeypatch.setattr(mitigate.signal, "getsignal", lambda number: prior)
+    monkeypatch.setattr(mitigate.signal, "signal", lambda number, handler: handlers.append((number, handler)))
+
+    def terminated(*args, **kwargs):
+        yield from original_frames(*args, **kwargs)
+        assert runtime.rules  # the signal arrives after an actual fixture install
+        handlers[-1][1](signal.SIGTERM, None)
+
+    monkeypatch.setattr(capture, "capture_frames", terminated)
+    config, _ = write_config(tmp_path)
+    log = tmp_path / "terminated.jsonl"
+    assert mitigate.main(arguments(config, log, tmp_path / "state.sqlite")) == 130
+    assert not runtime.rules and runtime.resets == 1
+    assert handlers[-1] == (signal.SIGTERM, prior)
+    assert json.loads(log.read_text().splitlines()[-1])["exit_code"] == 130
