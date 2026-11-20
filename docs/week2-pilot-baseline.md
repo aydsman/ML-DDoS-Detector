@@ -48,3 +48,25 @@ Git. The package records the dependency versions, settings and feature order.
 Week 3 verification still needs a monitor-only lab run with these saved model
 bytes and confirmation that the timestamped predictions appear through the
 API. The previously recorded monitor run used the synthetic demo model.
+
+## November 20 metadata correction
+
+[Vince reported](https://github.com/aydsman/ML-DDoS-Detector/issues/3#issuecomment-7046858680)
+that his local reconciliation README now states the actual 2.5-second boundary
+slack, and his S3 source manifest explicitly excludes the stale failed-attempt
+HTTP run `aab41db8-1313-44f9-81ea-0a84063c0d7c` and zero-sent orphan SYN run
+`39903db2-4acc-467e-86dc-2299da9fcf2a`. He reports windows/coverage unchanged
+and no recomputed labels. The corrected source-manifest SHA-256 is
+`eb7f24d2fe59a2eeb28f077d31169ed9fc06c7817af3a3d64206887f9bb2451d`;
+the preceding source version was
+`54d09051c5eedd6543ce35638142e566aecfdfae631f89f392d71f332ad15ecc`.
+These are source-manifest identities, not the reviewed-splits hash above.
+
+The corrected files have not yet been supplied here. Retain the originally
+reviewed reconciliation archive
+`691e9887215e0a2f7451ff547739ca813b9b15a4a640de8b3d866e99f9916651`
+and the frozen training inputs/model above. On receipt of the correction,
+compare it against that archive and verify that only the stated metadata
+changed before recording independent acceptance. Do not retrain, resplit or
+inspect S3 outcomes for this housekeeping update. This lab correction does
+not complete the separate CIC acceptance issue.
