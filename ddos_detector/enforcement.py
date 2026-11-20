@@ -159,8 +159,8 @@ class Enforcement:
             if self.adapter is None or self.adapter.scope != self.policy.scope:
                 raise ValueError("Automatic mode requires the matching firewall adapter")
         if mode != self.mode:
-            if self.mode == "automatic":
-                self.cleanup()
+            # Monitor-only stops new requests; existing rules keep their
+            # original deadlines and remain polled until verified expiry.
             self.policy.reset()
             self.mode = mode
 

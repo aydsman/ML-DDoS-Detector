@@ -101,8 +101,9 @@ with its reason instead of labelling monitor-only traffic as ML mitigation.
 
 ## Acceptance still needed
 
-- Vince: updated-head PR #36 external-disappearance check and reachability, with
-  evidence path and tested commit; requested review before merge.
+- PR #36 is merged after Vince's November 20 exact-head external-disappearance
+  and HTTP/SSH reachability approval at `3de3ce6`. Preserve the review's limits;
+  the W4 policy-driven cases still require new isolated-Linux evidence.
 - Ali: W2 scenario export-format acceptance and W5 schedule/configuration.
 - Ayden: review the implemented source policy/settings and dashboard integration.
 - Mujtaba: resolve review findings, exercise the implemented lifecycle across

@@ -95,8 +95,10 @@ sudo .venv/bin/python -m ddos_detector.mitigate \
 Keep one owner of the journal; do not run the W3 CLI concurrently. A restart uses
 the same state and scope, reconciles saved rules before receiving new candidates
 and retains original deadlines. SIGTERM and Ctrl+C both attempt cleanup before the process exits. Stop new workload before switching modes or
-resetting a trial. The library's `set_mode` resets streaks and attempts cleanup
-when leaving automatic mode; the CLI fixes its mode for each invocation.
+resetting a trial. The library's `set_mode` resets streaks and stops new automatic requests
+when returning to monitor-only. Existing reservations keep their original
+deadlines and must continue polling through verified expiry. Explicit cleanup
+and process shutdown still attempt removal. The CLI fixes its mode for each invocation.
 
 Exit 0 means normal processing and verified cleanup without failed firewall
 observations; 2 means failure/unresolved cleanup; 130 means interrupted with

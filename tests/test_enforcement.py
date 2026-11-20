@@ -261,3 +261,23 @@ def test_external_disappearance_releases_cap_and_resets_source_streak():
     assert adapter.reserved_count == 0
     assert emitted[-1]["candidates"][0]["consecutive_windows"] == 1
     assert len(rules.installs) == 1
+
+
+def test_monitor_only_transition_preserves_existing_deadline_until_expiry():
+    now = [datetime.fromtimestamp(103.1, timezone.utc)]
+    rules, events = Rules(), []
+    adapter = FirewallAdapter(rules, scope(), clock=lambda: now[0])
+    controller = Enforcement(SourcePolicy(settings(), scope()), events.append,
+                             mode="automatic", adapter=adapter)
+    for start in (100, 101, 102):
+        controller.handle(*window(start))
+    block, = adapter.confirmed_blocks
+    controller.set_mode("monitor_only")
+    assert adapter.confirmed_blocks == (block,) and rules.rules
+    for start in (103, 104, 105):
+        now[0] = datetime.fromtimestamp(start + 1.1, timezone.utc)
+        controller.handle(*window(start, [SourceCount("10.10.10.31", "udp", 4200)]))
+    assert len(rules.installs) == 1 and adapter.confirmed_blocks == (block,)
+    now[0] = block.expires_at
+    controller.tick()
+    assert not rules.rules and adapter.reserved_count == 0
