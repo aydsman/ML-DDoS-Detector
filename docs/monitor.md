@@ -57,6 +57,26 @@ compare window timestamps, rates and scores to the flushed audit records.
 Capture failure must show unavailable or stale state. The blocks list remains
 empty during this monitor-only run.
 
+### Trained-model transfer
+
+The prepared `week3-model-handoff.zip` is 10,081 bytes. ZIP SHA-256:
+`0a670dc86f2f6042f862cf88da5f82c34d4bcbe01922cd63ba66bc46cbb19758`.
+It contains `week2-model/model.joblib`, metadata and validation reports,
+`README.txt` and pinned `model-requirements.txt`. Model SHA-256:
+`44f2ae879b63414c8af7d7c1165e7a0d462c9545f6190f7a8a7b2f00aa9e9fe7`.
+
+Transfer the archive outside Git and GitHub attachments through a restricted
+team share. Ayden has prepared a copy in his OneDrive project `handoff/`
+folder; that local placement alone does not give Vince access. The actual
+shared link or transfer is still required. Verify the ZIP hash before
+extracting it, then verify the model hash against `metadata.json`.
+Only load this trusted team-generated joblib package.
+
+Use Python 3.12 (patch versions may differ) and the exact libraries recorded
+inside: NumPy 2.5.4, scikit-learn 1.9.1, SciPy 1.18.1 and joblib 1.6.0.
+The package was fitted on controlled-lab S1 and checked on S2; S3 remains
+held out. It is not a CIC-trained model or proof of Linux acceptance.
+
 This entry point has automated concurrent-delivery and startup-failure checks.
 Final Week 3 acceptance still needs a Linux lab run using the trained model.
 The earlier November 11 lab run below used the synthetic demo model.
