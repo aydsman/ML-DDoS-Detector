@@ -97,6 +97,7 @@ def test_unknown_option_is_refused(tmp_path):
     assert run(START, write_config(tmp_path), "--now").returncode == 2
 
 
+@pytest.mark.skipif(shutil.which("flock") is None, reason="monitor stop requires Linux flock")
 def test_stop_without_a_pid_file_says_not_running(tmp_path):
     result = run(STOP, write_config(tmp_path))
     assert result.returncode == 0 and "not running" in result.stdout

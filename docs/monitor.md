@@ -69,7 +69,7 @@ One model is loaded and validated at startup, then kept fixed in memory for the 
 The exclusive-create, flushed JSONL file has two `record_type` values:
 
 - `window`: window timestamps, selected packet count, audit time, score/decision when available, or an explicit not-scored reason. Model identity and synthetic/real provenance accompany successful predictions. `monitor_only` is always true. Processing delay is meaningful only for live input; replay reports null.
-- `monitor_status`: start and terminal processing status, model identity/provenance, counts, skips, late drops, discarded partial windows and explicit capture gaps. Replay corruption and source failure end with unavailable status and nonzero exit. Backlog and kernel drops are null because they are not measured; a completed processing run does not prove capture completeness. If the log itself fails, stderr/exit status are the remaining failure signals.
+- `monitor_status`: start and terminal processing status, model identity/provenance, counts, skips, late drops, discarded partial windows and explicit capture gaps. Replay corruption and source failure end with unavailable status and nonzero exit. Backlog remains null. Kernel packet/drop counters are measured when live capture ends; they remain null for replay or a failed counter read. A completed processing run does not prove capture completeness. If the log itself fails, stderr/exit status are the remaining failure signals.
 
 Consumers must filter by record type. A missing/old terminal state or an old last-window timestamp is not evidence of healthy current capture. Finalized records may remain after failure, but incomplete windows are discarded. Nothing in this log confirms active protection.
 
@@ -96,3 +96,25 @@ Limits: one run per row, synthetic model, one attacker, VirtualBox networking. h
 ## Verification and remaining lab evidence
 
 Offline tests cover replay, model refusal and reuse, incompatible settings, capped windows and failure/gap records. Vince's lab run is reported above. The kernel drop counter is unit-tested with simulated sockets and was measured on the lab server (see the load test above). Cross-process transport, loss between the attacker and the server, and real-data scoring remain pending.
+
+## November 20 startup/stop retest
+
+[Vince reported a retest](https://github.com/aydsman/ML-DDoS-Detector/pull/41#issuecomment-7048649289)
+on the isolated server at `7fbdd85` with Linux 7.0.0-38-generic and Python
+3.12.15. Dry run, normal start/stop, duplicate and concurrent-start refusal,
+kill-9/incomplete-log handling and restart, malformed/multiline PID refusal,
+and management-interface refusal passed. A capture-permission failure produced
+only an unavailable record, without a misleading started record. The log names
+included the starter PID. He reported all 58 monitor/script cases passing.
+
+Those were short, quiet checks with the synthetic demo model and no scored
+windows. They do not repeat the November 17 load results or validate the
+trained model/API. Raw command artifacts were not independently replayed here.
+The additional independent teammate check from these written instructions is
+still required before this draft leaves review.
+
+The stop-without-PID test also requires `flock` now that stop locks before
+reading state. On Windows with Git Bash but no `flock`, that single test is
+explicitly skipped; Linux CI continues executing it. The remaining script
+preflight tests still run where Bash is available, and live capture requires
+Linux regardless of a successful dry run.
