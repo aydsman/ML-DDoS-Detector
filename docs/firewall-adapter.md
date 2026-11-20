@@ -59,6 +59,11 @@ Runtime checks require Linux, the configured destination on an UP lab NIC, and
 allowlist coverage of the server, legitimate client, local IPv4 addresses and
 gateways. The attacker address must remain outside the allowlist.
 
+The live transport is intentionally fixed to this three-VM lab: `enp0s8`,
+server `10.10.10.10`, legitimate client `10.10.10.20` and attacker `10.10.10.30`.
+Changing just `protected_ip` in JSON does not support a different topology;
+the runtime and source protections must be reviewed together for that change.
+
 ## Lab verification procedure
 
 Ayden and Vince must review the interface and verify the actual firewall,
@@ -114,6 +119,42 @@ legitimate HTTP/management traffic, timed expiry, repeated cleanup, permission
 failure, interruption and process-restart recovery. Match every artifact to the
 tested commit and request ID. Earlier generator results cover their reported
 revisions only.
+
+### Updated-head external-removal check
+
+Ayden's `aa327a4` rechecks active rules on each poll and includes startup
+reconciliation in interrupt cleanup. The November 17 lab report predates that
+change. Run the following on the isolated server after checking out the exact
+PR head, with the owner-verified local configuration and no other firewall
+worker or experiment running:
+
+```sh
+sudo .venv/bin/python -m tools.check_firewall_poll --execute \
+  --config results/firewall/lab-config.json \
+  --output results/firewall/poll-retest-01
+```
+
+Use a new output directory for every attempt. The check creates a fresh journal,
+rejects unexpected existing rules, installs one 300-second block for the lab
+attacker, then removes that exact rule directly through the transport. It calls
+the regular expiry poll before the deadline and requires the confirmed block
+and reservation to disappear. It also checks that the retired ID cannot be
+reused and that empty-table cleanup works twice. No packets are generated and
+no global ruleset is flushed. Keep legitimate HTTP and management SSH open for
+the separate reachability check; this command does not measure either.
+
+Retain `check.json`, `config.json`, `state.sqlite` and `state.sqlite.lock`
+outside Git. The report includes the tested commit, dirty status, Python/OS,
+configuration hash, raw nft/ip command responses and before/after observations.
+Exit 0 means these checks passed; 2 means failure; 130 means interrupted.
+If cleanup fails, preserve the journal and use the existing recovery CLI with
+that directory's `config.json` and `--state <directory>/state.sqlite`.
+A killed process can leave `status: running`; that record is incomplete.
+The test's own cleanup is attempted on an ordinary exception or Ctrl+C.
+
+Vince should attach the report reference and tested commit to PR #36, record
+HTTP/SSH reachability, and review the updated head before merge. Offline tests
+of this helper do not replace that lab result.
 
 ## W4 handoff
 
