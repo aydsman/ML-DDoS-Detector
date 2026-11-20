@@ -25,12 +25,14 @@ def posix(path):
     return Path(path).as_posix()
 
 
-def write_config(tmp_path, **overrides):
+def write_config(tmp_path, omit=(), **overrides):
     values = {"MONITOR_INTERFACE": "enp0s8", "MONITOR_FORBIDDEN_INTERFACE": "enp0s3",
               "MONITOR_VICTIM": "10.10.10.10", "MONITOR_MODEL": posix(tmp_path / "model"),
               "MONITOR_PYTHON": "python3", "MONITOR_LOG_DIR": posix(tmp_path / "logs"),
               "MONITOR_DURATION": ""}
     values.update(overrides)
+    for key in omit:
+        values.pop(key)
     config = tmp_path / "monitor.env"
     config.write_text("".join(f"{key}={value}\n" for key, value in values.items()),
                       encoding="utf-8", newline="\n")
@@ -70,6 +72,25 @@ def test_bad_settings_are_refused_before_anything_starts(tmp_path, override, mes
     result = run(START, write_config(tmp_path, **override), "--dry-run")
     assert result.returncode == 2 and message in result.stderr
     assert not (tmp_path / "logs").exists()
+
+
+def test_management_nic_is_refused_when_the_setting_is_omitted(tmp_path):
+    config = write_config(tmp_path, omit=("MONITOR_FORBIDDEN_INTERFACE",), MONITOR_INTERFACE="enp0s3")
+    result = run(START, config, "--dry-run")
+    assert result.returncode == 2 and "management NIC" in result.stderr
+
+
+def test_other_interfaces_pass_when_the_setting_is_omitted(tmp_path):
+    config = write_config(tmp_path, omit=("MONITOR_FORBIDDEN_INTERFACE",))
+    assert run(START, config, "--dry-run").returncode == 0
+
+
+def test_empty_forbidden_interface_needs_an_explicit_opt_out(tmp_path):
+    config = write_config(tmp_path, MONITOR_FORBIDDEN_INTERFACE="", MONITOR_INTERFACE="enp0s3")
+    refused = run(START, config, "--dry-run")
+    assert refused.returncode == 2 and "MONITOR_FORBIDDEN_INTERFACE is empty" in refused.stderr
+    allowed = run(START, config, "--dry-run", MONITOR_ALLOW_ANY_INTERFACE="1")
+    assert allowed.returncode == 0
 
 
 def test_unknown_option_is_refused(tmp_path):
@@ -118,3 +139,188 @@ def test_start_then_stop_ends_with_a_completed_record(tmp_path):
     log = Path((tmp_path / "logs" / "monitor.current-log").read_text().strip())
     assert json.loads(log.read_text().splitlines()[-1])["status"] == "completed"
     assert "not running" in run(STOP, config, **env).stdout
+
+
+SILENT_STUB = """#!/usr/bin/env bash
+on_int() { exit 0; }
+trap on_int TERM
+while true; do sleep 0.2; done
+"""
+
+COMPLETED = '{"record_type": "monitor_status", "status": "completed"}'
+posix_only = pytest.mark.skipif(sys.platform.startswith("win"), reason="needs POSIX signals and /proc")
+
+
+def stub_setup(tmp_path, text=STUB):
+    stub = tmp_path / "fake-python.sh"
+    stub.write_text(text, encoding="utf-8", newline="\n")
+    stub.chmod(stub.stat().st_mode | stat.S_IXUSR)
+    (tmp_path / "model").mkdir(exist_ok=True)
+    config = write_config(tmp_path, MONITOR_PYTHON=posix(stub))
+    env = {"MONITOR_SKIP_HOST_CHECKS": "1", "MONITOR_STOP_WAIT": "10", "MONITOR_LOCK_WAIT": "3"}
+    return config, env
+
+
+def write_state(tmp_path, text, last_record=None):
+    logs = tmp_path / "logs"
+    logs.mkdir(exist_ok=True)
+    (logs / "monitor.pid").write_text(text, encoding="utf-8")
+    if last_record is not None:
+        log = logs / "run-old.jsonl"
+        log.write_text('{"record_type": "monitor_status", "status": "started"}\n' + last_record + "\n",
+                       encoding="utf-8")
+        (logs / "monitor.current-log").write_text(str(log) + "\n", encoding="utf-8")
+
+
+def exited_pid():
+    process = subprocess.Popen(["true"])
+    process.wait()
+    return process.pid
+
+
+@pytest.fixture
+def bystander():
+    """An unrelated long-running process that no script may signal."""
+    process = subprocess.Popen(["sleep", "60"])
+    yield process
+    process.kill()
+    process.wait()
+
+
+@posix_only
+@pytest.mark.parametrize("content", ["", "abc", "{pid}", "{pid} 456 789", "-5 100", "0 100", "{pid} x", "{pid}\n34 56"])
+def test_stop_rejects_a_malformed_pid_file_without_signalling(tmp_path, bystander, content):
+    config, env = stub_setup(tmp_path)
+    write_state(tmp_path, content.format(pid=bystander.pid))
+    result = run(STOP, config, **env)
+    assert result.returncode == 1 and "Nothing was signalled" in result.stderr
+    assert bystander.poll() is None
+    assert (tmp_path / "logs" / "monitor.pid").exists()
+
+
+@posix_only
+def test_stop_does_not_signal_a_process_that_reused_the_pid(tmp_path, bystander):
+    config, env = stub_setup(tmp_path)
+    write_state(tmp_path, f"{bystander.pid} 1\n", COMPLETED)
+    result = run(STOP, config, **env)
+    assert result.returncode == 0, result.stderr
+    assert "different process" in result.stdout and "was not signalled" in result.stdout
+    assert bystander.poll() is None
+    assert not (tmp_path / "logs" / "monitor.pid").exists()
+
+
+@posix_only
+def test_stop_does_not_signal_when_start_time_matches_but_command_differs(tmp_path, bystander):
+    ticks = Path(f"/proc/{bystander.pid}/stat").read_text().rsplit(") ", 1)[1].split()[19]
+    config, env = stub_setup(tmp_path)
+    write_state(tmp_path, f"{bystander.pid} {ticks}\n", COMPLETED)
+    result = run(STOP, config, **env)
+    assert result.returncode == 0 and "different process" in result.stdout
+    assert bystander.poll() is None
+
+
+@posix_only
+def test_exited_process_with_a_completed_log_is_reported_clean(tmp_path):
+    config, env = stub_setup(tmp_path)
+    write_state(tmp_path, f"{exited_pid()} 1\n", COMPLETED)
+    result = run(STOP, config, **env)
+    assert result.returncode == 0, result.stderr
+    assert "already exited" in result.stdout and "ended cleanly" in result.stdout
+
+
+@posix_only
+@pytest.mark.parametrize("last", ['{"record_type": "window"}',
+                                  '{"record_type": "monitor_status", "status": "started"}'])
+def test_exited_process_without_a_completed_record_is_not_reported_clean(tmp_path, last):
+    config, env = stub_setup(tmp_path)
+    write_state(tmp_path, f"{exited_pid()} 1\n", last)
+    result = run(STOP, config, **env)
+    assert result.returncode == 1
+    assert "already exited" in result.stdout and "incomplete" in result.stderr
+    assert not (tmp_path / "logs" / "monitor.pid").exists()
+
+
+@posix_only
+def test_exited_process_with_no_log_is_reported_as_incomplete(tmp_path):
+    config, env = stub_setup(tmp_path)
+    write_state(tmp_path, f"{exited_pid()} 1\n")
+    result = run(STOP, config, **env)
+    assert result.returncode == 1 and "log file was not found" in result.stderr
+
+
+@posix_only
+def test_start_replaces_stale_state_and_refuses_malformed_state(tmp_path, bystander):
+    config, env = stub_setup(tmp_path)
+    write_state(tmp_path, f"{bystander.pid} 1\n")
+    started = run(START, config, **env)
+    assert started.returncode == 0, started.stderr
+    assert "removing stale state" in started.stderr
+    assert bystander.poll() is None
+    assert run(STOP, config, **env).returncode == 0
+
+    write_state(tmp_path, "garbage")
+    refused = run(START, config, **env)
+    assert refused.returncode == 2 and "is not '<pid> <start time>'" in refused.stderr
+
+
+@posix_only
+def test_start_is_not_successful_until_the_first_status_record(tmp_path):
+    config, env = stub_setup(tmp_path, text=SILENT_STUB)
+    result = run(START, config, **{**env, "MONITOR_START_WAIT": "2"})
+    assert result.returncode == 1 and "no first status record" in result.stderr
+    assert not (tmp_path / "logs" / "monitor.pid").exists()
+
+
+@posix_only
+def test_start_reports_a_monitor_that_exits_before_its_first_record(tmp_path):
+    config, env = stub_setup(tmp_path, text="#!/usr/bin/env bash\necho boom >&2\nexit 3\n")
+    result = run(START, config, **{**env, "MONITOR_START_WAIT": "5"})
+    assert result.returncode == 1 and "boom" in result.stderr
+    assert not (tmp_path / "logs" / "monitor.pid").exists()
+
+
+@posix_only
+def test_two_simultaneous_starts_leave_exactly_one_monitor(tmp_path):
+    config, env = stub_setup(tmp_path)
+    full_env = {**os.environ, "MONITOR_CONFIG": posix(config), **env}
+    processes = [subprocess.Popen([BASH, posix(START)], env=full_env, stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE, text=True) for _ in range(2)]
+    results = []
+    for process in processes:
+        _, err = process.communicate(timeout=60)
+        results.append((process.returncode, err))
+    assert sorted(code for code, _ in results) == [0, 2], results
+    assert any("already running" in err for _, err in results)
+    assert len(list((tmp_path / "logs").glob("run-*.jsonl"))) == 1
+    assert run(STOP, config, **env).returncode == 0
+
+
+@posix_only
+def test_the_running_monitor_does_not_hold_the_start_stop_lock(tmp_path):
+    config, env = stub_setup(tmp_path)
+    assert run(START, config, **env).returncode == 0
+    try:
+        lock = subprocess.run(["flock", "-n", posix(tmp_path / "logs" / "monitor.lock"), "true"])
+        assert lock.returncode == 0
+    finally:
+        run(STOP, config, **env)
+
+
+@posix_only
+@pytest.mark.parametrize("script, name", [(START, "start"), (STOP, "stop")])
+def test_start_and_stop_wait_for_the_lock_and_give_up_when_it_stays_held(tmp_path, script, name):
+    config, env = stub_setup(tmp_path)
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    (logs / "monitor.pid").write_text("1 1\n", encoding="utf-8")  # makes stop reach the lock
+    holder = subprocess.Popen(["flock", posix(logs / "monitor.lock"), "sleep", "20"])
+    try:
+        import time
+        time.sleep(0.5)  # let the holder take the lock
+        result = run(script, config, **{**env, "MONITOR_LOCK_WAIT": "1"})
+        assert result.returncode == 1, (name, result.stdout, result.stderr)
+        assert "another monitor-start or monitor-stop is running" in result.stderr
+        assert not list(logs.glob("run-*.jsonl"))
+    finally:
+        holder.kill()
+        holder.wait()

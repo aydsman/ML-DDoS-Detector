@@ -21,7 +21,11 @@ sudo scripts/monitor-start.sh             # starts in the background, new log na
 sudo scripts/monitor-stop.sh              # stops it and checks the final log record
 ```
 
-The start script refuses to run without root, if the interface does not exist, if the interface is the management NIC (`MONITOR_FORBIDDEN_INTERFACE`, `enp0s3` by default), if the model folder is missing, or if a monitor is already running. It writes `run-<UTC time>.jsonl`, `monitor.pid` and `monitor.stdout` under `MONITOR_LOG_DIR` (default `results/monitor`). `MONITOR_DURATION` makes a run stop by itself. The stop script sends SIGTERM, waits up to 15 s (`MONITOR_STOP_WAIT`), and then prints the last log line. It exits 0 only if that line is a `completed` status record. It never sends SIGKILL.
+The start script refuses to run without root, if the interface does not exist, if the interface is the management NIC (`MONITOR_FORBIDDEN_INTERFACE`; `enp0s3` when the setting is missing, and an empty value is refused unless `MONITOR_ALLOW_ANY_INTERFACE=1`), if the model folder is missing, or if a monitor is already running. It writes `run-<UTC time>.jsonl`, `monitor.pid`, `monitor.lock` and `monitor.stdout` under `MONITOR_LOG_DIR` (default `results/monitor`). `MONITOR_DURATION` makes a run stop by itself.
+
+`monitor.pid` holds the process id and that process's start time. A process counts as the monitor only if the id, the start time and the command line (`ddos_detector.monitor`) all match, so a stale file or a reused id is never signalled. A file that is not `<pid> <start time>` is refused with nothing signalled. Start and stop take one lock (`monitor.lock`, wait `MONITOR_LOCK_WAIT`, default 10 s), so two starts cannot both pass the check. Start reports success only after the monitor has written its own first status record (`started`, `MONITOR_START_WAIT`, default 30 s); if the process exits or no record appears it reports failure, and in the second case stops the process it started.
+
+The stop script sends SIGTERM only to a verified monitor, waits up to 15 s (`MONITOR_STOP_WAIT`), and then prints the last log line. It exits 0 only if that line is a `completed` status record. If the recorded process is already gone, it still reads the log: a completed last record gives exit 0 and an incomplete or missing log gives exit 1. It never sends SIGKILL. The scripts need Linux `/proc` and `flock`.
 
 **Start by hand.** The scripts run this command. Use a fresh log name each run, because the log is created exclusively and an existing file is refused.
 
