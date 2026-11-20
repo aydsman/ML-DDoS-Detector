@@ -130,6 +130,9 @@ def test_cli_saves_revision_configuration_and_terminal_evidence(tmp_path, monkey
     config.write_text(json.dumps(document))
     monkeypatch.setattr(tool, "validate_lab_runtime", lambda scope, runner: None)
     monkeypatch.setattr(tool, "NftablesTransport", lambda runner: TestTransport())
+    # Linux platform.platform() may call uname through subprocess.run.
+    # Keep environment lookup separate from the Git command double below.
+    monkeypatch.setattr(tool.platform, "platform", lambda: "test-platform")
 
     def git_only(arguments, **kwargs):
         assert arguments[0] == "git"
@@ -140,6 +143,7 @@ def test_cli_saves_revision_configuration_and_terminal_evidence(tmp_path, monkey
     assert main(["--execute", "--config", str(config), "--output", str(output)]) == 0
     evidence = json.loads((output / "check.json").read_text())
     assert evidence["status"] == "passed"
+    assert evidence["platform"] == "test-platform"
     assert evidence["git_commit"] == "a" * 40 and evidence["git_dirty"] is False
     assert evidence["cleanup"]["reserved_slots"] == 0
     assert (output / "config.json").read_bytes() == config.read_bytes()
