@@ -187,3 +187,17 @@ def test_sigterm_is_handled_like_ctrl_c(tmp_path, model_dir, monkeypatch):
         signal.signal(signal.SIGTERM, previous)
     rows = [json.loads(x) for x in log.read_text().splitlines()]
     assert rows[-1]["status"] == "completed"
+
+
+def test_live_socket_failure_never_reports_started(tmp_path, model_dir, monkeypatch):
+    from ddos_detector import capture
+
+    def unavailable(*args, **kwargs):
+        raise PermissionError("test socket cannot bind")
+
+    monkeypatch.setattr(capture, "capture_frames", unavailable)
+    log = tmp_path / "not-ready.jsonl"
+    assert main(["--interface", "eth0", "--model", str(model_dir), "--log", str(log)]) == 2
+    rows = [json.loads(line) for line in log.read_text().splitlines()]
+    assert rows and rows[-1]["status"] == "unavailable"
+    assert not any(row.get("status") == "started" for row in rows)

@@ -34,11 +34,13 @@ proc_running() {
 read_state() {
   STATE_PID=""; STATE_START=""
   [ -f "$PID_FILE" ] || return 1
-  local line extra
-  { read -r STATE_PID STATE_START extra || true; } < "$PID_FILE"
-  if [[ ! "$STATE_PID" =~ ^[1-9][0-9]*$ ]] || [[ ! "$STATE_START" =~ ^[0-9]+$ ]] || [ -n "$extra" ]; then
+  local line
+  line="$(cat "$PID_FILE")" || return 3
+  if [[ ! "$line" =~ ^([1-9][0-9]*)[[:blank:]]+([0-9]+)$ ]]; then
     return 3
   fi
+  STATE_PID="${BASH_REMATCH[1]}"
+  STATE_START="${BASH_REMATCH[2]}"
 }
 
 # True only if STATE_PID is alive, started when recorded, and runs the monitor module.

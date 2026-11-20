@@ -188,7 +188,7 @@ def bystander():
 
 
 @posix_only
-@pytest.mark.parametrize("content", ["", "abc", "{pid}", "{pid} 456 789", "-5 100", "0 100", "{pid} x", "{pid}\n34 56"])
+@pytest.mark.parametrize("content", ["", "abc", "{pid}", "{pid} 456 789", "-5 100", "0 100", "{pid} x", "{pid}\n34 56", "{pid} 1\n34 56"])
 def test_stop_rejects_a_malformed_pid_file_without_signalling(tmp_path, bystander, content):
     config, env = stub_setup(tmp_path)
     write_state(tmp_path, content.format(pid=bystander.pid))
@@ -324,3 +324,38 @@ def test_start_and_stop_wait_for_the_lock_and_give_up_when_it_stays_held(tmp_pat
     finally:
         holder.kill()
         holder.wait()
+
+
+@posix_only
+def test_stop_waits_for_start_lock_even_before_pid_is_published(tmp_path):
+    config, env = stub_setup(tmp_path)
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    holder = subprocess.Popen(["flock", posix(logs / "monitor.lock"), "sleep", "20"])
+    try:
+        import time
+        time.sleep(0.5)
+        result = run(STOP, config, **{**env, "MONITOR_LOCK_WAIT": "1"})
+        assert result.returncode == 1
+        assert "another monitor-start or monitor-stop" in result.stderr
+    finally:
+        holder.kill()
+        holder.wait()
+
+
+@posix_only
+def test_start_ignores_preceding_run_with_same_clock_second(tmp_path):
+    config, env = stub_setup(tmp_path, text=SILENT_STUB)
+    bins = tmp_path / "bin"
+    bins.mkdir()
+    date = bins / "date"
+    date.write_text("#!/usr/bin/env bash\necho 20261120-120000\n", newline="\n")
+    date.chmod(date.stat().st_mode | stat.S_IXUSR)
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    previous = logs / "run-20261120-120000.jsonl"
+    previous.write_text('{"record_type": "monitor_status", "status": "started"}\n')
+    result = run(START, config, **{**env, "PATH": str(bins) + os.pathsep + os.environ["PATH"],
+                                 "MONITOR_START_WAIT": "1"})
+    assert result.returncode == 1 and "no first status record" in result.stderr
+    assert previous.read_text().count("started") == 1

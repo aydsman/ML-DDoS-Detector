@@ -56,7 +56,7 @@ case "$MONITOR_LOG_DIR" in /*) ;; *) MONITOR_LOG_DIR="$ROOT/$MONITOR_LOG_DIR" ;;
 
 PID_FILE="$MONITOR_LOG_DIR/monitor.pid"
 CURRENT_FILE="$MONITOR_LOG_DIR/monitor.current-log"
-LOG="$MONITOR_LOG_DIR/run-$(date -u +%Y%m%d-%H%M%S).jsonl"
+LOG="$MONITOR_LOG_DIR/run-$(date -u +%Y%m%d-%H%M%S)-$$.jsonl"
 
 CMD=("$MONITOR_PYTHON" -m ddos_detector.monitor --interface "$MONITOR_INTERFACE"
      --victim "$MONITOR_VICTIM" --window 1 --model "$MONITOR_MODEL" --log "$LOG")

@@ -148,8 +148,8 @@ def main(argv=None, *, deliver=None):
     except (ValueError, OSError):
         pass  # not the main thread, or the platform has no SIGTERM handler
     try:
-        monitor.status(pipeline, "started")
         if args.replay:
+            monitor.status(pipeline, "started")
             for record in pipeline.run(read_pcap(args.replay)):
                 monitor.handle(record)
         else:
@@ -157,6 +157,9 @@ def main(argv=None, *, deliver=None):
             monitor.capture_stats = CaptureStats()
             frames = capture_frames(args.interface, duration=args.duration, stats=monitor.capture_stats)
             try:
+                # capture_frames opens and binds synchronously; scripts must not
+                # report readiness before that operation has succeeded.
+                monitor.status(pipeline, "started")
                 for record in pipeline.run(frames, flush_at_end=False):
                     monitor.handle(record)
                 if pipeline.status == "ok":

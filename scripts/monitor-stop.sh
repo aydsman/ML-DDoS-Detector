@@ -22,11 +22,7 @@ PID_FILE="$MONITOR_LOG_DIR/monitor.pid"
 CURRENT_FILE="$MONITOR_LOG_DIR/monitor.current-log"
 WAIT_SECONDS="${MONITOR_STOP_WAIT:-15}"
 
-if [ ! -f "$PID_FILE" ]; then
-  echo "monitor is not running (no pid file in $MONITOR_LOG_DIR)"
-  exit 0
-fi
-
+# Wait for an in-progress start before deciding that no monitor exists.
 take_lock
 
 # Reports the last record of the current log and exits 0 only if it is a completed status record.
