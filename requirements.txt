@@ -8,3 +8,4 @@ pytest
 matplotlib
 httpx
 joblib
+threadpoolctl

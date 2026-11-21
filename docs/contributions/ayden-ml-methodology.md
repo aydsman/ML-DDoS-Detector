@@ -1,14 +1,45 @@
-# Ayden's report contribution: machine-learning method
+# Ayden's report contribution: architecture and machine learning
 
-Author: Ayden Sendrea. Prepared November 3, 2026; status refreshed November 8 for report assembly.
+Author: Ayden Sendrea. Updated November 21, 2026 for Aadi's report assembly.
 
-**Status and evidence boundary.** This contribution describes the agreed method and the offline implementation prepared in [PR #19](https://github.com/aydsman/ML-DDoS-Detector/pull/19), inspected at commit `07f1d1af62821afe569e319cacea3da6b249d37c`. That code is merged into development through PR #19; this contribution is a method/implementation record, not a real-data experiment. Verified public-data training, a deployment model and real-data performance results are pending. The method below must not be presented as a completed experiment. Aadi can adapt the prose for report sections 3, 5, 6, 9 and 11; the final results table must be completed from retained experiment evidence.
+**Evidence boundary.** The controlled-lab Random Forest has been trained, saved,
+reloaded and evaluated on S2 validation windows. An offline MLP and rate-rule
+comparison is also complete. These are narrow lab validation results, not
+CIC-DDoS2019 benchmark results, final-test results or proof of live protection.
+The lab review is recorded in [issue #3](https://github.com/aydsman/ML-DDoS-Detector/issues/3#issuecomment-6987025978);
+the baseline and comparison are under peer review in
+[PR #42](https://github.com/aydsman/ML-DDoS-Detector/pull/42) and
+[PR #44](https://github.com/aydsman/ML-DDoS-Detector/pull/44).
+Aadi can use this contribution for the architecture, method, validation and
+limitations sections, preserving these qualifications.
 
-## Detection architecture and model responsibility
+## Architecture and responsibility
 
-The proposed detector classifies one aggregate window of inbound traffic to the protected server. A window contains selected IPv4 TCP, UDP and ICMP packets, rather than traffic grouped by individual source. The model produces a binary attack score for the combined window. This design preserves aggregate source-diversity information while keeping model prediction separate from source attribution.
+The pipeline captures selected inbound packets, aggregates one-second windows,
+validates twelve ordered features, loads the saved model and produces an
+aggregate attack score. A bounded state store exposes health, traffic metrics,
+detections and confirmed block records through four read-only FastAPI endpoints.
+The four-view dashboard presents those responses with explicit sample,
+historical, unavailable and stale-data states.
 
-A subsequent deterministic policy examines source/protocol counts when the aggregate model flags a window. It decides whether a particular source satisfies the configured rate, traffic-share, consecutive-window and allowlist conditions. The aggregate score is not a probability that a particular IP is malicious. Likewise, a predicted attack is not proof that a firewall block was applied. Backend integration, attribution and firewall confirmation remain separate components and later implementation work.
+The model scores the combined traffic window. It does not identify an attack
+type or prove a particular source IP is malicious. A separate deterministic
+policy uses source/protocol counts, rate/share thresholds, repeated-window
+requirements and an allowlist to decide whether a source is eligible for a
+temporary block. Those diagnostic counts are not additional model features.
+A detection, a block request and a verified firewall rule are distinct events.
+
+The live monitor/API entry point is implemented in
+[PR #43](https://github.com/aydsman/ML-DDoS-Detector/pull/43).
+The trained package has been shared privately with Vince; its simultaneous
+trained-model live capture/API acceptance remains open in
+[issue #48](https://github.com/aydsman/ML-DDoS-Detector/issues/48).
+A saved-window replay checked 550 S2 predictions through the API against the
+monitor's scores. That is offline integration evidence.
+The automatic runner in
+[PR #47](https://github.com/aydsman/ML-DDoS-Detector/pull/47) remains a draft;
+validated enforcement settings and live acceptance are pending, and the
+dashboard does not yet consume that runner's automatic state.
 
 ## Packet windows and the twelve input features
 
@@ -35,55 +66,132 @@ The input guard rejects missing/extra features, invalid ordering/version metadat
 
 A confirmed empty window is distinguishable from capture failure. Empty windows are excluded from training and inference; unavailable coverage must never be replaced by a synthetic zero vector. These conventions are specified in [the feature contract](../feature-contract.md) and [the design](../design.md).
 
-## Dataset selection, labels and leakage prevention
+## Controlled-lab data, labels and splits
 
-The planned initial scope is CIC-DDoS2019 SYN, UDP and independently verified benign traffic. Exact PCAP members, hashes, victim filters, timestamps/timezones and independent run identities still require verification. Flow-level CSV features cannot be substituted for the twelve packet-window features. Any join from label metadata to captured packets must be reproducible and independently reviewed.
+Public CIC-DDoS2019 SYN/UDP/benign selection remains unresolved in
+[issue #3](https://github.com/aydsman/ML-DDoS-Detector/issues/3).
+Flow-level CSV fields cannot replace the twelve packet-window features.
+The completed baseline instead uses the explicitly narrowed controlled-lab
+pilot; public attack captures and lab benign traffic were not combined.
 
-The provisional packet-based label rule first excludes windows with unavailable coverage, capped counts, unknown labels, label/schedule boundaries or no packets. For a fully observed, nonboundary window, the attack fraction is independently attack-labelled selected packets divided by all selected packets. Fractions of at least 80% qualify as attack. A benign label requires all packets to be independently benign and the window to lie outside verified attack intervals. Other mixed or uncertain cases are excluded with explicit reasons. The 80% ground-truth rule is separate from the model's decision threshold; neither is an observed detection result.
+Whole sessions S1/S2/S3 were assigned to train/validation/final test. Within each,
+the first 300 eligible windows per binary class in timestamp order were retained,
+using smaller classes as supplied. Adjacent windows from a session never cross
+splits. Three sessions on the same lab network are not broad independent
+workloads.
 
-The protocol requires whole independent capture/run groups to be assigned to training, validation and final test before selecting windows; the actual real-data assignments remain pending. Adjacent windows from one run are not randomly distributed across those splits. Duplicate windows, shared run/capture identities and reused capture hashes are rejected by the prepared loader. Human review must still establish that supplied identities, coverage and labels are truthful. Merely renaming archive chunks or adding a review-reference field does not establish independence.
+| Split | Session | Benign | SYN-labelled attack | UDP-labelled attack | Label exclusions |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Training | S1 | 300 | 163 | 90 | 151 |
+| Validation | S2 | 300 | 162 | 88 | 153 |
+| Held-out test, unscored | S3 | 300 | 162 | 138 | 91 |
 
-The folder identifiers `01-12` and `03-11` are provisional collection choices, not verified dates or an approved split. DrDoS_UDP and UDP may represent different scenarios; any cross-scenario evaluation must be identified explicitly. The pilot target is at most 300 eligible windows per class per split, up to 2,700 windows overall. This is a bounded selection target, not a claim that sufficient independent runs or balanced classes have been obtained. The final test remains untouched while selecting features, settings and thresholds. This separation follows the general evaluation principle of reserving unseen data for final assessment. [Scikit-learn evaluation guidance](https://scikit-learn.org/stable/modules/cross_validation.html)
+The cap additionally set aside 227/228/228 benign and 0/0/12 attack windows for
+S1/S2/S3 respectively. These cap removals differ from label exclusions.
+The retained labelled file contains 237 boundary and 158 mixed exclusions.
+S3 counts describe the frozen split inventory, not evaluated performance.
 
-## Baseline classifier and reproducible training
+The label protocol excludes unknown coverage/labels, capped source counts,
+empty windows, interval boundaries and ambiguous mixtures. For eligible
+windows, independently attack-labelled packets comprising at least 80% of
+selected packets qualify as attack; fully benign windows must be outside
+verified attack intervals. This 80% ground-truth rule is separate from the
+0.5 model decision threshold. In this lab, inbound resets from a logged attacker
+source during its run contribute to attack labels; this can create an easy
+classification shortcut rather than prove robust SYN-flood recognition.
 
-The prepared baseline uses scikit-learn's RandomForestClassifier. A forest combines multiple decision trees; scikit-learn's classifier averages their class-probability estimates. It is a reasonable initial candidate for the tabular packet-window features, but its suitability and performance must be demonstrated on the project's reviewed data. No superiority over other methods is claimed. [Scikit-learn ensemble guidance](https://scikit-learn.org/stable/modules/ensemble.html#forest)
+Fifteen packet-export windows reproduced all twelve features and their labels.
+Full PCAP checksums remain collaborator-reported: this review did not replay
+or independently rehash all original PCAP bytes. The November 20 metadata
+correction excluded stale/orphan S3 provenance records and corrected the
+reconciliation text to the original 2.5-second coverage slack. It did not
+replace the frozen reviewed windows, splits or model, and it did not score S3.
+Details and checksum verification are retained in
+[PR #42](https://github.com/aydsman/ML-DDoS-Detector/pull/42).
 
-The explicit defaults in PR #19 are 100 trees, random seed 3670, one worker and balanced class weights derived from the training labels. The baseline performs no scaling or imputation. Only training rows are used to fit the estimator; validation rows are used for initial predictions and evaluation. Other estimator settings retain the defaults of the recorded scikit-learn version. These are starting settings, not a validated optimum.
+## Models, preprocessing and validation
 
-The attack score is the forest's probability output for the aggregate attack class. A provisional threshold of 0.5 classifies scores greater than or equal to the threshold as attack. The binary target combines supported SYN/UDP attacks into one attack class; the model is not an attack-type classifier. Scores are not claimed to be calibrated confidence estimates. Final settings and threshold selection will use validation evidence, considering missed attacks and false alarms, and will be recorded before final-test evaluation.
+The saved Random Forest uses 100 trees, seed 3670, one worker and balanced
+class weights derived from S1. It performs no scaling or imputation.
+Its aggregate attack-class probability is classified at the recorded 0.5
+baseline threshold; it is not a calibrated confidence or source attribution.
 
-## Saved artifacts and compatibility
+The comparison MLP is a training-only StandardScaler followed by one hidden
+layer of 16 units, L-BFGS, alpha 0.0001, maximum 1,000 iterations and seed 3670.
+Validation candidates 0.3, 0.5 and 0.7 tied on F1; the declared tie breakers
+(fewer false positives, closest to 0.5, then lower threshold) selected 0.5.
+There was no convergence warning. Reloaded probabilities matched exactly.
 
-The implementation saves `model.joblib`, `metadata.json` and `validation.json` into a new output directory. Metadata records ordered features, schema, numeric type, packet/window definitions, preprocessing, settings/seed/threshold, dependency versions, code revision, input/manifest hashes, provenance summaries and the model checksum. A save/reload check compares validation probabilities exactly within the recorded environment.
+The experimental aggregate rate rule flags packet_rate > 42 packets/s, the
+largest benign training rate. This is a lab comparison cutoff, not a
+validated per-source firewall setting.
 
-The loader checks compatible feature metadata, unchanged model bytes, matching Python major/minor and exact recorded NumPy, scikit-learn, SciPy and joblib versions. Python patch versions are retained in provenance; permitting patch differences does not prove cross-machine compatibility. Target-VM verification is still required. Only trusted model packages should be loaded: joblib persistence uses pickle mechanisms that can execute code, and a checksum alone does not authenticate a package. [Scikit-learn persistence guidance](https://scikit-learn.org/stable/model_persistence.html)
+All three methods used the same 550 eligible S2 validation windows:
 
-## Evaluation method and results still to collect
+| Method | TN | FP | FN | TP | Attack precision | Attack recall | F1 | Benign false-positive rate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Random Forest, 0.5 | 300 | 0 | 0 | 250 | 1.0000 | 1.0000 | 1.0000 | 0.00% |
+| StandardScaler + MLP, 0.5 | 300 | 0 | 0 | 250 | 1.0000 | 1.0000 | 1.0000 | 0.00% |
+| Aggregate rate > 42 packets/s | 296 | 4 | 0 | 250 | 0.9843 | 1.0000 | 0.9921 | 1.33% |
 
-Validation records contain window identities, labels and scores, actual class/sample counts, exclusion counts and a confusion matrix with actual classes as rows and predicted classes as columns. The implemented metrics are accuracy, attack precision, attack recall, F1 and benign false-positive rate. Ratios with a zero denominator are recorded as null rather than assigned a perfect value. Capture coverage and excluded-window counts must accompany eligible-window metrics; a high score on a narrowly retained subset does not establish performance on all observed traffic.
+Confusion matrices use actual classes as rows, predicted classes as columns,
+in benign/attack order. Undefined metric denominators are represented as null.
+The equal learned-model validation scores do not establish superiority or
+generalization. There are only 550 windows from one validation session;
+correlated windows and exclusions limit the interpretation.
 
-Final-test evaluation uses a separate command with the frozen input/manifest hashes and model settings. The code prevents overwriting an existing output report, while the team must enforce the policy against repeated test-driven tuning. Detection delay, service availability, legitimate-client recovery, resource overhead and confirmed mitigation outcomes require later integrated experiments with Ali, Mujtaba and Vince. They cannot be inferred from offline classification metrics.
+## Reproducibility and retained artifacts
 
-| Evidence item | Current status / required report entry |
+The loader validates feature order, schema, numeric type, one-second epoch
+windows, packet-size definition, checksum, matching Python major/minor and
+exact ML library versions. Trusted local joblib packages only are used.
+Save/reload equality establishes reproducibility in this environment, not
+cross-machine live acceptance.
+
+Recorded runtime: Python 3.12.10, NumPy 2.5.4, scikit-learn 1.9.1,
+SciPy 1.18.1 and joblib 1.6.0. Training revision was d53fe7b;
+comparison implementation was f4a3492. Package metadata retains those identities.
+
+| Frozen artifact | SHA-256 |
 | --- | --- |
-| Data manifest, selected files and checksums | Pending verified inventory and label mapping |
-| Independent split/run assignments | Pending review by Ayden and Ali with Vince's evidence |
-| Eligible class counts and exclusions by split | Pending real-data preparation |
-| Final settings and threshold rationale | Pending validation-only selection |
-| Validation confusion matrix, precision, recall, F1 and false-positive rate | Pending real-data training; do not substitute synthetic metrics |
-| Frozen model hash and saved-artifact location | Pending accepted real-data model |
-| Untouched final-test results | Pending frozen settings and final evaluation |
-| Detection latency and mitigation/service outcomes | Later integrated experiments; not measured by this offline pipeline |
+| reviewed-windows.json | abfb8270d4120cda5aaf7d41245e8efaa8078c7c599ae1da674994ac0cb54519 |
+| reviewed-splits.json | fd42c0d424a3fc61d51bec9c1f03b56f313c4021036bdaad8de7c8453dbefc05 |
+| Random Forest model.joblib | 44f2ae879b63414c8af7d7c1165e7a0d462c9545f6190f7a8a7b2f00aa9e9fe7 |
+| Comparison mlp.joblib | 4ccca7213657ada1e114d5df0a79b28c6e26de9ffc78a113e7f7491bb6120393 |
 
-## Contribution handoff and limitations
+Windows, serialized models, raw scores and raw timing samples stay in ignored
+results directories or the private OneDrive handoff. Commit bounded reports,
+configuration and hashes. These are frozen candidate identities; final
+deployment-model selection is still pending peer review and final evaluation.
 
-Ayden prepared the model input contract, dataset/split method and offline training pipeline. Vince owns packet capture/shared extraction and supplies the candidate data/provenance; Ali independently checks labels and evaluation evidence. Aadi assembles this contribution into the final report. Use actual commits and experiment artifacts when finalizing contribution claims.
+## Inference-time measurement
 
-A synthetic prepare/train/save/reload/score demo and automated regression tests have exercised software behavior. Artificial patterns do not establish public-data accuracy, generalization or successful live detection. Real-data training remains blocked on a verified manifest, reproducible labels, extraction compatibility and independent split review. Public-data versus lab-traffic distribution differences, spoofed sources, incomplete capture and exclusion bias must be discussed after experiments. MLP comparisons and final conclusions remain future work.
+The validation-only procedure in [model-comparison.md](../model-comparison.md)
+loads these saved models without retraining or changing thresholds. It times
+warm batch-size-one predict_proba calls on the same prebuilt float64 windows.
+The MLP timing includes its scaler; neither timing includes extraction,
+one-second window accumulation, record validation, logging, HTTP or firewall
+work. Laptop timing cannot establish VM overhead or end-to-end detection delay.
 
-Implementation references: [PR #19](https://github.com/aydsman/ML-DDoS-Detector/pull/19), its `docs/training.md`, `ddos_detector/training.py` and `ddos_detector/training_data.py` at `07f1d1a`; [dataset plan](../dataset-plan.md); [feature contract](../feature-contract.md); [measurement definitions](../measurement-formats.md). External documentation above supports general methods; the project's recorded dependency versions remain the implementation reference.
+## Remaining evaluation and handoff
 
-## November 8 acceptance references
+- Complete peer review of the lab baseline and comparison.
+- Record local inference timing with environment, model/input hashes and
+  repeated-run summaries; retain the VM timing as a separate measurement.
+- Agree the final candidate/configuration with Ali using validation evidence,
+  then run S3 once under the agreed frozen protocol. Do not tune against S3.
+- Obtain Vince's trained-model live capture/API evidence in issue #48.
+- Validate source-policy settings and repeated mitigation/service experiments
+  with Ali, Mujtaba and Vince. Detection delay, false blocks, legitimate-client
+  availability, recovery, resource overhead and capture loss remain unmeasured
+  by this offline comparison.
+- Aadi assembles the report; Ayden supplies architecture/ML evidence, Ali owns
+  independent evaluation, Vince supplies capture/deployment evidence, and
+  Mujtaba supplies generation/enforcement evidence.
 
-The settled attribution and packet-size design checks are recorded in [the owner acceptance record](../contract-acceptance.md). Actual policy implementation, real-NIC/drop evidence, data-label verification and real-data metrics remain separate pending work under issues #3/#5. Contributor ownership may be taken over by Ayden; reviewer names alone are not technical dependencies or proof of validation.
+The current lab workload is narrow, S3 benign traffic rates differ, reset-based
+labels may expose shortcuts, and mixed/uncertain/capped or empty windows are
+excluded. Spoofing, other networks and untested attack profiles remain outside
+the demonstrated scope. Synthetic demos establish software behavior only.
+Neither these lab validation results nor historical block records establish
+that the finished system currently protects a live server.

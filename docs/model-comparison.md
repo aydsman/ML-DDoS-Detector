@@ -58,3 +58,32 @@ S3 remains held out. The equal S2 scores do not distinguish the learned models
 on broader workloads. The previously documented narrow traffic mix,
 incident-source reset labels and eligible-window exclusions limit these
 findings. W4 policy behavior and live acceptance are still pending.
+
+## Reproducible local inference benchmark
+
+Use trusted, already saved packages. The CLI never fits a model or constructs
+a test matrix; the loader validates the frozen records/manifest and split
+inventory, including test metadata, without scoring held-out windows.
+
+~~~sh
+python -m tools.benchmark_models --records RECORDS --manifest MANIFEST --forest FOREST --comparison COMPARISON --output NEW_TIMING_OUTPUT
+~~~
+
+Default: 50 warm-up calls per model, then five rounds scoring every validation
+window separately (batch size one). Model order alternates by round. Both
+models receive the same rotated row order and prebuilt float64 inputs. The
+forest remains n_jobs=1, and threadpoolctl limits native pools to one thread
+while timing. MLP preprocessing is included. Garbage collection stays enabled;
+ordinary desktop background load and power state are not controlled.
+
+Report median, p95, mean, min and max milliseconds per call, with per-round
+summaries, runtime/hardware provenance, tool revision, package/input hashes
+and a final_test_scored=false declaration. Raw nanosecond samples remain in
+the new ignored output directory. Repeated validation windows are timing
+repetitions, not independent network experiments. Results cannot be claimed
+as end-to-end detection delay, sustained packet throughput or VM performance.
+
+The timing excludes model loading, array construction, feature extraction,
+record validation, threshold application, logging, the API, firewall actions
+and the one-second capture window. Final model adoption remains a separate
+reviewed decision.
