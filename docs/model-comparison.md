@@ -87,3 +87,28 @@ The timing excludes model loading, array construction, feature extraction,
 record validation, threshold application, logging, the API, firewall actions
 and the one-second capture window. Final model adoption remains a separate
 reviewed decision.
+
+## November 21 local timing results
+
+Ran the benchmark at clean revision 475c447 on the Intel Core i7-8650U
+(4 cores / 8 logical processors), Windows 11, with the recorded Python 3.12.10
+and ML dependency versions. The 550 S2 windows were each scored five times
+per model after 50 warm-up calls. Native pools were limited to one thread
+and the forest retained n_jobs=1.
+
+| Model | Median per window | p95 per window | Timed calls |
+| --- | ---: | ---: | ---: |
+| Saved Random Forest | 21.807 ms | 38.519 ms | 2,750 |
+| Saved StandardScaler + MLP | 1.162 ms | 2.195 ms | 2,750 |
+
+The [bounded timing and integrity record](reviews/inference-benchmark-2026-11-21.json)
+contains per-round statistics, the runtime/platform, package/input hashes,
+tool revision and raw-timing checksum. Raw per-call samples stay in the local
+ignored results/week5-inference-2026-11-21 directory. All six frozen data/model
+and metadata files matched their pre-run checksums.
+
+The MLP was faster for this warm batch-size-one scoring workload on this
+laptop. This does not select a deployment model, predict VM speed or measure
+capture-to-detection delay. Background load and power state were not controlled;
+the HTTP preview was running in this ordinary desktop session. S3 was not
+scored, neither package was retrained, and no threshold changed.

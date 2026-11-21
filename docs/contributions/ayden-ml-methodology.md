@@ -164,6 +164,16 @@ results directories or the private OneDrive handoff. Commit bounded reports,
 configuration and hashes. These are frozen candidate identities; final
 deployment-model selection is still pending peer review and final evaluation.
 
+## Working model choice
+
+The Random Forest remains the existing W3 handoff baseline: its saved-artifact
+guards, reload/scoring path and offline monitor/API replay have been exercised.
+The MLP ties its eligible S2 validation scores and is a comparison candidate.
+This is a provisional integration choice, not evidence that the forest is
+more accurate or faster. Final selection requires independent review,
+reproducible settings and the agreed evaluation; neither the validation tie
+nor local timing alone establishes the best deployed detector.
+
 ## Inference-time measurement
 
 The validation-only procedure in [model-comparison.md](../model-comparison.md)
@@ -173,11 +183,24 @@ The MLP timing includes its scaler; neither timing includes extraction,
 one-second window accumulation, record validation, logging, HTTP or firewall
 work. Laptop timing cannot establish VM overhead or end-to-end detection delay.
 
+| Model | Median per window | p95 per window | Timed calls |
+| --- | ---: | ---: | ---: |
+| Saved Random Forest | 21.807 ms | 38.519 ms | 2,750 |
+| Saved StandardScaler + MLP | 1.162 ms | 2.195 ms | 2,750 |
+
+Measured November 21 on the i7-8650U Windows laptop, five passes over the same
+550 S2 windows after 50 warm-up calls per model, one native thread, forest
+n_jobs=1. The MLP was faster in this local scoring workload. Background load
+and power state were not controlled, and the dashboard preview remained
+running. The [bounded record](../reviews/inference-benchmark-2026-11-21.json)
+retains per-round statistics, environment, hashes and clean tool revision
+475c447. Frozen data/model bytes are unchanged; S3 remains unscored.
+
 ## Remaining evaluation and handoff
 
 - Complete peer review of the lab baseline and comparison.
-- Record local inference timing with environment, model/input hashes and
-  repeated-run summaries; retain the VM timing as a separate measurement.
+- Local inference timing and repeated-run summaries are recorded above.
+  Target-VM timing and full capture-to-detection latency remain separate work.
 - Agree the final candidate/configuration with Ali using validation evidence,
   then run S3 once under the agreed frozen protocol. Do not tune against S3.
 - Obtain Vince's trained-model live capture/API evidence in issue #48.
