@@ -31,9 +31,13 @@ A detection, a block request and a verified firewall rule are distinct events.
 
 The live monitor/API entry point is implemented in
 [PR #43](https://github.com/aydsman/ML-DDoS-Detector/pull/43).
-The trained package has been shared privately with Vince; its simultaneous
-trained-model live capture/API acceptance remains open in
-[issue #48](https://github.com/aydsman/ML-DDoS-Detector/issues/48).
+Vince completed the simultaneous trained-model benign live capture/API run.
+The owner accepted its bounded evidence in
+[issue #48](https://github.com/aydsman/ML-DDoS-Detector/issues/48), independently
+matching API/audit records and reproducing all 46 Run 03 packet-derived scores
+and 34 unique available byte-rate points. Final teammate review/merge of
+PR #43 remains pending; this acceptance does not establish attack accuracy
+or active protection.
 A saved-window replay checked 550 S2 predictions through the API against the
 monitor's scores. That is offline integration evidence.
 The automatic runner in
@@ -203,7 +207,8 @@ retains per-round statistics, environment, hashes and clean tool revision
   Target-VM timing and full capture-to-detection latency remain separate work.
 - Agree the final candidate/configuration with Ali using validation evidence,
   then run S3 once under the agreed frozen protocol. Do not tune against S3.
-- Obtain Vince's trained-model live capture/API evidence in issue #48.
+- Complete final teammate review and merge of PR #43. The trained-model
+  benign live evidence in issue #48 has been independently accepted.
 - Validate source-policy settings and repeated mitigation/service experiments
   with Ali, Mujtaba and Vince. Detection delay, false blocks, legitimate-client
   availability, recovery, resource overhead and capture loss remain unmeasured
