@@ -112,3 +112,14 @@ laptop. This does not select a deployment model, predict VM speed or measure
 capture-to-detection delay. Background load and power state were not controlled;
 the HTTP preview was running in this ordinary desktop session. S3 was not
 scored, neither package was retrained, and no threshold changed.
+
+## Runtime portability review (November 22)
+
+Ali reproduced a benchmark-only refusal when the forest was saved under a
+different Python patch version from the comparison. The benchmark now uses
+the same shared compatibility guard as the loader: Python major/minor must
+match the runtime and all recorded ML libraries must match exactly. The forest
+identity and both package checksums remain enforced. A synthetic metadata
+regression exercises load_model -> compare -> benchmark with an alternate
+Python patch; this does not claim a training run on that simulated patch.
+The November 21 same-runtime timing record is unchanged.

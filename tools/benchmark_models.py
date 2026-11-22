@@ -14,7 +14,9 @@ from sklearn.preprocessing import StandardScaler
 from threadpoolctl import threadpool_info, threadpool_limits
 
 from ddos_detector.config import FEATURE_NAMES
-from ddos_detector.training import load_model, source_revision, versions, write_json, xy
+from ddos_detector.training import (
+    load_model, source_revision, validate_runtime_versions, versions, write_json, xy,
+)
 from ddos_detector.training_data import file_sha256, prepare_data, read_json
 
 
@@ -43,9 +45,9 @@ def benchmark(data, forest_directory, comparison_directory, output_directory, *,
         if (meta["data"]["input_sha256"] != data.input_sha256
                 or meta["data"]["manifest_sha256"] != data.manifest_sha256):
             raise ValueError("Benchmark inputs must match the frozen model inputs")
-    if (mlp_meta.get("versions") != forest_meta["versions"]
-            or mlp_meta.get("forest_model_sha256") != forest_meta["model_sha256"]):
-        raise ValueError("Comparison must match the forest package and versions")
+    validate_runtime_versions(mlp_meta.get("versions"))
+    if mlp_meta.get("forest_model_sha256") != forest_meta["model_sha256"]:
+        raise ValueError("Comparison must match the forest package identity")
     mlp_hash = file_sha256(directory / "mlp.joblib")
     if mlp_meta.get("mlp_model_sha256") != mlp_hash:
         raise ValueError("MLP checksum mismatch")
