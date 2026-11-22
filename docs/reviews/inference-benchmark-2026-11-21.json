@@ -1,0 +1,207 @@
+{
+  "status": "local-validation-inference-benchmark",
+  "created_at": "2026-11-21T14:20:30.735402+00:00",
+  "source_revision": {
+    "git_commit": "475c447a5e0780fa1a9b2671508952784efaf006",
+    "git_dirty": false
+  },
+  "versions": {
+    "python": "3.12.10",
+    "numpy": "2.5.4",
+    "scikit_learn": "1.9.1",
+    "scipy": "1.18.1",
+    "joblib": "1.6.0"
+  },
+  "environment": {
+    "os": "Windows-11-10.0.26300-SP0",
+    "machine": "AMD64",
+    "processor": "Intel64 Family 6 Model 142 Stepping 10, GenuineIntel",
+    "processor_identifier": "Intel64 Family 6 Model 142 Stepping 10, GenuineIntel",
+    "logical_cpus": 8,
+    "native_thread_limit": 1,
+    "threadpools_during_benchmark": [
+      {
+        "user_api": "blas",
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "prefix": "libscipy_openblas",
+        "version": "0.3.34.106.0",
+        "threading_layer": "pthreads",
+        "architecture": "Haswell"
+      },
+      {
+        "user_api": "openmp",
+        "internal_api": "openmp",
+        "num_threads": 1,
+        "prefix": "vcomp",
+        "version": null
+      },
+      {
+        "user_api": "blas",
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "prefix": "libscipy_openblas",
+        "version": "0.3.31.dev",
+        "threading_layer": "pthreads",
+        "architecture": "Haswell"
+      }
+    ],
+    "isolation": "Ordinary desktop session; background load and power state not controlled",
+    "cpu_name_observed": "Intel(R) Core(TM) i7-8650U CPU @ 1.90GHz",
+    "cpu_name_source": "Windows Win32_Processor query before benchmark; 4 cores, 8 logical processors"
+  },
+  "scope": "Warm batch-size-one Pipeline.predict_proba on prebuilt float64 arrays; includes MLP scaling and estimator input validation, excludes loading, feature extraction, record validation, logging, API, firewall and one-second accumulation",
+  "timer": "perf_counter_ns",
+  "warmup_calls_per_model": 50,
+  "rounds": 5,
+  "model_order_per_round": [
+    [
+      "random_forest",
+      "mlp"
+    ],
+    [
+      "mlp",
+      "random_forest"
+    ],
+    [
+      "random_forest",
+      "mlp"
+    ],
+    [
+      "mlp",
+      "random_forest"
+    ],
+    [
+      "random_forest",
+      "mlp"
+    ]
+  ],
+  "validation_windows": 550,
+  "final_test_scored": false,
+  "model_settings_changed": false,
+  "input_sha256": "abfb8270d4120cda5aaf7d41245e8efaa8078c7c599ae1da674994ac0cb54519",
+  "manifest_sha256": "fd42c0d424a3fc61d51bec9c1f03b56f313c4021036bdaad8de7c8453dbefc05",
+  "models": {
+    "random_forest": {
+      "model_sha256": "44f2ae879b63414c8af7d7c1165e7a0d462c9545f6190f7a8a7b2f00aa9e9fe7",
+      "summary": {
+        "calls": 2750,
+        "median_ms": 21.807299999999998,
+        "p95_ms": 38.519209999999994,
+        "mean_ms": 24.559350763636367,
+        "min_ms": 12.8906,
+        "max_ms": 87.096
+      },
+      "rounds": [
+        {
+          "calls": 550,
+          "median_ms": 28.822499999999998,
+          "p95_ms": 50.955339999999985,
+          "mean_ms": 30.510891090909094,
+          "min_ms": 12.8906,
+          "max_ms": 87.096
+        },
+        {
+          "calls": 550,
+          "median_ms": 21.859299999999998,
+          "p95_ms": 35.615489999999994,
+          "mean_ms": 23.84088890909091,
+          "min_ms": 14.3417,
+          "max_ms": 51.8798
+        },
+        {
+          "calls": 550,
+          "median_ms": 20.4971,
+          "p95_ms": 33.40034999999999,
+          "mean_ms": 22.70003472727273,
+          "min_ms": 14.428,
+          "max_ms": 51.8847
+        },
+        {
+          "calls": 550,
+          "median_ms": 20.474899999999998,
+          "p95_ms": 36.17702,
+          "mean_ms": 22.965528545454546,
+          "min_ms": 15.8426,
+          "max_ms": 45.9816
+        },
+        {
+          "calls": 550,
+          "median_ms": 20.690800000000003,
+          "p95_ms": 33.659054999999995,
+          "mean_ms": 22.779410545454542,
+          "min_ms": 15.6753,
+          "max_ms": 43.0612
+        }
+      ]
+    },
+    "mlp": {
+      "model_sha256": "4ccca7213657ada1e114d5df0a79b28c6e26de9ffc78a113e7f7491bb6120393",
+      "summary": {
+        "calls": 2750,
+        "median_ms": 1.1616,
+        "p95_ms": 2.194704999999999,
+        "mean_ms": 1.3479590181818182,
+        "min_ms": 0.4858,
+        "max_ms": 10.6721
+      },
+      "rounds": [
+        {
+          "calls": 550,
+          "median_ms": 1.1437,
+          "p95_ms": 2.374259999999999,
+          "mean_ms": 1.3556158181818183,
+          "min_ms": 0.4858,
+          "max_ms": 5.3498
+        },
+        {
+          "calls": 550,
+          "median_ms": 1.62515,
+          "p95_ms": 2.9858099999999976,
+          "mean_ms": 1.7140865454545455,
+          "min_ms": 0.5032,
+          "max_ms": 9.5982
+        },
+        {
+          "calls": 550,
+          "median_ms": 0.9262,
+          "p95_ms": 1.7626549999999983,
+          "mean_ms": 1.080079818181818,
+          "min_ms": 0.6707,
+          "max_ms": 2.8801
+        },
+        {
+          "calls": 550,
+          "median_ms": 1.02085,
+          "p95_ms": 1.9105499999999995,
+          "mean_ms": 1.1985067272727272,
+          "min_ms": 0.5056,
+          "max_ms": 2.6584
+        },
+        {
+          "calls": 550,
+          "median_ms": 1.40145,
+          "p95_ms": 2.0556099999999993,
+          "mean_ms": 1.3915061818181818,
+          "min_ms": 0.5805,
+          "max_ms": 10.6721
+        }
+      ]
+    }
+  },
+  "limits": "Timing repetitions reuse validation windows, not independent traffic trials. No VM, live detection latency, throughput, accuracy or model-adoption claim.",
+  "raw_timings_sha256": "e0d38d695bbd307f890c3409d7a5cda2371f604825abc98c6647908ec6a334a4",
+  "original_summary_sha256": "442d704b17586e043ce028145eefe194447b84a7285d05d96d4088d1cf5aabf8",
+  "artifact_integrity": {
+    "checked": "Frozen records, split manifest and both models plus their metadata are byte-identical before/after",
+    "sha256": {
+      "reviewed-windows.json": "abfb8270d4120cda5aaf7d41245e8efaa8078c7c599ae1da674994ac0cb54519",
+      "reviewed-splits.json": "fd42c0d424a3fc61d51bec9c1f03b56f313c4021036bdaad8de7c8453dbefc05",
+      "forest/model.joblib": "44f2ae879b63414c8af7d7c1165e7a0d462c9545f6190f7a8a7b2f00aa9e9fe7",
+      "forest/metadata.json": "656e49369d3d625d69e8d4cab33769935a6c0f8511a0977a15bfe73016e337a3",
+      "mlp.joblib": "4ccca7213657ada1e114d5df0a79b28c6e26de9ffc78a113e7f7491bb6120393",
+      "mlp/metadata.json": "7275638fb13dfe60710ebb1c9dfdacebc6fff0d7af92e463f68301038e9eaef8"
+    },
+    "model_or_data_changes": false
+  }
+}

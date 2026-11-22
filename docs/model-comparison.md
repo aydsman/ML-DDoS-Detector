@@ -1,0 +1,125 @@
+# Offline baseline comparison
+
+Run the initial Week 4 comparison with the same reviewed records and manifest
+used to train the Week 2 Random Forest:
+
+```sh
+python -m tools.compare_baselines --records RECORDS --manifest MANIFEST --forest FOREST --output NEW_OUTPUT
+```
+
+The command verifies that the input hashes match the forest package. It fits
+a StandardScaler and a single-hidden-layer MLP (16 units, L-BFGS, alpha 0.0001,
+seed 3670, up to 1,000 iterations) on training rows only. It compares thresholds
+0.3, 0.5 and 0.7 on validation data. Selection uses highest F1, fewer false
+positives, closest to 0.5 and finally the lower threshold as tie breakers.
+Convergence warnings are retained in the report.
+
+The simple aggregate rule flags a packet rate greater than the highest benign
+training packet rate. It is an experimental comparison rule. Per-source
+mitigation needs separate source evidence and policy validation.
+
+The existing forest keeps its saved threshold. The command records validation
+scores and metrics for all three methods, saves the MLP with its fitted scaler,
+verifies save/reload predictions, and writes package and dependency identities.
+It never evaluates the held-out test split. The comparison package is identified
+separately from the forest deployment package. Keep generated data and artifacts
+under ignored results directories.
+
+Synthetic fixtures require explicit `--allow-synthetic`. Their metrics are
+software verification. Final model selection, inference-time benchmarking and
+final test evaluation belong to the later model-freeze milestone.
+
+## November 18 controlled-lab comparison
+
+Used the frozen S1 training and S2 validation inputs recorded in PR #42.
+Training contained 553 eligible windows, and validation contained 550.
+
+| Method | True negatives | False positives | False negatives | True positives | Validation F1 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Saved Random Forest, threshold 0.5 | 300 | 0 | 0 | 250 | 1.0000 |
+| StandardScaler + MLP, threshold 0.5 | 300 | 0 | 0 | 250 | 1.0000 |
+| Aggregate packet rate > 42 packets/s | 296 | 4 | 0 | 250 | 0.9921 |
+
+The three candidate MLP score thresholds tied on validation F1, so the
+predefined tie breakers selected 0.5. Fitting produced no convergence warning.
+Saved and reloaded MLP probabilities were identical.
+
+The rate rule's threshold of 42 packets/s is the highest benign training rate,
+measured only on this narrow dataset. Its validation false-positive rate was
+4/300 (1.33%). It is not an approved source-blocking threshold.
+
+Comparison implementation revision was `f4a3492`, with a clean worktree.
+MLP SHA-256 is
+`4ccca7213657ada1e114d5df0a79b28c6e26de9ffc78a113e7f7491bb6120393`.
+Input/manifest checksums match the frozen Random Forest inputs in PR #42.
+The comparison and model artifacts remain in the local ignored results folder.
+
+S3 remains held out. The equal S2 scores do not distinguish the learned models
+on broader workloads. The previously documented narrow traffic mix,
+incident-source reset labels and eligible-window exclusions limit these
+findings. W4 policy behavior and live acceptance are still pending.
+
+## Reproducible local inference benchmark
+
+Use trusted, already saved packages. The CLI never fits a model or constructs
+a test matrix; the loader validates the frozen records/manifest and split
+inventory, including test metadata, without scoring held-out windows.
+
+~~~sh
+python -m tools.benchmark_models --records RECORDS --manifest MANIFEST --forest FOREST --comparison COMPARISON --output NEW_TIMING_OUTPUT
+~~~
+
+Default: 50 warm-up calls per model, then five rounds scoring every validation
+window separately (batch size one). Model order alternates by round. Both
+models receive the same rotated row order and prebuilt float64 inputs. The
+forest remains n_jobs=1, and threadpoolctl limits native pools to one thread
+while timing. MLP preprocessing is included. Garbage collection stays enabled;
+ordinary desktop background load and power state are not controlled.
+
+Report median, p95, mean, min and max milliseconds per call, with per-round
+summaries, runtime/hardware provenance, tool revision, package/input hashes
+and a final_test_scored=false declaration. Raw nanosecond samples remain in
+the new ignored output directory. Repeated validation windows are timing
+repetitions, not independent network experiments. Results cannot be claimed
+as end-to-end detection delay, sustained packet throughput or VM performance.
+
+The timing excludes model loading, array construction, feature extraction,
+record validation, threshold application, logging, the API, firewall actions
+and the one-second capture window. Final model adoption remains a separate
+reviewed decision.
+
+## November 21 local timing results
+
+Ran the benchmark at clean revision 475c447 on the Intel Core i7-8650U
+(4 cores / 8 logical processors), Windows 11, with the recorded Python 3.12.10
+and ML dependency versions. The 550 S2 windows were each scored five times
+per model after 50 warm-up calls. Native pools were limited to one thread
+and the forest retained n_jobs=1.
+
+| Model | Median per window | p95 per window | Timed calls |
+| --- | ---: | ---: | ---: |
+| Saved Random Forest | 21.807 ms | 38.519 ms | 2,750 |
+| Saved StandardScaler + MLP | 1.162 ms | 2.195 ms | 2,750 |
+
+The [bounded timing and integrity record](reviews/inference-benchmark-2026-11-21.json)
+contains per-round statistics, the runtime/platform, package/input hashes,
+tool revision and raw-timing checksum. Raw per-call samples stay in the local
+ignored results/week5-inference-2026-11-21 directory. All six frozen data/model
+and metadata files matched their pre-run checksums.
+
+The MLP was faster for this warm batch-size-one scoring workload on this
+laptop. This does not select a deployment model, predict VM speed or measure
+capture-to-detection delay. Background load and power state were not controlled;
+the HTTP preview was running in this ordinary desktop session. S3 was not
+scored, neither package was retrained, and no threshold changed.
+
+## Runtime portability review (November 22)
+
+Ali reproduced a benchmark-only refusal when the forest was saved under a
+different Python patch version from the comparison. The benchmark now uses
+the same shared compatibility guard as the loader: Python major/minor must
+match the runtime and all recorded ML libraries must match exactly. The forest
+identity and both package checksums remain enforced. A synthetic metadata
+regression exercises load_model -> compare -> benchmark with an alternate
+Python patch; this does not claim a training run on that simulated patch.
+The November 21 same-runtime timing record is unchanged.
