@@ -32,6 +32,11 @@ Each owner supplies prose, source paths/commit, exact commands and versions, evi
 
 ## Prepared component contributions
 
+- [Mujtaba: traffic generation and firewall lifecycle](contributions/mujtaba-traffic-mitigation.md).
+  Prepared November 19, including revision-specific lab evidence, current limits
+  and the [W4/W5 experiment handoff](mujtaba-experiment-handoff.md). Final automatic
+  policy integration and experiment results remain pending.
+
 - [Ayden: ML method, features, data splitting, baseline training and evaluation](contributions/ayden-ml-methodology.md). Prepared November 3 against PR #19 at `07f1d1a`; real-data results remain explicitly pending.
 
 ## Final assembly checklist

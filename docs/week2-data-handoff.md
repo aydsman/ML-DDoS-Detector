@@ -1,4 +1,6 @@
-# W2 real-data handoff after the local join repairs
+# CIC input handoff after the local join repairs
+
+**Current status (November 18):** this file preserves the November 7 CIC reproduction instructions and historical training checkpoint. The current CIC decision and smaller next handoff are in [cic-acceptance-handoff.md](cic-acceptance-handoff.md). The separately approved lab pilot and its trained baseline are recorded in [PR #42](https://github.com/aydsman/ML-DDoS-Detector/pull/42); the historical W2 blockers below describe the CIC path and do not revoke that acceptance.
 
 Owner of training/evaluation: Ayden. Source-file access and original capture evidence: Vince. Independent label/feature review: Ali. Status on November 7, 2026: **training is blocked by data/evidence; synthetic code verification is available.**
 
