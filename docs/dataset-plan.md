@@ -2,6 +2,12 @@
 
 Owner: Ayden; capture inventory/normalization: Vince; independent label review: Ali. This is a bounded selection plan, not a verified downloaded dataset. It complements [design](design.md) and [the feature contract](feature-contract.md).
 
+## Current checkpoint: November 18, 2026
+
+Ayden rechecked the CIC candidate and recorded [the exact selection and next evidence](cic-acceptance-handoff.md). The existing JSON remains historical v1 and is rejected for training. Version-2 reruns are collaborator-reported; actual outputs and source review are pending. The one-member UDP inspection selection is `SAT-01-12-2018_0750`; this is inspection approval only.
+
+The controlled-lab pilot has separately received [scope/split acceptance](https://github.com/aydsman/ML-DDoS-Detector/issues/3#issuecomment-6987025978), with its baseline report in [PR #42](https://github.com/aydsman/ML-DDoS-Detector/pull/42). The CIC requirements below remain for the public-data experiment and do not undo that pilot approval. Dated entries below describe their historical checkpoints.
+
 ## Verified source and access status
 
 Checked October 27, 2026: the [official CIC-DDoS2019 page](https://www.unb.ca/cic/datasets/ddos-2019.html) describes raw PCAPs, labeled flow CSVs, and SYN/UDP scenarios across training/testing collections. It recommends raw captures for a custom extractor. Its first/second-day table and prose are insufficient to assign exact calendar dates and timezone safely; match the downloaded metadata before converting times. Flow CSV rows are not this project's one-second aggregate features.
@@ -71,4 +77,4 @@ These specify expected logic for Ali's independent review. They do not certify t
 
 ## Go/no-go for training
 
-Train only after the real manifest and label sample are reviewed, the inbound SYN/ACK and fragment policy is resolved, and adapters demonstrate the agreed feature definitions. If CIC access/ground truth remains unusable, propose a lab-only pilot with independently logged runs as an explicit scope change; do not silently replace the public-data experiment or manufacture benchmark results. Issue [#5](https://github.com/aydsman/ML-DDoS-Detector/issues/5) remains the evidence tracker.
+Train only after the real manifest and label sample are reviewed, the inbound SYN/ACK and fragment policy is resolved, and adapters demonstrate the agreed feature definitions. The controlled-lab pilot is now separately approved at the evidence level linked above. Further CIC work still needs its own actual inputs and review; do not present the lab results as CIC results or manufacture benchmark evidence. Issue [#5](https://github.com/aydsman/ML-DDoS-Detector/issues/5) remains the evidence tracker.

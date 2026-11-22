@@ -92,6 +92,19 @@ See [the bounded subset and labeling plan](dataset-plan.md) and [manifest templa
 - Record schedule timezone and conversion to epoch seconds once verified. Preserve capture file, window start/end, label reason, metadata reference, and split in generated records.
 - Live lab labels need independent generator logs, source/protocol identities, and recorded start/end times, separate from detector predictions. Apply the same mixed/uncertain rules.
 
+### Issue #3 acceptance checkpoint (November 18)
+
+The [current CIC selection and handoff](cic-acceptance-handoff.md) supplements the historical plan above. Original download/source inventory is in [the reported inventory](dataset-inventory-reported.json); archive/member hashes remain collaborator-reported until source verification.
+
+| Current selection | Intended use | Acceptance status |
+| --- | --- | --- |
+| `01-12/Syn.csv` with `SAT-01-12-2018_0618` through `_0620` | One candidate SYN run; reported empirical +4-hour conversion | Committed sample is historical v1. Actual reported v2 output and source review pending. |
+| `03-11/Syn.csv` with `SAT-03-11-2018_0143`, `_0144` | Reserved collection/run candidate, reported +3-hour conversion | Unverified output and independence; keep out of model/threshold tuning. Truncated `_0145` excluded. |
+| `01-12/DrDoS_UDP.csv` with `SAT-01-12-2018_0750` | One-member UDP inspection, chosen November 18 | Actual member identity/hash, offset and packet labels still unknown. No matched plain-UDP benchmark claimed. |
+| Independently benign CIC windows | Required class in each approved split | None independently verified; do not infer benign from low rate or unmatched flows. |
+
+Whole-run CIC split approval remains pending: two collections or adjacent archive pieces do not establish three independent splits. The separately accepted lab pilot freezes S1/train, S2/validation and S3/final-test; its acceptance and limitations are in [PR #42](https://github.com/aydsman/ML-DDoS-Detector/pull/42). Keep that pilot distinct from CIC results and keep S3 outcomes out of tuning. Label/exclusion rules, UTC epoch windows, IPv4 byte definitions and all twelve features remain as specified above.
+
 ### Splits and leakage
 
 Use training-day captures for training/validation and testing-day captures for final testing only after confirming the selected files and ground truth. Hold out complete captures/runs for validation; do not randomly split neighboring windows. If independent captures are unavailable, revise and document the split before training. Keep final-test labels out of tuning. A held-out attack-type experiment (train SYN, test UDP) is a separate experiment, not the headline split.

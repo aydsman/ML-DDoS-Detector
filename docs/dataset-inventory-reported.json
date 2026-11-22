@@ -8,7 +8,7 @@
   "source_page_url": "https://cicresearch.ca/CICDataset/CICDDoS2019/",
   "reported_storage_root": "C:\\Users\\iamno\\datasets\\cic-ddos2019",
   "checksum_origin": "Locally computed by Vince; not publisher-provided or independently recomputed here",
-  "pcap_status": "Vince reports all five archives downloaded and extracted; members, hashes, labels, timezone and independent runs have not been verified by Ali",
+  "pcap_status": "Existing archives remain on Vince's PC. Current join code is v2; committed candidate output is historical v1. Raw source verification and CIC training/split acceptance remain pending.",
   "archives": [
     {
       "filename": "CSV-01-12.zip",
@@ -76,7 +76,7 @@
     "DrDoS_UDP and UDP may represent different reflection/flood scenarios; the folder-based split remains provisional.",
     "No independently reviewed enriched packet-window sample or final split is supplied by this inventory."
   ],
-  "updated_date": "2026-11-04",
+  "updated_date": "2026-11-18",
   "pcap_evidence_url": "https://github.com/aydsman/ML-DDoS-Detector/issues/3#issuecomment-6617753926",
   "pcap_reported_date": "2026-11-03",
   "pcap_reported_storage_root": "C:\\Users\\iamno\\datasets\\cic-ddos2019\\pcaps",
@@ -137,11 +137,21 @@
           "0619",
           "0620"
         ],
-        "full_member_names": null,
-        "member_sha256": null,
+        "full_member_names": [
+          "SAT-01-12-2018_0618",
+          "SAT-01-12-2018_0619",
+          "SAT-01-12-2018_0620"
+        ],
+        "member_sha256": {
+          "SAT-01-12-2018_0618": "6f06d83da47e1d479031787852d38c96bd0df5e807bdc1fccad8841f4b633f48",
+          "SAT-01-12-2018_0619": "73ad9bd8c4fd42dcea5a41c8ddeb0a7f9daaa2e2b60fc8c4714660937f380e59",
+          "SAT-01-12-2018_0620": "de9c10214d2c4378d5900728321a2bb1a85a3490101031a3dc69416de8e6a911"
+        },
         "scenario": "SYN candidate inferred from the reported packet scan; not an independent label",
         "reported_interval": "2018-12-01 approximately 17:30:30 to 17:34:40 UTC",
-        "independently_verified": false
+        "independently_verified": false,
+        "hash_evidence_url": "https://github.com/aydsman/ML-DDoS-Detector/pull/29#issuecomment-6725563955",
+        "evidence_status": "Reported hashes in historical manifest and v2 rerun comment; not independently recomputed from source"
       },
       {
         "collection": "01-12",
@@ -159,5 +169,68 @@
     "verified_timezone_mapping": null,
     "verified_victim_filter": null,
     "independent_run_assignment": null
+  },
+  "reported_collection_findings": [
+    {
+      "collection": "01-12",
+      "scenario": "Syn",
+      "evidence_url": "https://github.com/aydsman/ML-DDoS-Detector/pull/29#issuecomment-6725563955",
+      "reported_tool_version": "2",
+      "reported_offset_hours": 4,
+      "reported_total_windows": 479,
+      "reported_candidate_attack_windows": 8,
+      "reported_excluded_windows": 471,
+      "verified_benign_windows": 0,
+      "actual_v2_outputs_available_here": false,
+      "independently_verified": false
+    },
+    {
+      "collection": "03-11",
+      "scenario": "Syn",
+      "evidence_url": "https://github.com/aydsman/ML-DDoS-Detector/issues/3#issuecomment-6725846803",
+      "reported_tool_version": "2",
+      "reported_offset_hours": 3,
+      "member_sha256": {
+        "SAT-03-11-2018_0143": "625cd2d5de83c79d5b5a2bf62eb1283c25b7eda5aca0f016397371ef501c1dcf",
+        "SAT-03-11-2018_0144": "3d6f0f6e4dedce7bcb7ecdd9ac9730262593539518a73bd87718385e98380399"
+      },
+      "csv_sha256": "603648e7c56e9232b6d647470dc01b6451502c594a4ebf235b45103edb5e545a",
+      "reported_total_windows": 5117,
+      "reported_candidate_attack_windows": 3118,
+      "reported_excluded_windows": 1999,
+      "verified_benign_windows": 0,
+      "excluded_truncated_member": "SAT-03-11-2018_0145",
+      "actual_v2_outputs_available_here": false,
+      "independently_verified": false
+    }
+  ],
+  "owner_next_inspection": {
+    "chosen_on": "2026-11-18",
+    "chosen_by": "Ayden",
+    "status": "inspection_only_not_training_selection",
+    "archive": "PCAP-01-12_0750-0818.zip",
+    "requested_member": "SAT-01-12-2018_0750",
+    "candidate_csv": "01-12/DrDoS_UDP.csv",
+    "selection_basis": "One member from Vince's reported UDP-dominant range; verify path, contents and labels before any promotion",
+    "actual_member_verified": false,
+    "member_size_bytes": null,
+    "member_sha256": null,
+    "csv_sha256": null,
+    "offset_hours": null,
+    "split": null,
+    "next_handoff": "docs/cic-acceptance-handoff.md"
+  },
+  "current_committed_sample": {
+    "path": "docs/samples/cic-syn-0618-0620",
+    "tool_version": "1",
+    "status": "historical_unreviewed",
+    "windows": 479,
+    "candidate_attack_windows": 8,
+    "excluded_windows": 471,
+    "verified_benign_windows": 0,
+    "run_count": 1,
+    "split": null,
+    "training_approved": false,
+    "artifact_check": "docs/reviews/issue3-cic-status-2026-11-18.json"
   }
 }
