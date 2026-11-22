@@ -4,7 +4,8 @@ from collections import deque
 from datetime import datetime, timezone
 import json
 import math
-from threading import Lock
+import sys
+from threading import Lock, Thread
 import time
 from pathlib import Path
 
@@ -93,7 +94,7 @@ class DashboardStore:
             raise ValueError("Invalid monitor provenance")
         if not isinstance(model, str) or not model:
             raise ValueError("Missing model identity")
-        if state == "started" and self._state == "idle":
+        if self._state == "idle" and state in ("started", "unavailable"):
             self._source, self._data_kind, self._model = source, data_kind, model
             self._started_at = event["logged_at"]
         elif (self._state != "started" or state not in ("completed", "unavailable")
@@ -227,18 +228,59 @@ def create_app(store=None):
     return app
 
 
+def serve_live(store, monitor_args, port):
+    """Serve the shared store while capture and scoring run in the foreground."""
+    import uvicorn
+    from .monitor import main as run_monitor
+
+    server = uvicorn.Server(uvicorn.Config(create_app(store), host="127.0.0.1", port=port))
+    errors = []
+
+    def serve():
+        try:
+            server.run()
+        except (Exception, SystemExit) as exc:
+            errors.append(exc)
+
+    worker = Thread(target=serve, name="dashboard-http", daemon=True)
+    worker.start()
+    result = 2
+    try:
+        deadline = time.monotonic() + 10
+        while not server.started and worker.is_alive() and time.monotonic() < deadline:
+            time.sleep(0.05)
+        if not server.started or not worker.is_alive():
+            print("Dashboard server failed to start", file=sys.stderr)
+        else:
+            result = run_monitor(monitor_args, deliver=store.ingest)
+    except KeyboardInterrupt:
+        result = 130
+    finally:
+        server.should_exit = True
+        worker.join(timeout=5)
+    if errors or worker.is_alive():
+        print("Dashboard server did not finish cleanly", file=sys.stderr)
+        return 2
+    return result
+
+
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Serve a monitor replay or recorded audit log")
+    parser = argparse.ArgumentParser(description="Serve live monitor data, a replay or a recorded audit log")
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--replay", metavar="PCAP")
+    source.add_argument("--interface", help="Linux lab capture interface")
     source.add_argument("--audit-log", type=Path, metavar="JSONL")
     parser.add_argument("--model")
     parser.add_argument("--log")
     parser.add_argument("--victim")
     parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--duration", type=float, help="Optional live capture duration in seconds")
     args = parser.parse_args(argv)
     if not 1 <= args.port <= 65535:
         parser.error("--port must be between 1 and 65535")
+
+    if args.duration is not None and (args.interface is None or not math.isfinite(args.duration) or args.duration <= 0):
+        parser.error("--duration requires --interface and finite positive seconds")
 
     import uvicorn
     if args.audit_log is not None:
@@ -249,6 +291,15 @@ def main(argv=None):
                 store = DashboardStore.from_audit_log(handle)
         except (OSError, ValueError) as exc:
             parser.error(str(exc))
+    elif args.interface is not None:
+        if not args.model or not args.log:
+            parser.error("--interface requires --model and --log")
+        monitor_args = ["--interface", args.interface, "--model", args.model, "--log", args.log]
+        if args.victim:
+            monitor_args.extend(("--victim", args.victim))
+        if args.duration is not None:
+            monitor_args.extend(("--duration", str(args.duration)))
+        return serve_live(DashboardStore(), monitor_args, args.port)
     else:
         if not args.model or not args.log:
             parser.error("--replay requires --model and --log")

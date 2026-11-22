@@ -1,0 +1,35 @@
+{
+  "date": "2026-11-18",
+  "reviewer": "Ayden (repository artifact and acceptance review)",
+  "scope": "Committed CIC candidate JSON and current training gate; no raw packet, CSV, v2-output, timezone or split verification",
+  "candidate_tool_version": "1",
+  "window_count": 479,
+  "labels": {
+    "excluded": 471,
+    "attack": 8
+  },
+  "packet_count": 5328388,
+  "supplied_attack_labelled_packets": 4707045,
+  "unknown_packets": 621343,
+  "run_count": 1,
+  "capture_count": 3,
+  "assigned_splits": false,
+  "review_references_present": false,
+  "training_approved": false,
+  "raw_inputs_independently_verified": false,
+  "loader_rejection": "data_kind must be synthetic or reviewed_packet_windows",
+  "artifacts": {
+    "windows.json": {
+      "repository_blob_sha256": "aced6b0466e092378771770dd1417d0c1ab01fca75c28d3b4449e9cb0612fe72",
+      "unchanged_from_historical_review": true
+    },
+    "manifest.json": {
+      "repository_blob_sha256": "be1be39a49ad0784c822d0ea15ba926a24e6ced4534072efeca82e13189eadda",
+      "unchanged_from_historical_review": true
+    },
+    "coverage.json": {
+      "repository_blob_sha256": "a4bb763320ed2f86264f86d9a5843084c7cc35aadf14ed2e880fa4d866b9128e",
+      "unchanged_from_historical_review": true
+    }
+  }
+}

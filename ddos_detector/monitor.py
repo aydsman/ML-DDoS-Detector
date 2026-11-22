@@ -143,8 +143,9 @@ def main(argv=None, *, deliver=None):
     exit_code = 0
     # A background job started by a shell script ignores SIGINT, so scripts/monitor-stop.sh
     # sends SIGTERM. Treat it like Ctrl+C: discard the partial window, write the final record.
+    previous_sigterm = None
     try:
-        signal.signal(signal.SIGTERM, _terminate_as_interrupt)
+        previous_sigterm = signal.signal(signal.SIGTERM, _terminate_as_interrupt)
     except (ValueError, OSError):
         pass  # not the main thread, or the platform has no SIGTERM handler
     try:
@@ -180,7 +181,11 @@ def main(argv=None, *, deliver=None):
         print(f"error: {exc}", file=sys.stderr)
         return 2
     finally:
-        log.close()
+        try:
+            log.close()
+        finally:
+            if previous_sigterm is not None:
+                signal.signal(signal.SIGTERM, previous_sigterm)
     if pipeline.status != "ok":
         exit_code = 1
     print(f"windows: {monitor.windows}")

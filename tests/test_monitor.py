@@ -201,3 +201,29 @@ def test_live_socket_failure_never_reports_started(tmp_path, model_dir, monkeypa
     rows = [json.loads(line) for line in log.read_text().splitlines()]
     assert rows and rows[-1]["status"] == "unavailable"
     assert not any(row.get("status") == "started" for row in rows)
+
+
+@pytest.mark.parametrize("fail_capture", [False, True])
+def test_monitor_restores_sigterm_handler(tmp_path, model_dir, monkeypatch, fail_capture):
+    import signal
+    from ddos_detector import capture
+
+    def custom_handler(signum, frame):
+        raise AssertionError("Previous handler should remain installed only outside the monitor")
+
+    def unavailable(*args, **kwargs):
+        raise PermissionError("test capture cannot open")
+
+    previous = signal.signal(signal.SIGTERM, custom_handler)
+    try:
+        log = tmp_path / "signal-lifecycle.jsonl"
+        if fail_capture:
+            monkeypatch.setattr(capture, "capture_frames", unavailable)
+            arguments = ["--interface", "enp0s8"]
+        else:
+            arguments = ["--replay", str(pcap(tmp_path))]
+        result = main([*arguments, "--model", str(model_dir), "--log", str(log)])
+        assert result == (2 if fail_capture else 0)
+        assert signal.getsignal(signal.SIGTERM) is custom_handler
+    finally:
+        signal.signal(signal.SIGTERM, previous)

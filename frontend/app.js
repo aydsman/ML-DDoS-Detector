@@ -13,6 +13,7 @@ const table = (headers, rows) => `<table><thead><tr>${headers.map(h=>`<th scope=
 let snapshot = null;
 let pollTimer;
 let busy = false;
+let requestVersion = 0;
 const apiMode = () => $('source').value === 'api';
 
 function chart(points, field, title, unit, unavailable = 'Measurements unavailable — capture failed') {
@@ -25,7 +26,16 @@ function chart(points, field, title, unit, unavailable = 'Measurements unavailab
 
 function render(data, recorded = false) {
   $('updated').textContent = `${apiMode() ? 'API response' : 'Snapshot'}: ${time(data.health.updated_at)}`;
-  $('health').innerHTML = [['Capture',data.health.capture_status],['Model',data.health.model_status],['Firewall',data.health.firewall_status],['Mitigation mode',data.health.mitigation_mode]].map(([name,value])=>`<div class="health-card"><small>${name}</small><strong class="${['running','loaded','available'].includes(value)?'good':'warn'}">${escape(label(value))}</strong></div>`).join('');
+  const healthFields = [['Capture','capture_status'],['Model','model_status'],['Firewall','firewall_status'],['Mitigation mode','mitigation_mode']];
+  // Preserve cards across polls so the page-entry animation does not replay.
+  if (!snapshot) $('health').innerHTML = healthFields.map(([name,field])=>`<div class="health-card"><small>${name}</small><strong id="health-${field}"></strong></div>`).join('');
+  for (const [,field] of healthFields) {
+    const value = data.health[field];
+    const element = $(`health-${field}`);
+    if (element.textContent !== label(value)) element.textContent = label(value);
+    const tone = ['running','loaded','available'].includes(value) ? 'good' : 'warn';
+    if (element.className !== tone) element.className = tone;
+  }
   if (JSON.stringify(data.metrics.points) !== JSON.stringify(snapshot?.metrics.points)) {
     const chartState=captureChartState();
     const points = [...data.metrics.points].sort((a,b)=>Date.parse(a.window_start)-Date.parse(b.window_start));
@@ -33,16 +43,20 @@ function render(data, recorded = false) {
     if ($('overview-charts')) $('overview-charts').innerHTML = $('charts').innerHTML.replaceAll('Exact values in table below.', 'Exact values available on the Traffic page.');
     mountCharts(chartState);
   }
-  const detections = [...data.detections.detections].sort((a,b)=>Date.parse(b.detected_at)-Date.parse(a.detected_at)||a.id.localeCompare(b.id));
-  $('detection-count').textContent = `${detections.length} records`;
-  $('detections').innerHTML = detections.length ? table(['Time / event','Scope / source','Aggregate model score','Source-rule evidence','Decision'],detections.map(d=>{
-    const a=d.attribution;
-    const evidence=a ? `${escape(a.protocol.toUpperCase())} · ${number(a.packets_per_second)} packets/s<small>SYN: ${a.syn_per_second==null?'Not applicable':number(a.syn_per_second)+' /s'}<br>${number(a.packet_share*100)}% of ${escape(label(a.share_basis))}<br>${number(a.consecutive_windows)} consecutive qualifying windows<br>Aggregate event: ${escape(d.aggregate_detection_id)}</small>` : 'Not applicable';
-    return `<tr><td>${escape(time(d.detected_at))}<small>${escape(d.id)}</small></td><td><span class="pill">${escape(d.scope)}</span><small>${escape(d.source_ip??'Unknown source')}</small></td><td><strong>${number(d.attack_score*100)}%</strong><small>${escape(d.model_version)}${d.scope==='source'?'<br>Copied from aggregate event':''}</small></td><td>${evidence}</td><td><span class="pill ${d.decision==='block_requested'?'request':''}">${escape(label(d.decision))}</span></td></tr>`;
-  })) : empty('No detection records in this snapshot');
-  const blocks=[...data.blocks.blocks].sort((a,b)=>Date.parse(b.blocked_at)-Date.parse(a.blocked_at)||a.id.localeCompare(b.id));
-  $('block-count').textContent=`${blocks.length} confirmed ${blocks.length === 1 ? 'record' : 'records'}`;
-  $('blocks').innerHTML=blocks.length?table(['Source / record','Reason','Confirmed at (Toronto)','Planned expiry (Toronto)'],blocks.map(b=>`<tr><td><strong>${escape(b.source_ip)}</strong><small>${escape(b.id)}</small></td><td>${escape(b.reason)}</td><td>${escape(time(b.blocked_at))}</td><td>${escape(time(b.expires_at))}</td></tr>`)):empty('No confirmed blocks in this snapshot');
+  if (JSON.stringify(data.detections.detections) !== JSON.stringify(snapshot?.detections.detections)) {
+    const detections = [...data.detections.detections].sort((a,b)=>Date.parse(b.detected_at)-Date.parse(a.detected_at)||a.id.localeCompare(b.id));
+    $('detection-count').textContent = `${detections.length} records`;
+    $('detections').innerHTML = detections.length ? table(['Time / event','Scope / source','Aggregate model score','Source-rule evidence','Decision'],detections.map(d=>{
+      const a=d.attribution;
+      const evidence=a ? `${escape(a.protocol.toUpperCase())} · ${number(a.packets_per_second)} packets/s<small>SYN: ${a.syn_per_second==null?'Not applicable':number(a.syn_per_second)+' /s'}<br>${number(a.packet_share*100)}% of ${escape(label(a.share_basis))}<br>${number(a.consecutive_windows)} consecutive qualifying windows<br>Aggregate event: ${escape(d.aggregate_detection_id)}</small>` : 'Not applicable';
+      return `<tr><td>${escape(time(d.detected_at))}<small>${escape(d.id)}</small></td><td><span class="pill">${escape(d.scope)}</span><small>${escape(d.source_ip??'Unknown source')}</small></td><td><strong>${number(d.attack_score*100)}%</strong><small>${escape(d.model_version)}${d.scope==='source'?'<br>Copied from aggregate event':''}</small></td><td>${evidence}</td><td><span class="pill ${d.decision==='block_requested'?'request':''}">${escape(label(d.decision))}</span></td></tr>`;
+    })) : empty('No detection records in this snapshot');
+  }
+  if (JSON.stringify(data.blocks.blocks) !== JSON.stringify(snapshot?.blocks.blocks)) {
+    const blocks=[...data.blocks.blocks].sort((a,b)=>Date.parse(b.blocked_at)-Date.parse(a.blocked_at)||a.id.localeCompare(b.id));
+    $('block-count').textContent=`${blocks.length} confirmed ${blocks.length === 1 ? 'record' : 'records'}`;
+    $('blocks').innerHTML=blocks.length?table(['Source / record','Reason','Confirmed at (Toronto)','Planned expiry (Toronto)'],blocks.map(b=>`<tr><td><strong>${escape(b.source_ip)}</strong><small>${escape(b.id)}</small></td><td>${escape(b.reason)}</td><td>${escape(time(b.blocked_at))}</td><td>${escape(time(b.expires_at))}</td></tr>`)):empty('No confirmed blocks in this snapshot');
+  }
 }
 
 function setNotice(text, tone = '') {
@@ -65,22 +79,31 @@ function setApiStatuses(data, summary) {
   }
 }
 
-async function refresh() {
-  if (busy) return;
+async function refresh(background = false) {
+  if (background && busy) return;
+  const version = ++requestVersion;
   busy = true;
   clearTimeout(pollTimer);
   const scenario=$('scenario').value;
-  $('reload').disabled=true; $('scenario').disabled=true; $('source').disabled=true;
+  const fromApi = apiMode();
+  // Quiet background checks leave controls usable. New selections supersede old requests.
+  $('reload').disabled = !background;
+  $('reload').setAttribute('aria-busy', 'true');
+  $('refresh-state').textContent = fromApi ? 'Refreshing…' : 'Loading sample…';
+  $('refresh-state').dataset.busy = 'true';
+  $('provenance').hidden = !fromApi;
   if (!apiMode() || !snapshot && $('notice').className !== 'error') setNotice(apiMode() ? 'Loading API data…' : 'Loading sample data…');
   try {
-    const apiResult=apiMode() ? await loadApiSnapshot() : null;
+    const apiResult=fromApi ? await loadApiSnapshot() : null;
     const nextSnapshot=apiResult ? apiResult.snapshot : await loadSnapshot(scenario);
     const recorded = apiResult?.observations[0].source.startsWith('recorded_');
+    if (version !== requestVersion) return;
     render(nextSnapshot, recorded);
     snapshot=nextSnapshot;
     if (apiResult) {
       const summary=describeApi(apiResult.observations);
-      setNotice(summary.text, summary.current ? '' : 'warning');
+      setNotice(summary.text, summary.current && !apiResult.observations.some(r => r.kind === 'synthetic') ? '' : 'warning');
+      if ($('provenance-text').textContent !== summary.details) $('provenance-text').textContent = summary.details;
       setApiStatuses(snapshot, summary);
       return;
     }
@@ -88,18 +111,29 @@ async function refresh() {
     $('notice').className=['stale','unavailable'].includes(scenario)?'warning':'';
     $('notice').textContent=scenario==='stale'?'STALE SNAPSHOT DEMO — showing an older example. Status and records may no longer reflect system state.':scenario==='unavailable'?'CAPTURE UNAVAILABLE DEMO — rates are unavailable, not zero. Previous example events remain visible.':'MOCK MODE — fixed October 22 example data. No live capture, model inference, or firewall connection.';
   } catch(error) {
+    if (version !== requestVersion) return;
     if (apiMode()) setApiStatuses(null, {text: snapshot ? 'Stale API snapshot' : 'API data unavailable'});
     else updateStatusIndicators(snapshot, 'error');
     setNotice(`${error.name === 'AbortError' ? 'API request timed out' : error instanceof TypeError ? 'Cannot reach the selected data server' : error.message}. ${snapshot?'Retaining the last successful snapshot; all displayed data is stale.':'No data loaded. System state is unknown.'}`, 'error');
     if(!snapshot) for(const id of ['health','charts','overview-charts','detections','blocks'].filter(id => $(id))) $(id).innerHTML=empty('Data unavailable');
   } finally {
-    busy=false;
-    $('reload').disabled=false; $('scenario').disabled=apiMode(); $('source').disabled=false;
-    if(apiMode()) pollTimer=setTimeout(refresh,1000);
+    if (version === requestVersion) {
+      busy=false;
+      $('reload').disabled=false;
+      $('reload').setAttribute('aria-busy', 'false');
+      $('scenario').disabled=apiMode();
+      $('refresh-state').dataset.busy = 'false';
+      $('refresh-state').textContent = $('notice').className === 'error' ? 'Update failed' : fromApi ? 'Auto-refresh · 1s' : 'Sample loaded';
+      if(apiMode()) pollTimer=setTimeout(() => refresh(true),1000);
+    }
   }
 }
 function changeSource() {
   snapshot=null;
+  $('provenance').hidden = true;
+  $('provenance').open = false;
+  $('provenance-text').textContent = 'Awaiting source details.';
+  $('scenario').disabled = apiMode();
   if (apiMode()) setApiStatuses(null, {text: 'Awaiting API data'});
   else updateStatusIndicators(null);
   setNotice(apiMode() ? 'Loading API data…' : 'Loading sample data…');
@@ -114,6 +148,6 @@ function changeSource() {
 }
 $('source').addEventListener('change',changeSource);
 $('source').value=new URLSearchParams(location.search).get('source')==='api'?'api':'mock';
-$('reload').addEventListener('click',refresh);
-$('scenario').addEventListener('change',refresh);
+$('reload').addEventListener('click',() => refresh());
+$('scenario').addEventListener('change',() => refresh());
 changeSource();

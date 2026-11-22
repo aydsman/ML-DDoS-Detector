@@ -154,3 +154,98 @@ def test_archive_rejects_incomplete_mismatched_and_mixed_logs():
     bad_window = dict(records[1], model_sha256="other")
     with pytest.raises(ValueError, match="provenance"):
         api.DashboardStore.from_audit_log(map(json.dumps, [records[0], bad_window]))
+
+
+def test_live_entry_point_serves_events_before_capture_finishes(monkeypatch):
+    from threading import Event
+    from ddos_detector import monitor
+    import uvicorn
+
+    ready = Event()
+    finished = Event()
+    responses = []
+
+    class FakeServer:
+        def __init__(self, config):
+            self.config = config
+            self.started = False
+            self.should_exit = False
+
+        def run(self):
+            self.started = True
+            ready.set()
+            finished.wait(5)
+
+    def capture(arguments, *, deliver):
+        assert ready.is_set()
+        assert arguments == ["--interface", "enp0s8", "--model", "trusted-model",
+                             "--log", "live.jsonl", "--victim", "10.10.10.10", "--duration", "2.0"]
+        deliver(status("started"))
+        event, record = window(10)
+        deliver(event, record)
+        response = client.get("/api/metrics")
+        responses.append(response.json())
+        assert response.headers["X-Dashboard-Source"] == "live"
+        assert response.headers["X-Dashboard-Freshness"] == "current"
+        deliver(status("completed"))
+        finished.set()
+        return 0
+
+    store = api.DashboardStore(clock=lambda: 11)
+    client = TestClient(api.create_app(store))
+    monkeypatch.setattr(api, "DashboardStore", lambda: store)
+    monkeypatch.setattr(uvicorn, "Server", FakeServer)
+    monkeypatch.setattr(monitor, "main", capture)
+    assert api.main(["--interface", "enp0s8", "--model", "trusted-model", "--log", "live.jsonl",
+                     "--victim", "10.10.10.10", "--duration", "2"]) == 0
+    assert responses[0]["points"][0]["packets_per_second"] == 2
+    assert client.get("/api/health").headers["X-Dashboard-Freshness"] == "stopped"
+
+
+def test_live_server_bind_failure_prevents_capture(monkeypatch):
+    from ddos_detector import monitor
+    import uvicorn
+
+    class FailedServer:
+        def __init__(self, config):
+            self.started = False
+            self.should_exit = False
+
+        def run(self):
+            raise SystemExit(1)
+
+    monkeypatch.setattr(uvicorn, "Server", FailedServer)
+    monkeypatch.setattr(monitor, "main", lambda *a, **kw: pytest.fail("Capture must not start"))
+    assert api.main(["--interface", "enp0s8", "--model", "model", "--log", "live.jsonl"]) == 2
+
+
+@pytest.mark.parametrize("arguments", [
+    ["--interface", "enp0s8"],
+    ["--replay", "capture.pcap", "--duration", "2"],
+    ["--interface", "enp0s8", "--duration", "nan"],
+])
+def test_live_entry_point_rejects_incompatible_options(arguments):
+    with pytest.raises(SystemExit) as error:
+        api.main(arguments)
+    assert error.value.code == 2
+
+
+def test_capture_startup_failure_delivers_unavailable_without_started(tmp_path, model_dir, monkeypatch):
+    from ddos_detector import capture, monitor
+
+    def unavailable(*args, **kwargs):
+        raise PermissionError("test capture cannot open")
+
+    monkeypatch.setattr(capture, "capture_frames", unavailable)
+    store = api.DashboardStore()
+    log = tmp_path / "capture-unavailable.jsonl"
+    assert monitor.main(["--interface", "enp0s8", "--model", str(model_dir),
+                         "--log", str(log)], deliver=store.ingest) == 2
+    health, headers = store.snapshot("health")
+    assert health["capture_status"] == "error"
+    assert headers["X-Dashboard-Freshness"] == "unavailable"
+    assert store.snapshot("metrics")[0]["points"] == []
+    rows = [json.loads(line) for line in log.read_text().splitlines()]
+    assert [row["status"] for row in rows] == ["unavailable"]
+    archived = api.DashboardStore.from_audit_log(map(json.dumps, rows))
+    assert archived.snapshot("health")[1]["X-Dashboard-Freshness"] == "unavailable"

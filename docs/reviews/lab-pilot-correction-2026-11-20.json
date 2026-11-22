@@ -1,0 +1,58 @@
+{
+  "schema": "lab-pilot-metadata-correction-review-1",
+  "reviewer": "Ayden Sendrea",
+  "reviewed_on": "2026-11-20",
+  "result": "accepted_metadata_correction_only",
+  "source_comment": "https://github.com/aydsman/ML-DDoS-Detector/issues/3#issuecomment-7048760662",
+  "correction_archive": {
+    "url": "https://github.com/user-attachments/files/35182078/lab-pilot-correction-2026-11-20.zip",
+    "bytes": 6683,
+    "sha256": "44cf9ae6fba60473a587149c9590a8c57e77f0e38c243fce3fefc087739ae2f6",
+    "member_count": 6
+  },
+  "original_archives": {
+    "lab-handoff.zip": {
+      "sha256": "691e9887215e0a2f7451ff547739ca813b9b15a4a640de8b3d866e99f9916651"
+    },
+    "reconciliation-evidence.zip": {
+      "sha256": "c379e2c84532341cd9250a7a8fc642ebdd085770445911fc1dbb437433b85d31"
+    }
+  },
+  "verified_member_sha256": {
+    "S3/manifest.json": "eb7f24d2fe59a2eeb28f077d31169ed9fc06c7817af3a3d64206887f9bb2451d",
+    "S3/manifest.before.json": "54d09051c5eedd6543ce35638142e566aecfdfae631f89f392d71f332ad15ecc",
+    "reconciliation/README.md": "2bfab08ede7aad6fc5cd74a124f8bed6a1db2500a963d93752479d823497a06a",
+    "reconciliation/README.before.md": "06ae8af7c98d53899ea1c9bdadb4b34d5d638a8c6a24f5696c943979bbe35b00"
+  },
+  "checks": {
+    "both_before_files_match_original_archives_byte_for_byte": true,
+    "manifest_changed_keys": [
+      "excluded_runs",
+      "status_note"
+    ],
+    "excluded_run_ids": [
+      "39903db2-4acc-467e-86dc-2299da9fcf2a",
+      "aab41db8-1313-44f9-81ea-0a84063c0d7c"
+    ],
+    "excluded_ids_already_in_original_provenance": true,
+    "readme_only_changes_slack_1_to_2_point_5_seconds": true,
+    "original_coverage_slack_seconds": {
+      "S1": 2.5,
+      "S2": 2.5,
+      "S3": 2.5
+    },
+    "candidate_data_kind_review_refs_and_unassigned_source_split_preserved": true,
+    "frozen_reviewed_inputs_unchanged": {
+      "reviewed-windows.json": "abfb8270d4120cda5aaf7d41245e8efaa8078c7c599ae1da674994ac0cb54519",
+      "reviewed-splits.json": "fd42c0d424a3fc61d51bec9c1f03b56f313c4021036bdaad8de7c8453dbefc05"
+    },
+    "model_bytes_unchanged": true
+  },
+  "limits": {
+    "source_pcaps_rehashed_or_replayed": false,
+    "new_labels_or_window_outputs_supplied": false,
+    "training_or_test_scoring_performed": false,
+    "cic_acceptance_completed": false,
+    "linux_model_acceptance_completed": false
+  }
+}

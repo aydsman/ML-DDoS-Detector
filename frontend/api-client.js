@@ -24,8 +24,18 @@ export async function loadApiSnapshot(request = fetch) {
 }
 
 export function describeApi(observations) {
-  const details=observations.map(r=>`${r.section}: ${r.freshness}, ${r.source}, ${r.kind}`).join(' · ');
-  const current=observations.every(r=>r.freshness==='current' && r.source==='live');
-  const title=observations.some(r=>r.source.startsWith('recorded_')) ? 'RECORDED MONITOR RUN' : 'API DATA';
-  return {current, text:`${title} — ${details}. Freshness is measurement status; response time is not capture time.`};
+  const details = observations.map(r=>`${r.section}: ${r.freshness}, ${r.source}, ${r.kind}`).join(' · ');
+  const current = observations.every(r=>r.freshness==='current' && r.source==='live');
+  const synthetic = observations.some(r=>r.kind==='synthetic');
+  const recorded = observations.some(r=>r.source.startsWith('recorded_'));
+  const replay = observations.some(r=>r.source==='replay');
+  const states = [...new Set(observations.map(r=>r.freshness))];
+  let text;
+  if (recorded) text = `Recorded monitor run — saved ${synthetic ? 'synthetic test data' : 'packet measurements'}; not live monitoring.`;
+  else if (replay) text = `Replay data — ${synthetic ? 'synthetic test measurements' : 'recorded packet measurements'}; not live capture.`;
+  else if (synthetic) text = 'Synthetic test data — does not describe real network traffic.';
+  else text = current ? 'Live API measurements.' : 'API measurements are not current.';
+  const warnings = states.filter(s=>s!=='current' && !(s==='historical' && (recorded || replay)));
+  if (warnings.length) text += ` Measurement status: ${warnings.join(', ')}.`;
+  return {current, text, details:`${details}. Freshness describes measurement status; API response time is not capture time.`};
 }
