@@ -1,0 +1,34 @@
+{
+  "date": "2026-11-22",
+  "revision": "35613bab2aaede1e7736c6314c07a326547a3e7d",
+  "scope": "Offline monitor-only policy replay of the saved benign Run 03 capture",
+  "archive_sha256": "3979d320fe760c0ad2e0b549c22d719fb3c330b18804651c0af2cdf9b0b572e6",
+  "capture_member": "server/tcpdump-03.pcap",
+  "capture_sha256": "a83c71132a83e19333b811aca5e25bda29023ee9457aaab4d2cea8484b0d6b34",
+  "model_sha256": "44f2ae879b63414c8af7d7c1165e7a0d462c9545f6190f7a8a7b2f00aa9e9fe7",
+  "metadata_sha256": "656e49369d3d625d69e8d4cab33769935a6c0f8511a0977a15bfe73016e337a3",
+  "config_sha256": "75c410074c0fb7b62044a1bb42ae98c33f4e47c40a1a07e1d6b65c556585a973",
+  "mode": "monitor_only",
+  "exit_code": 0,
+  "window_count": 46,
+  "packet_count": 204,
+  "policy_decisions": 46,
+  "predicted_attack_windows": 0,
+  "block_requests": 0,
+  "firewall_journal_created": false,
+  "model_artifacts_unchanged": true,
+  "final_test_scored": false,
+  "validation_source_counts_available": false,
+  "remaining": [
+    "Source/protocol and model-score evidence for complete validation windows",
+    "Validation-supported source rate, SYN, share and maximum-window-age settings",
+    "Current Linux runtime scope and allowlist verification",
+    "Policy-driven lab acceptance and enforcement-event dashboard integration"
+  ],
+  "original_live_scores_matched": 46,
+  "source_count_windows_accounted": 46,
+  "source_ips": [
+    "10.10.10.20"
+  ],
+  "audit_sha256": "75bae422d5155d083298aba93872d1e605c68c825341ce1a95fe26f22853e03b"
+}

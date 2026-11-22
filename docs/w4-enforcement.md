@@ -142,3 +142,20 @@ new packets, external rule disappearance, permission/removal failures,
 interruption/crash recovery and repeated resets. Record exact revision, raw
 evidence and all trial outcomes. Keep the W4 card in Review/testing once code is
 submitted; mark Done only after review and the applicable lab evidence.
+
+## Ayden's Week 4 readiness checkpoint, November 22
+
+The Random Forest, scaled MLP and aggregate rate-rule comparison is merged in PR #44. On the accepted S2 validation rows both learned models classified 550 of 550 eligible windows correctly. The aggregate rate rule had four false positives. The model-comparison document retains the experiment and artifact identities.
+
+The source policy and mode/lifecycle implementation is reviewed in this draft. Its 152 focused policy, firewall, model/API and monitor checks passed at 35613ba. The [readiness record](reviews/week4-policy-readiness-2026-11-22.json) adds an offline run through the actual policy CLI using the trusted trained model and the saved benign Run 03 capture from issue #48. It processed 46 windows and 204 selected packets, reproduced all 46 original scores, and wrote 46 monitor-only policy decisions with zero block requests. Source-count diagnostics accounted for every selected packet. The model and metadata hashes were preserved.
+
+The model defaults, score gate, three-window streak, capacity and lifecycle can be reviewed now. Completion still needs the following evidence.
+
+| Remaining input or result | Responsible role | Acceptance |
+| --- | --- | --- |
+| Complete S1/S2 source/protocol and known SYN-only counts aligned to reviewed labels and aggregate scores | Vince supplies, Ayden reviews | Reproducible policy evaluation with source-level errors, decisions and exclusions |
+| Rate/SYN/share settings and maximum window age | Ayden with validation evidence | A recorded review of the full model-gated policy |
+| Current interface, destination, allowlist and firewall state | Vince and Mujtaba | Verified runtime configuration and legitimate-client/management reachability |
+| Policy-driven live lifecycle | Vince and Mujtaba, Ayden reviews | Recorded expiry, duplicate/cap, failure, cleanup and recovery outcomes on the accepted revision |
+
+Dashboard consumption of the reviewed enforcement events remains shared work with Aadi. The current API exposes monitor-only data. The source-policy pilot is tracked separately from CIC issue #3.
