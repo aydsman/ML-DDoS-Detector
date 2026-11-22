@@ -43,7 +43,7 @@ function render(data, recorded = false) {
     if ($('overview-charts')) $('overview-charts').innerHTML = $('charts').innerHTML.replaceAll('Exact values in table below.', 'Exact values available on the Traffic page.');
     mountCharts(chartState);
   }
-  if (JSON.stringify(data.detections) !== JSON.stringify(snapshot?.detections)) {
+  if (JSON.stringify(data.detections.detections) !== JSON.stringify(snapshot?.detections.detections)) {
     const detections = [...data.detections.detections].sort((a,b)=>Date.parse(b.detected_at)-Date.parse(a.detected_at)||a.id.localeCompare(b.id));
     $('detection-count').textContent = `${detections.length} records`;
     $('detections').innerHTML = detections.length ? table(['Time / event','Scope / source','Aggregate model score','Source-rule evidence','Decision'],detections.map(d=>{
@@ -52,7 +52,7 @@ function render(data, recorded = false) {
       return `<tr><td>${escape(time(d.detected_at))}<small>${escape(d.id)}</small></td><td><span class="pill">${escape(d.scope)}</span><small>${escape(d.source_ip??'Unknown source')}</small></td><td><strong>${number(d.attack_score*100)}%</strong><small>${escape(d.model_version)}${d.scope==='source'?'<br>Copied from aggregate event':''}</small></td><td>${evidence}</td><td><span class="pill ${d.decision==='block_requested'?'request':''}">${escape(label(d.decision))}</span></td></tr>`;
     })) : empty('No detection records in this snapshot');
   }
-  if (JSON.stringify(data.blocks) !== JSON.stringify(snapshot?.blocks)) {
+  if (JSON.stringify(data.blocks.blocks) !== JSON.stringify(snapshot?.blocks.blocks)) {
     const blocks=[...data.blocks.blocks].sort((a,b)=>Date.parse(b.blocked_at)-Date.parse(a.blocked_at)||a.id.localeCompare(b.id));
     $('block-count').textContent=`${blocks.length} confirmed ${blocks.length === 1 ? 'record' : 'records'}`;
     $('blocks').innerHTML=blocks.length?table(['Source / record','Reason','Confirmed at (Toronto)','Planned expiry (Toronto)'],blocks.map(b=>`<tr><td><strong>${escape(b.source_ip)}</strong><small>${escape(b.id)}</small></td><td>${escape(b.reason)}</td><td>${escape(time(b.blocked_at))}</td><td>${escape(time(b.expires_at))}</td></tr>`)):empty('No confirmed blocks in this snapshot');

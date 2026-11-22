@@ -42,16 +42,21 @@ test('polls preserve health cards, unchanged charts and tables, while showing re
   const health=h.get('health');const writes=health.writes;
   const capture=h.get('health-capture_status');
   const detectionWrites=h.get('detections').writes;
+  const blockWrites=h.get('blocks').writes;
   const chartWrites=h.get('charts').writes;
   h.poll();
   assert.equal(h.get('reload').disabled,false);
   assert.equal(h.get('source').disabled,false);
   assert.equal(h.get('refresh-state').dataset.busy,'true');
-  const changed=structuredClone(fixture);changed.health.updated_at='2026-11-18T19:00:00Z';
+  const changed=structuredClone(fixture);
+  for (const section of ['health', 'metrics', 'detections', 'blocks']) {
+    changed[section].updated_at='2026-11-18T19:00:00Z';
+  }
   await h.respond(changed);
   assert.equal(health.writes,writes);
   assert.equal(h.get('health-capture_status'),capture);
   assert.equal(h.get('detections').writes,detectionWrites);
+  assert.equal(h.get('blocks').writes,blockWrites);
   assert.equal(h.get('charts').writes,chartWrites);
   assert.equal(h.get('refresh-state').textContent,'Auto-refresh · 1s');
   assert.match(h.get('updated').textContent,/Nov 18/);
