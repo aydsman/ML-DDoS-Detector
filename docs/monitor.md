@@ -23,9 +23,64 @@ sudo PYTHONPATH=. ~/mon-venv/bin/python -m ddos_detector.monitor --interface enp
 
 Without `--duration` it runs until stopped. A bad interface, missing permission or unusable model exits nonzero with a message on stderr and no windows logged. Monitor-only is fixed: nothing in this runner changes traffic or contacts a firewall.
 
-**Stop.** Wait for `--duration` to elapse, or press Ctrl+C (or send SIGINT) in the foreground session. The runner discards the incomplete window, writes a final `monitor_status` record and prints the summary. Exit code 0 with `status: ok` means the run ended normally; 1 means capture became unavailable; 2 means it never started. SIGKILL or a power-off leaves no terminal status record, so treat a log without one as incomplete.
+**Stop.** Wait for `--duration` to elapse, or press Ctrl+C (or send SIGINT) in the foreground session. The runner discards the incomplete window, writes a final `monitor_status` record and prints the summary. Exit code 0 with `status: ok` means the run ended normally; 1 means capture became unavailable; 2 means initialization failed before any window was processed. The audit may contain a started record followed by unavailable; started marks monitor initialization, not capture readiness. In the combined API process the HTTP listener may briefly be available before capture initialization fails. SIGKILL or a power-off leaves no terminal status record, so treat a log without one as incomplete.
 
 **Health fields.** `processing_delay_s` on each live window is the time between the window ending and its record being written (about 1.0 s with the one-second grace period). `max_processing_delay_s`, `late_dropped`, `skips` and `gaps` are in the terminal status record and the printed summary. Backlog and kernel drops are not measured; do not read a clean run as proof of complete capture.
+
+## Live capture with the dashboard
+
+The API's live entry point runs the existing monitor in the foreground and
+serves its shared state concurrently. The server listens on loopback.
+It stops when capture finishes or the foreground monitor is interrupted.
+It refuses to start capture if the HTTP server cannot bind.
+
+Use the saved Week 2 model package with its recorded Python and dependency
+versions. Run from the checked-out repository on the Linux lab server, after
+confirming `enp0s8` has `10.10.10.10`:
+
+```sh
+mkdir -p results/week3
+sudo .venv/bin/python -m ddos_detector.api --interface enp0s8 --victim 10.10.10.10 \
+  --model results/week2-model --log results/week3/live-trained-model.jsonl --port 8002
+```
+
+Use a fresh log filename for each run. An optional `--duration 100` bounds the
+capture and API session. While it runs, open
+`http://127.0.0.1:8002/frontend/?source=api` on the lab server. For a browser on
+another computer, forward port 8002 through the team's established SSH
+connection. Keep the capture and API in the same process.
+
+Run the existing legitimate HTTP client on ddos-client. Record API responses
+from health, metrics and detections while traffic is arriving, plus a dashboard
+screenshot. Match the prediction model identity to the package metadata and
+compare window timestamps, rates and scores to the flushed audit records.
+Capture failure must show unavailable or stale state. The blocks list remains
+empty during this monitor-only run.
+
+### Trained-model transfer
+
+The prepared `week3-model-handoff.zip` is 10,081 bytes. ZIP SHA-256:
+`0a670dc86f2f6042f862cf88da5f82c34d4bcbe01922cd63ba66bc46cbb19758`.
+It contains `week2-model/model.joblib`, metadata and validation reports,
+`README.txt` and pinned `model-requirements.txt`. Model SHA-256:
+`44f2ae879b63414c8af7d7c1165e7a0d462c9545f6190f7a8a7b2f00aa9e9fe7`.
+
+Transfer the archive outside Git and GitHub attachments through a restricted
+team share. On November 20, Ayden sent Vince a recipient-restricted OneDrive
+view/download invitation and verified the link's recipient and permission.
+The link was delivered through OneDrive's email invitation rather than posted
+on GitHub, as Vince requested. This records the original access grant. The same ZIP was also sent to Vince as an Outlook attachment on November 21. Vince subsequently confirmed its checksum and performed the trained-model Linux runs reviewed below.
+Verify the ZIP hash before extracting it, then verify the model hash against
+`metadata.json`.
+Only load this trusted team-generated joblib package.
+
+Use Python 3.12 (patch versions may differ) and the exact libraries recorded
+inside: NumPy 2.5.4, scikit-learn 1.9.1, SciPy 1.18.1 and joblib 1.6.0.
+The package was fitted on controlled-lab S1 and checked on S2; S3 remains
+held out. It is not a CIC-trained model. The bounded trained-model Linux acceptance is recorded below.
+
+This entry point has automated concurrent-delivery and startup-failure checks.
+The trained-model Linux acceptance is recorded below. The earlier November 11 lab run used the synthetic demo model and remains a separate observation.
 
 ## Lab validation (November 11) and what is real
 
@@ -69,4 +124,67 @@ See [Backend replay and freshness](api-contract.md#backend-replay-and-freshness)
 
 ## Verification and remaining lab evidence
 
-Offline tests cover replay, model refusal and reuse, incompatible settings, capped windows and failure/gap records. Vince's lab run is reported above. Kernel drop measurements for the monitor, capture under sustained load, cross-process transport and real-data scoring remain pending.
+Offline tests cover replay, model refusal and reuse, incompatible settings, capped windows and failure/gap records. The trained-model benign live integration is accepted below. Monitor loss under sustained load, cross-process transport, attack accuracy and automatic mitigation remain separate work.
+
+
+## Trained-model live acceptance (reviewed November 22)
+
+Vince supplied [issue #48 evidence](https://github.com/aydsman/ML-DDoS-Detector/issues/48)
+from exact runtime revision f99ca6bce1f63441fca3c1636558293c41f07aa3.
+The owner independently checked the archive SHA-256, all 92 inventory members,
+API/audit consistency, packet-derived rates and model scores. The
+[bounded review](reviews/issue48-live-acceptance-2026-11-22.json) records the
+counts and limitations. Raw captures, snapshots and screenshots remain outside Git.
+
+| Run | Scored windows | HTTP responses, all 200 | API evidence |
+| --- | ---: | ---: | --- |
+| 01 | 70 | 205 | Snapshot collection missed the run; capture check only |
+| 02 | 57 | 113 | Four snapshots of all four endpoints |
+| 03 | 46 | 100 | Three snapshots, independent packet capture and dashboard images |
+
+All 187 repeated metric-point and 187 repeated detection entries across runs
+02/03 match the audit, including advancing window times, packet counts,
+scores, model hash and decision. Detection timestamps follow the implemented
+formula logged_at + scoring_s; logged_at is the start of scoring, not its
+completion. Vince's shorthand claim that detected_at equals logged_at is
+corrected by this review. The API serializes the completion estimate based on
+the rounded scoring duration.
+
+Run 03's separate tcpdump contains 308 Ethernet frames and 204 selected inbound
+IPv4 TCP/UDP/ICMP packets. Packet counts match all 46 audit windows. Rebuilding
+the twelve features and scoring the unchanged trusted Random Forest reproduces
+all 46 recorded scores/decisions exactly. Summed IPv4 Total Length matches all
+34 unique available API byte-rate points. Repeated snapshots reuse windows;
+they are not additional independent traffic observations.
+
+Every saved response is HTTP 200 with live/current/reviewed_packet_windows and
+no-store headers. Health reports capture running, model loaded, firewall
+unavailable and monitor_only. Blocks are empty. The live dashboard images show
+packet and byte rates; after Ctrl+C the retained data is explicitly stale and
+capture shows an error. The failure audit records started -> unavailable with
+zero windows and the missing CAP_NET_RAW reason. Duration, Ctrl+C exit/port
+closure timing, VM checkout/runtime and clock correction remain Vince's
+operator-reported observations, supported by the supplied records rather than
+remote access from this review.
+
+The server used Python 3.12.15 with the recorded exact ML library versions;
+model metadata records 3.12.10, an allowed patch difference. The model bytes
+match the shared package. Neither this review nor the lab test fits a model
+or scores the held-out S3 dataset.
+
+**Accepted scope:** real benign lab traffic -> shared features -> saved
+controlled-lab model -> simultaneous API/dashboard, with truthful unavailable
+and stopped/stale behavior. This satisfies Ayden's Week 3 integration scope.
+It is not an attack-accuracy evaluation or active-protection acceptance.
+Monitor kernel loss remains unmeasured in this runtime; zero drops reported
+by the separate tcpdump cannot establish total capture completeness. Requested
+HTTP rate was 5/s but achieved rates were approximately 2.53/1.59/2.00/s; final
+experiments must use measured offered load. A trailing-dot source query
+(?source=api.) falls back to visibly labelled mock mode; input handling is a
+frontend follow-up rather than evidence of a live API failure.
+
+To reproduce the artifact review without live traffic or supplied scripts:
+
+~~~sh
+python -m tools.review_issue48_evidence --archive EVIDENCE_ZIP --model TRUSTED_MODEL --output NEW_REVIEW_JSON
+~~~
