@@ -143,3 +143,12 @@ Replay remains historical even when served now. Live input is current after its 
 Remaining infrastructure, policy, and dataset work is tracked in [Vince's follow-up issue #5](https://github.com/aydsman/ML-DDoS-Detector/issues/5).
 
 Use `--audit-log JSONL` in place of the replay inputs to serve a terminated monitor audit. Recorded runs retain their capture origin in the source header and report historical freshness, or unavailable if capture failed. The audit has packet counts but no byte counts, so its byte rates are null.
+
+## Live API entry point
+
+Run `python -m ddos_detector.api --interface enp0s8 --model MODEL --log NEW_LOG`
+on the verified Linux lab server to capture and serve concurrently. The optional
+`--victim`, `--duration` and `--port` select the protected destination, capture
+duration and loopback HTTP port. Live mode requires a saved model and a new
+audit log. Existing replay and recorded-audit commands keep their documented
+behavior. See [the live procedure](monitor.md#live-capture-with-the-dashboard).
