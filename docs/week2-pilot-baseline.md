@@ -45,9 +45,11 @@ Git. The package records the dependency versions, settings and feature order.
 | reviewed-splits.json | fd42c0d424a3fc61d51bec9c1f03b56f313c4021036bdaad8de7c8453dbefc05 |
 | model.joblib | 44f2ae879b63414c8af7d7c1165e7a0d462c9545f6190f7a8a7b2f00aa9e9fe7 |
 
-Week 3 verification still needs a monitor-only lab run with these saved model
-bytes and confirmation that the timestamped predictions appear through the
-API. The previously recorded monitor run used the synthetic demo model.
+The trained-model benign live monitor/API run is now independently reviewed in
+[the monitor acceptance record](monitor.md#trained-model-live-acceptance-reviewed-november-22).
+The owner reproduced 46 packet-derived scores and matched the supplied API
+snapshots. This completes the live integration check, not attack accuracy,
+automatic enforcement or held-out S3 evaluation.
 
 ## November 20 metadata correction
 
