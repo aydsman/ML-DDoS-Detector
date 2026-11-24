@@ -1,13 +1,13 @@
 # Ayden's report contribution: architecture and machine learning
 
-Author: Ayden Sendrea. Updated November 21, 2026 for Aadi's report assembly.
+Author: Ayden Sendrea. Updated November 24, 2026 for Aadi's report assembly.
 
 **Evidence boundary.** The controlled-lab Random Forest has been trained, saved,
 reloaded and evaluated on S2 validation windows. An offline MLP and rate-rule
 comparison is also complete. These are narrow lab validation results, not
 CIC-DDoS2019 benchmark results, final-test results or proof of live protection.
 The lab review is recorded in [issue #3](https://github.com/aydsman/ML-DDoS-Detector/issues/3#issuecomment-6987025978);
-the baseline and comparison are under peer review in
+the baseline and comparison are merged in
 [PR #42](https://github.com/aydsman/ML-DDoS-Detector/pull/42) and
 [PR #44](https://github.com/aydsman/ML-DDoS-Detector/pull/44).
 Aadi can use this contribution for the architecture, method, validation and
@@ -35,9 +35,8 @@ Vince completed the simultaneous trained-model benign live capture/API run.
 The owner accepted its bounded evidence in
 [issue #48](https://github.com/aydsman/ML-DDoS-Detector/issues/48), independently
 matching API/audit records and reproducing all 46 Run 03 packet-derived scores
-and 34 unique available byte-rate points. Final teammate review/merge of
-PR #43 remains pending; this acceptance does not establish attack accuracy
-or active protection.
+and 34 unique available byte-rate points. PR #43 is merged. This acceptance
+does not establish attack accuracy or active protection.
 A saved-window replay checked 550 S2 predictions through the API against the
 monitor's scores. That is offline integration evidence.
 The automatic runner in
@@ -202,13 +201,14 @@ retains per-round statistics, environment, hashes and clean tool revision
 
 ## Remaining evaluation and handoff
 
-- Complete peer review of the lab baseline and comparison.
+- Complete the Week 5 model-choice and evaluation-protocol review with Ali;
+  the baseline/comparison implementation reviews in PRs #42/#44 are merged.
 - Local inference timing and repeated-run summaries are recorded above.
   Target-VM timing and full capture-to-detection latency remain separate work.
 - Agree the final candidate/configuration with Ali using validation evidence,
   then run S3 once under the agreed frozen protocol. Do not tune against S3.
-- Complete final teammate review and merge of PR #43. The trained-model
-  benign live evidence in issue #48 has been independently accepted.
+- PR #43 is merged and issue #48 is complete for benign live integration.
+  Attack accuracy and automatic protection remain separate pending evidence.
 - Validate source-policy settings and repeated mitigation/service experiments
   with Ali, Mujtaba and Vince. Detection delay, false blocks, legitimate-client
   availability, recovery, resource overhead and capture loss remain unmeasured
@@ -223,3 +223,20 @@ excluded. Spoofing, other networks and untested attack profiles remain outside
 the demonstrated scope. Synthetic demos establish software behavior only.
 Neither these lab validation results nor historical block records establish
 that the finished system currently protects a live server.
+
+
+## Week 5 review handoff, November 24
+
+The [evaluation plan](../week5-evaluation-plan.md) and
+[proposed candidate inventory](../week5-model-candidates.json) make the remaining
+model-choice, artifact-identity and final-evaluation decisions concrete for Ali.
+They preserve all three validation candidates and the existing model bytes.
+The proposed primary choice is the current Random Forest integration, with the
+faster MLP explicitly retained as a comparison. This is not a final deployment
+approval. A guarded common final-classification command is prepared and checked
+only with synthetic fixtures; the real S3 outcome tables remain empty.
+
+Aadi can review this draft contribution and use the completed method/validation
+material now. Ali must record the model/protocol review before classifier final
+evaluation. The full-system experiment additionally needs Week 4 policy and lab
+acceptance. No new accuracy, mitigation or service-recovery result is claimed.

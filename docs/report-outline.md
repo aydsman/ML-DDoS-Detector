@@ -1,4 +1,4 @@
-# Final report outline — ML-DDoS-Detector
+# Final report outline â€” ML-DDoS-Detector
 
 Coordinator/editor: Aadi. Week 1 draft, October 26, 2026. Confirm the instructor's rubric, length, format, and citation requirements before final assembly. Each member writes their own component; Aadi consolidates and edits.
 
@@ -7,7 +7,7 @@ Coordinator/editor: Aadi. Week 1 draft, October 26, 2026. Confirm the instructor
 | Title page and abstract | Course, team, objectives and evidence-supported findings; write abstract last | Aadi; all verify |
 | 1. Introduction | Problem, objectives, isolated-lab scope, SYN/UDP focus, success criteria | Aadi, Ayden |
 | 2. Background | DDoS detection approaches, model rationale, dataset and library citations | Ayden; all supply references |
-| 3. Architecture | Capture â†’ aggregate features â†’ inference â†’ source attribution â†’ mitigation; API/dashboard boundaries and diagram | Ayden, Vince; Aadi assembles |
+| 3. Architecture | Capture Ã¢â€ â€™ aggregate features Ã¢â€ â€™ inference Ã¢â€ â€™ source attribution Ã¢â€ â€™ mitigation; API/dashboard boundaries and diagram | Ayden, Vince; Aadi assembles |
 | 4. Lab and reproducibility | VM topology, versions, interfaces, setup commands, verified captures | Vince |
 | 5. Dataset and features | Verified files, labels, provenance, window definitions, exclusions, independent splits, leakage prevention | Vince, Ayden; Ali checks ground truth |
 | 6. Model | Random Forest training, preprocessing, settings/seeds, validation threshold, saved artifacts; MLP only if implemented | Ayden |
@@ -37,7 +37,13 @@ Each owner supplies prose, source paths/commit, exact commands and versions, evi
   and the [W4/W5 experiment handoff](mujtaba-experiment-handoff.md). Final automatic
   policy integration and experiment results remain pending.
 
-- [Ayden: ML method, features, data splitting, baseline training and evaluation](contributions/ayden-ml-methodology.md). Prepared November 3 against PR #19 at `07f1d1a`; real-data results remain explicitly pending.
+- [Ayden: ML method, features, data splitting, baseline training and evaluation](contributions/ayden-ml-methodology.md). Updated November 24 with the completed controlled-lab S2 results, laptop timing and accepted benign live integration; final S3/system outcomes remain pending.
+
+- [Week 5 proposed evaluation and review handoff](week5-evaluation-plan.md):
+  Ali reviews candidate selection/protocol; Aadi reviews report use and missing
+  evidence. Proposed artifact hashes are in
+  [week5-model-candidates.json](week5-model-candidates.json). No S3 evaluation
+  or live mitigation result is supplied by that plan.
 
 ## Final assembly checklist
 

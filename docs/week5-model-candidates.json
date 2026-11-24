@@ -1,0 +1,83 @@
+{
+  "schema": "final-model-evaluation-v1",
+  "created": "2026-11-24",
+  "status": "proposed",
+  "approval_ref": null,
+  "scope": "Controlled-lab S3 aggregate classification only; not policy settings or live mitigation",
+  "primary_recommendation": "random_forest",
+  "selection_rationale": "Retain the existing trained/live-checked Random Forest path. Validation ties do not establish accuracy superiority; the MLP is faster on the laptop but has not been adopted by the live scorer.",
+  "evaluation_models": [
+    "random_forest",
+    "mlp",
+    "aggregate_rate_rule"
+  ],
+  "feature_names": [
+    "packet_rate",
+    "byte_rate",
+    "syn_count",
+    "syn_ack_ratio",
+    "syn_no_ack_share",
+    "pkt_size_mean",
+    "pkt_size_std",
+    "unique_src_ips",
+    "src_ip_entropy",
+    "tcp_share",
+    "udp_share",
+    "icmp_share"
+  ],
+  "feature_schema_version": "1",
+  "artifacts": {
+    "records": "abfb8270d4120cda5aaf7d41245e8efaa8078c7c599ae1da674994ac0cb54519",
+    "manifest": "fd42c0d424a3fc61d51bec9c1f03b56f313c4021036bdaad8de7c8453dbefc05",
+    "forest_model": "44f2ae879b63414c8af7d7c1165e7a0d462c9545f6190f7a8a7b2f00aa9e9fe7",
+    "forest_metadata": "656e49369d3d625d69e8d4cab33769935a6c0f8511a0977a15bfe73016e337a3",
+    "forest_validation": "d0d00b09e483734da01f08e4ed033e1c221b2945f5e0190025610f975eb7854f",
+    "mlp_model": "4ccca7213657ada1e114d5df0a79b28c6e26de9ffc78a113e7f7491bb6120393",
+    "comparison_metadata": "7275638fb13dfe60710ebb1c9dfdacebc6fff0d7af92e463f68301038e9eaef8",
+    "comparison_validation": "1a95566bd66466221dcdafe187e8f96489769aafe526c047557c62c9d920f262"
+  },
+  "thresholds": {
+    "random_forest": 0.5,
+    "mlp": 0.5,
+    "aggregate_rate_packets_per_second": 42.0
+  },
+  "settings": {
+    "random_forest": {
+      "n_estimators": 100,
+      "seed": 3670,
+      "class_weight": "balanced",
+      "n_jobs": 1,
+      "preprocessing": "none-no-imputation-or-scaling"
+    },
+    "mlp": {
+      "activation": "relu",
+      "alpha": 0.0001,
+      "batch_size": "auto",
+      "beta_1": 0.9,
+      "beta_2": 0.999,
+      "early_stopping": false,
+      "epsilon": 1e-08,
+      "hidden_layer_sizes": [
+        16
+      ],
+      "learning_rate": "constant",
+      "learning_rate_init": 0.001,
+      "max_fun": 15000,
+      "max_iter": 1000,
+      "momentum": 0.9,
+      "n_iter_no_change": 10,
+      "nesterovs_momentum": true,
+      "power_t": 0.5,
+      "random_state": 3670,
+      "shuffle": true,
+      "solver": "lbfgs",
+      "tol": 0.0001,
+      "validation_fraction": 0.1,
+      "verbose": false,
+      "warm_start": false
+    },
+    "scaler": "StandardScaler fitted on training rows only"
+  },
+  "test_policy": "One planned shared evaluation of these candidates; no retuning or model switch based on S3. Retain every result and all exclusions.",
+  "final_test_scored": false
+}
