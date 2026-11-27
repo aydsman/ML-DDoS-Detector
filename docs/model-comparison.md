@@ -26,8 +26,8 @@ separately from the forest deployment package. Keep generated data and artifacts
 under ignored results directories.
 
 Synthetic fixtures require explicit `--allow-synthetic`. Their metrics are
-software verification. Final model selection, inference-time benchmarking and
-final test evaluation belong to the later model-freeze milestone.
+software verification. The recorded local inference benchmark is below. Final model adoption and
+test evaluation follow the reviewed Week 5 release protocol.
 
 ## November 18 controlled-lab comparison
 
@@ -57,7 +57,8 @@ The comparison and model artifacts remain in the local ignored results folder.
 S3 remains held out. The equal S2 scores do not distinguish the learned models
 on broader workloads. The previously documented narrow traffic mix,
 incident-source reset labels and eligible-window exclusions limit these
-findings. W4 policy behavior and live acceptance are still pending.
+findings. W4 policy behavior and automatic acceptance remain pending; benign live API
+integration is independently accepted in the monitor documentation.
 
 ## Reproducible local inference benchmark
 
@@ -123,3 +124,11 @@ identity and both package checksums remain enforced. A synthetic metadata
 regression exercises load_model -> compare -> benchmark with an alternate
 Python patch; this does not claim a training run on that simulated patch.
 The November 21 same-runtime timing record is unchanged.
+
+## Week 5 final evaluation
+
+See [the proposed evaluation plan](week5-evaluation-plan.md) and
+[fixed candidate identities](week5-model-candidates.json). A common final-test
+command is prepared for the three saved methods. The proposal remains
+unapproved and S3 remains unscored; validation and laptop timing alone do not
+release final evaluation or select a deployed model.
