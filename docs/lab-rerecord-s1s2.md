@@ -21,6 +21,24 @@ Two scripts do the work:
 
 ## 0. Before the session (NAT on, SSH allowed)
 
+**One-time setup on the client and attacker.** The clones were made before the repository was installed on the server, so they need the same setup as the server (uv 0.13.10, Python 3.12.16, `requirements.txt`):
+
+```bash
+curl -LsSf https://astral.sh/uv/0.13.10/install.sh | sh
+git clone https://github.com/aydsman/ML-DDoS-Detector.git ~/ML-DDoS-Detector && cd ~/ML-DDoS-Detector
+~/.local/bin/uv venv --python 3.12.16 .venv && ~/.local/bin/uv pip install --python .venv/bin/python -r requirements.txt
+~/.local/bin/uv pip check --python .venv/bin/python && .venv/bin/python -m pytest -q
+```
+
+**Timing gate.** The VMs have to keep the schedule, or the windows won't be comparable with the originals. This check runs the real schedulers at the session rates and sends nothing:
+
+```bash
+.venv/bin/python -m tools.lab_timing_check --role attacker   # on the attacker: needs >= 92.9% of slots
+.venv/bin/python -m tools.lab_timing_check --role client     # on the client: needs >= 98% of slots
+```
+
+Don't record if either check fails. On November 27 both failed on this host. A 10 pps rehearsal delivered 44–58% of SYN slots and 62% of client requests, because VirtualBox fell back to running on Hyper-V (`VBox.log`: "VT-x is not available ... fall back to NEM") while Windows virtualization-based security was on. Fix the host first, then run the gate again.
+
 From the host, on all three VMs (`ssh -p 2222/2223/2224 lab@127.0.0.1`):
 
 ```bash
