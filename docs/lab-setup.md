@@ -130,7 +130,7 @@ Expected: `ttl=64`, `HTTP/1.1 200 OK`.
 On the server, start the capture first:
 
 ```
-sudo tcpdump -i enp0s8 -nn -c 12 'tcp port 80 or icmp'
+sudo tcpdump -i enp0s8 -nn -c 30 'tcp port 80 or icmp'
 ```
 
 On the attacker send 10 SYN packets (about 10 per second, one second in total):
@@ -139,7 +139,7 @@ On the attacker send 10 SYN packets (about 10 per second, one second in total):
 sudo hping3 -I enp0s8 -S -p 80 -c 10 -i u100000 10.10.10.10
 ```
 
-The server shows `10.10.10.30.xxxx > 10.10.10.10.80: Flags [S]`, the server's `[S.]` reply and the attacker's `[R]`, for 12 captured packets and 0 dropped.
+The server shows `10.10.10.30.xxxx > 10.10.10.10.80: Flags [S]`, the server's `[S.]` reply and the attacker's `[R]`, for 30 frames in the reported check (10 of each), with 0 kernel drops. Replies or retransmissions can change the total; stop and inspect if the expected exchange is missing.
 
 ## Before any real flood
 
@@ -178,7 +178,31 @@ Copy the file (several GB), then on the other PC:
 | `Cannot find unique matching interface for enp0s3` | Netplan MAC pin from the clone. Edit the MAC (section 4). |
 | Attacker `enp0s8` is DOWN | Lab cable off. `& $vb controlvm ddos-attacker setlinkstate2 on`. |
 | VM shows "Aborted" | VirtualBox/host problem. Start it again; check `VBox.log` if it repeats. |
+| SSH to a fresh clone says "host key has changed" | Expected after the clone fix: `known_hosts` still holds the server's copied key. Verify the intended VM's exact current host-key fingerprint through its trusted console and compare it with the SSH warning. Only after it matches, remove that specific stale entry with `ssh-keygen -R "[127.0.0.1]:PORT"`. |
+
+## Detector runtime on the server
+
+Ubuntu 26.04 ships a newer Python than the project's 3.12, so the server uses [uv](https://docs.astral.sh/uv/): clone the repository into `~/ML-DDoS-Detector`, create `.venv` with Python 3.12 through uv and install `requirements.txt`. The venv created in this lab had no `pip`, so check dependencies with `uv pip check --python .venv/bin/python`. Then `./.venv/bin/python -m pytest -q` (root-only capture tests skip as a normal user).
+
+For the existing trusted model, first verify the restricted handoff ZIP and model hashes against the owner handoff. Install its runtime pins as well as the project requirements (adjust the local handoff path if needed):
+
+```
+uv pip install --python .venv/bin/python -r requirements.txt -r results/week3-handoff/model-requirements.txt
+uv pip check --python .venv/bin/python
+```
+
+The handoff pins NumPy 2.5.4, SciPy 1.18.1, scikit-learn 1.9.1 and joblib 1.6.0 on Python 3.12. A successful install is not live lab acceptance. Keep the model ZIP off GitHub.
+
+## Snapshots
+
+After the rebuild was verified on November 26, 2026, each VM got a powered-off snapshot named `baseline-2026-11-26` (development `a2ea466`, before any flood). Take a new one after each verified change, and restore with the VM powered off:
+
+```
+& $vb snapshot ddos-server restore baseline-2026-11-26
+```
+
+Snapshots live in the VM folders on the same disk. They protect against a broken guest, not against losing the host, so also keep an OVA export ([Moving the lab to another PC](#moving-the-lab-to-another-pc)) off the PC for that.
 
 ## Still to do
 
-Python 3.12 on the server (Ubuntu 26.04 ships a newer default; plan: `uv`), snapshots of the three VMs, the client's normal-traffic generator, and the detector/iptables setup on the server.
+The policy-to-firewall runner and its lab acceptance on the server (draft PR #47, issue #51).

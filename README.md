@@ -207,6 +207,8 @@ Start here if you are not sure where your work belongs. The "Main owner" column 
 | `docs/api-examples.json` | Mock JSON responses for building the dashboard. | Ayden, Aadi |
 | `frontend/` | Local mock dashboard; see [startup and checks](frontend/README.md). | Aadi |
 | `docs/report-outline.md` | Report outline, contributor responsibilities, and evidence checklist. | Aadi, all contributors |
+| `docs/contributions/` | Per-contributor report drafts (lab and packet processing, ML methodology, traffic and mitigation). | Each author |
+| `CLAUDE.md` | Guidance for AI coding assistants: commands, architecture, deliberate design choices and lab rules. Keep it in step with this README. | Whole team |
 | `.github/workflows/ci.yml` | GitHub Actions CI. | Whole team |
 | `requirements.txt` | Python dependencies. `.python-version` records Python 3.12. | Whole team |
 | `data/` | Local datasets and captures. Gitignored, so it will not appear in a fresh clone. | Local only |
