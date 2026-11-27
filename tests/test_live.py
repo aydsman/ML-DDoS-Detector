@@ -265,3 +265,48 @@ def test_offline_and_live_agree_when_filtered_frames_close_windows(tmp_path):
     offline, _ = extract_pcap(path)
     live, pipeline = replay(frames)
     assert offline == live and pipeline.late_dropped == 1
+
+
+def test_kernel_stats_are_read_from_packet_statistics():
+    class Sock:
+        def getsockopt(self, level, name, size):
+            assert (level, name) == (capture.SOL_PACKET, capture.PACKET_STATISTICS)
+            return struct.pack("@II", 1200, 7)
+
+    assert capture.read_kernel_stats(Sock()) == (1200, 7)
+
+
+def test_kernel_stats_unreadable_is_none_not_zero():
+    class Sock:
+        def getsockopt(self, *args):
+            raise OSError("not a packet socket")
+
+    assert capture.read_kernel_stats(Sock()) is None
+
+
+def test_capture_stats_accumulate_and_start_unknown():
+    stats = capture.CaptureStats()
+    assert stats.packets is None and stats.drops is None
+    stats.add(10, 1)
+    stats.add(5, 0)
+    assert (stats.packets, stats.drops) == (15, 1)
+
+
+def test_frames_generator_reads_counters_when_closed():
+    class Sock:
+        closed = False
+
+        def recvmsg(self, *args):
+            raise TimeoutError
+
+        def getsockopt(self, *args):
+            return struct.pack("@II", 50, 3)
+
+        def close(self):
+            self.closed = True
+
+    stats, sock = capture.CaptureStats(), Sock()
+    frames = capture._frames(sock, None, stats)
+    assert next(frames) is None
+    frames.close()
+    assert (stats.packets, stats.drops) == (50, 3) and sock.closed

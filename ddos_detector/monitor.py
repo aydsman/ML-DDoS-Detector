@@ -8,6 +8,7 @@ logged as not scored with the reason, never as benign or as zero.
 import argparse
 import json
 import math
+import signal
 import sys
 import time
 from dataclasses import replace
@@ -26,6 +27,10 @@ def window_record(record, window_seconds):
             "window_seconds": window_seconds, "features": record.features}
 
 
+class _NoStats:
+    packets = drops = None
+
+
 class Monitor:
     """Score finished windows and write one log line each. Monitor-only."""
 
@@ -39,6 +44,7 @@ class Monitor:
         self.live = live  # only live windows have a meaningful processing delay
         self.windows = self.scored = self.not_scored = self.predicted_attack = 0
         self.max_delay = None
+        self.capture_stats = None  # set by main() for live capture
 
     def handle(self, record):
         started = self.clock()
@@ -71,6 +77,14 @@ class Monitor:
 
     def status(self, pipeline, state, reason=None):
         """Machine-readable lifecycle/coverage limits alongside window audit records."""
+        stats = self.capture_stats or _NoStats
+        if stats.drops is None:
+            coverage_note = ("Processing status is not proof of complete capture; "
+                             "backlog/kernel drops are unmeasured.")
+        else:
+            coverage_note = ("kernel_drops is the capture socket's own drop counter, read when capture ended. "
+                             "Zero drops do not prove the NIC or the wire delivered everything. "
+                             "Backlog is not measured; max_processing_delay_s is the nearest signal.")
         line = {"record_type": "monitor_status", "monitor_only": True,
                 "logged_at": self.clock(), "status": state, "reason": reason,
                 "source_mode": "live" if self.live else "replay",
@@ -82,13 +96,17 @@ class Monitor:
                 "partial_windows_discarded": pipeline.partial_windows_discarded,
                 "gaps": [vars(gap) for gap in pipeline.gaps],
                 "max_processing_delay_s": self.max_delay,
-                "backlog": None, "kernel_drops": None,
-                "coverage_note": "Processing status is not proof of complete capture; backlog/kernel drops are unmeasured."}
+                "backlog": None, "kernel_packets": stats.packets, "kernel_drops": stats.drops,
+                "coverage_note": coverage_note}
         self.log.write(json.dumps(line) + "\n")
         self.log.flush()
         if self.deliver is not None:
             self.deliver(line)
         return line
+
+
+def _terminate_as_interrupt(signum, frame):
+    raise KeyboardInterrupt
 
 
 def main(argv=None, *, deliver=None):
@@ -123,16 +141,27 @@ def main(argv=None, *, deliver=None):
     monitor = Monitor(args.model, log, args.window, live=bool(args.interface),
                       loaded_model=loaded_model, deliver=deliver)
     exit_code = 0
+    # A background job started by a shell script ignores SIGINT, so scripts/monitor-stop.sh
+    # sends SIGTERM. Treat it like Ctrl+C: discard the partial window, write the final record.
+    previous_sigterm = None
     try:
-        monitor.status(pipeline, "started")
+        previous_sigterm = signal.signal(signal.SIGTERM, _terminate_as_interrupt)
+    except (ValueError, OSError):
+        pass  # not the main thread, or the platform has no SIGTERM handler
+    try:
         if args.replay:
+            monitor.status(pipeline, "started")
             for record in pipeline.run(read_pcap(args.replay)):
                 monitor.handle(record)
         else:
-            from .capture import capture_frames
+            from .capture import CaptureStats, capture_frames
+            monitor.capture_stats = CaptureStats()
+            frames = capture_frames(args.interface, duration=args.duration, stats=monitor.capture_stats)
             try:
-                for record in pipeline.run(capture_frames(args.interface, duration=args.duration),
-                                           flush_at_end=False):
+                # capture_frames opens and binds synchronously; scripts must not
+                # report readiness before that operation has succeeded.
+                monitor.status(pipeline, "started")
+                for record in pipeline.run(frames, flush_at_end=False):
                     monitor.handle(record)
                 if pipeline.status == "ok":
                     for record in pipeline.stop(pipeline.clock()):
@@ -140,6 +169,8 @@ def main(argv=None, *, deliver=None):
             except KeyboardInterrupt:
                 for record in pipeline.stop(pipeline.clock()):
                     monitor.handle(record)
+            finally:
+                frames.close()  # reads the kernel counters before the final status record
         monitor.status(pipeline, "completed" if pipeline.status == "ok" else "unavailable")
     except (PcapError, OSError, NotImplementedError, ValueError) as exc:
         pipeline.fail(f"{type(exc).__name__}: {exc}")
@@ -150,7 +181,11 @@ def main(argv=None, *, deliver=None):
         print(f"error: {exc}", file=sys.stderr)
         return 2
     finally:
-        log.close()
+        try:
+            log.close()
+        finally:
+            if previous_sigterm is not None:
+                signal.signal(signal.SIGTERM, previous_sigterm)
     if pipeline.status != "ok":
         exit_code = 1
     print(f"windows: {monitor.windows}")
@@ -159,6 +194,8 @@ def main(argv=None, *, deliver=None):
     print(f"predicted_attack: {monitor.predicted_attack}")
     if args.interface:
         print(f"max_processing_delay_s: {monitor.max_delay}")
+        print(f"kernel_packets: {monitor.capture_stats.packets}")
+        print(f"kernel_drops: {monitor.capture_stats.drops}")
     print("skipped: " + (", ".join(f"{k}={v}" for k, v in sorted(pipeline.skips.items())) or "none"))
     print(f"late_dropped: {pipeline.late_dropped}")
     print(f"status: {pipeline.status}")

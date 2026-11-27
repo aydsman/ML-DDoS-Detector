@@ -228,3 +228,24 @@ def test_live_entry_point_rejects_incompatible_options(arguments):
     with pytest.raises(SystemExit) as error:
         api.main(arguments)
     assert error.value.code == 2
+
+
+def test_capture_startup_failure_delivers_unavailable_without_started(tmp_path, model_dir, monkeypatch):
+    from ddos_detector import capture, monitor
+
+    def unavailable(*args, **kwargs):
+        raise PermissionError("test capture cannot open")
+
+    monkeypatch.setattr(capture, "capture_frames", unavailable)
+    store = api.DashboardStore()
+    log = tmp_path / "capture-unavailable.jsonl"
+    assert monitor.main(["--interface", "enp0s8", "--model", str(model_dir),
+                         "--log", str(log)], deliver=store.ingest) == 2
+    health, headers = store.snapshot("health")
+    assert health["capture_status"] == "error"
+    assert headers["X-Dashboard-Freshness"] == "unavailable"
+    assert store.snapshot("metrics")[0]["points"] == []
+    rows = [json.loads(line) for line in log.read_text().splitlines()]
+    assert [row["status"] for row in rows] == ["unavailable"]
+    archived = api.DashboardStore.from_audit_log(map(json.dumps, rows))
+    assert archived.snapshot("health")[1]["X-Dashboard-Freshness"] == "unavailable"

@@ -94,7 +94,7 @@ class DashboardStore:
             raise ValueError("Invalid monitor provenance")
         if not isinstance(model, str) or not model:
             raise ValueError("Missing model identity")
-        if state == "started" and self._state == "idle":
+        if self._state == "idle" and state in ("started", "unavailable"):
             self._source, self._data_kind, self._model = source, data_kind, model
             self._started_at = event["logged_at"]
         elif (self._state != "started" or state not in ("completed", "unavailable")
