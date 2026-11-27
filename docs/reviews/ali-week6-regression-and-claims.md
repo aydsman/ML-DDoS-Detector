@@ -26,7 +26,9 @@ The [saved regression record](ali-week6-regression.json) lists the exact skipped
 | CIC 479 windows, eight candidate positives, 471 excluded | Historical v1 candidate count and manifest reconciliation. CIC labels and train/test split require the [source handoff](https://github.com/aydsman/ML-DDoS-Detector/issues/3). |
 | Incident delay, protection benefit, service recovery, held-out accuracy | Pending approved policy, matched full-system logs and held-out release. |
 
-For the demo, the frontend tests exercise current, recorded, stale and unavailable states. The saved benign lab acceptance includes advancing API results and capture startup failure. Active block and expiry with measured client recovery require the integrated Linux acceptance. ## Final handoff
+For the demo, the frontend tests exercise current, recorded, stale and unavailable states. The saved benign lab acceptance includes advancing API results and capture startup failure. Active block and expiry with measured client recovery require the integrated Linux acceptance.
+
+## Final handoff
 
 - Run the checks above on the final candidate and retain the full commit ID, runtime and skipped cases.
 - Reconcile sections 9 and 10 with the [evaluation figure and its source data](https://github.com/aydsman/ML-DDoS-Detector/pull/59). Preserve the label on the benign monitor runs and the achieved request rate in every reuse of the chart.
