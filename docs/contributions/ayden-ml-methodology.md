@@ -178,9 +178,7 @@ The Random Forest remains the existing W3 handoff baseline: its saved-artifact
 guards, reload/scoring path and offline monitor/API replay have been exercised.
 The MLP ties its eligible S2 validation scores and is a comparison candidate.
 This is a provisional integration choice, not evidence that the forest is
-more accurate or faster. Final selection requires independent review,
-reproducible settings and the agreed evaluation; neither the validation tie
-nor local timing alone establishes the best deployed detector.
+more accurate or faster. Fix the primary classifier choice using independently reviewed validation evidence and reproducible settings before revealing S3. The held-out comparison measures those frozen choices; it must not be used to retune or switch the deployed classifier. Neither the validation tie nor local timing alone establishes the best deployed detector.
 
 ## Inference-time measurement
 
