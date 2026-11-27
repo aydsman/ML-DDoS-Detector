@@ -37,7 +37,20 @@ git clone https://github.com/aydsman/ML-DDoS-Detector.git ~/ML-DDoS-Detector && 
 .venv/bin/python -m tools.lab_timing_check --role client     # on the client: needs >= 98% of slots
 ```
 
-Don't record if either check fails. On November 27 both failed on this host. A 10 pps rehearsal delivered 44–58% of SYN slots and 62% of client requests, because VirtualBox fell back to running on Hyper-V (`VBox.log`: "VT-x is not available ... fall back to NEM") while Windows virtualization-based security was on. Fix the host first, then run the gate again.
+Don't record if either check fails.
+
+**November 27: what it took to pass on this host.** At first both checks failed. A 10 pps rehearsal delivered 44–58% of SYN slots and 62% of client requests. There were two causes:
+
+1. **VirtualBox ran on top of Hyper-V** (`VBox.log`: "VT-x is not available ... fall back to NEM"). The fix on the Windows host, followed by a reboot:
+   - Turn Memory integrity off (Windows Security → Device security → Core isolation).
+   - Run `bcdedit /set hypervisorlaunchtype off` in an admin terminal.
+   - Set `HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard` `EnableVirtualizationBasedSecurity = 0`.
+   - Set `...\DeviceGuard\Scenarios\WindowsHello` `Enabled = 0`. Windows Hello Enhanced Sign-in Security keeps virtualization-based security on by itself, even with the other three changes; this PC has no biometric sensor.
+
+   Check with `VBox.log` (expect "HM: Using VT-x") and the System event log: Kernel-Boot event 153 should say "Virtualization-based security (policies: 0) is disabled".
+2. **Idle virtual CPUs woke late.** In the guest, `sleep(5 ms)` took 8.5–8.8 ms. That kept the attacker at 84–90% even on VT-x. Host timer and power-throttling settings didn't help. The fix: boot the client and attacker with `idle=poll`. Set `GRUB_CMDLINE_LINUX_DEFAULT="idle=poll"` in `/etc/default/grub` (the old file is kept as `/etc/default/grub.before-idle-poll`), run `sudo update-grub`, reboot, and confirm with `grep idle=poll /proc/cmdline`. Cost: each of those VMs keeps its 2 virtual CPUs busy while running.
+
+After both fixes: attacker 98.9–99.1% at 160 pps, client 100% on 4 runs at 20 requests/s, and `sleep(5 ms)` about 5.2 ms. All three VMs pass `pytest -q` at 9f216d4 (596 passed, 7 skipped). The powered-off snapshot `rerec-ready-2026-11-27` holds this state. To undo, reverse each setting and reboot.
 
 From the host, on all three VMs (`ssh -p 2222/2223/2224 lab@127.0.0.1`):
 
