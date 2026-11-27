@@ -21,6 +21,8 @@ Coordinator/editor: Aadi. Week 1 draft, October 26, 2026. Confirm the instructor
 
 ## Contribution handoff
 
+[Ali’s experimental method, available results, and figure](contributions/ali-evaluation.md) are ready for report sections 9 and 10. Preserve the observed-load denominators and the distinction between monitored benign runs, validation and final evaluation.
+
 Each owner supplies prose, source paths/commit, exact commands and versions, evidence, citations, and known limitations. Leave results as placeholders until experiments exist. Do not present mock dashboard values as measured results. Keep large captures and credentials outside Git; the group-sharing Word summary stays off GitHub as required by the handoff.
 
 ## Week 1 deliverables and review
