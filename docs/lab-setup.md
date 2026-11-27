@@ -178,7 +178,22 @@ Copy the file (several GB), then on the other PC:
 | `Cannot find unique matching interface for enp0s3` | Netplan MAC pin from the clone. Edit the MAC (section 4). |
 | Attacker `enp0s8` is DOWN | Lab cable off. `& $vb controlvm ddos-attacker setlinkstate2 on`. |
 | VM shows "Aborted" | VirtualBox/host problem. Start it again; check `VBox.log` if it repeats. |
+| SSH to a fresh clone says "host key has changed" | Expected after the clone fix: `known_hosts` still holds the server's copied key. Confirm the new fingerprint differs from the server's, then `ssh-keygen -R "[127.0.0.1]:PORT"`. |
+
+## Detector runtime on the server
+
+Ubuntu 26.04 ships a newer Python than the project's 3.12, so the server uses [uv](https://docs.astral.sh/uv/): clone the repository into `~/ML-DDoS-Detector`, create `.venv` with Python 3.12 through uv and install `requirements.txt`. A uv-created venv has no `pip`, so check dependencies with `uv pip check --python .venv/bin/python`. Then `./.venv/bin/python -m pytest -q` (root-only capture tests skip as a normal user).
+
+## Snapshots
+
+After the rebuild was verified on November 26, 2026, each VM got a powered-off snapshot named `baseline-2026-11-26` (development `a2ea466`, before any flood). Take a new one after each verified change, and restore with the VM powered off:
+
+```
+& $vb snapshot ddos-server restore baseline-2026-11-26
+```
+
+Snapshots live in the VM folders on the same disk. They protect against a broken guest, not against losing the host, so also keep an OVA export ([Moving the lab to another PC](#moving-the-lab-to-another-pc)) off the PC for that.
 
 ## Still to do
 
-Python 3.12 on the server (Ubuntu 26.04 ships a newer default; plan: `uv`), snapshots of the three VMs, the client's normal-traffic generator, and the detector/iptables setup on the server.
+The policy-to-firewall runner and its lab acceptance on the server (draft PR #47, issue #51).
