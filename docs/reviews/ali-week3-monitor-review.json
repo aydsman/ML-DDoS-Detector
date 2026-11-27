@@ -1,0 +1,60 @@
+{
+  "archive_sha256": "3979d320fe760c0ad2e0b549c22d719fb3c330b18804651c0af2cdf9b0b572e6",
+  "manifest_members_verified": 92,
+  "tested_revision": "f99ca6bce1f63441fca3c1636558293c41f07aa3",
+  "monitor": {
+    "01": {
+      "windows": 70,
+      "packets": 418,
+      "alert_windows": 0,
+      "missing_epoch_seconds_inside_observed_span": 12,
+      "reported_gap_records": 0,
+      "late_dropped": 0,
+      "kernel_drops": null,
+      "backlog": null,
+      "post_window_processing_s_p50": 1.127,
+      "post_window_processing_s_p95": 1.43865,
+      "post_window_processing_s_max": 1.496,
+      "scoring_s_p95": 0.004954999999999999
+    },
+    "02": {
+      "windows": 57,
+      "packets": 230,
+      "alert_windows": 0,
+      "missing_epoch_seconds_inside_observed_span": 15,
+      "reported_gap_records": 0,
+      "late_dropped": 0,
+      "kernel_drops": null,
+      "backlog": null,
+      "post_window_processing_s_p50": 1.191,
+      "post_window_processing_s_p95": 1.432,
+      "post_window_processing_s_max": 1.47,
+      "scoring_s_p95": 0.0048
+    },
+    "03": {
+      "windows": 46,
+      "packets": 204,
+      "alert_windows": 0,
+      "missing_epoch_seconds_inside_observed_span": 5,
+      "reported_gap_records": 0,
+      "late_dropped": 0,
+      "kernel_drops": null,
+      "backlog": null,
+      "post_window_processing_s_p50": 1.167,
+      "post_window_processing_s_p95": 1.44225,
+      "post_window_processing_s_max": 1.479,
+      "scoring_s_p95": 0.00575
+    }
+  },
+  "run03_capture": {
+    "raw_frames": 308,
+    "selected_packets": 204,
+    "matched_packet_count_windows": 46,
+    "matched_byte_rate_windows": 34,
+    "advancing_snapshots": {
+      "02": 4,
+      "03": 3
+    }
+  },
+  "startup_failure_status": "unavailable"
+}
