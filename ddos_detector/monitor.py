@@ -27,22 +27,28 @@ def window_record(record, window_seconds):
 
 
 class Monitor:
-    """Score finished windows and write one log line each. Monitor-only."""
+    """Score finished windows; the W4 caller explicitly labels automatic runs.
 
-    def __init__(self, model_dir, log, window_seconds, clock=time.time, live=False, loaded_model=None, deliver=None):
+    The original monitor CLI stays monitor-only. Enforcement belongs to the
+    separate mitigate runner and its delivery callback.
+    """
+
+    def __init__(self, model_dir, log, window_seconds, clock=time.time, live=False, loaded_model=None, deliver=None,
+                 monitor_only=True):
         self.model_dir = model_dir
         self.loaded_model = load_model(model_dir) if loaded_model is None else loaded_model
         self.log = log
         self.window_seconds = window_seconds
         self.clock = clock
         self.deliver = deliver
+        self.monitor_only = monitor_only
         self.live = live  # only live windows have a meaningful processing delay
         self.windows = self.scored = self.not_scored = self.predicted_attack = 0
         self.max_delay = None
 
     def handle(self, record):
         started = self.clock()
-        line = {"record_type": "window", "monitor_only": True, "window_start": record.window_start,
+        line = {"record_type": "window", "monitor_only": self.monitor_only, "window_start": record.window_start,
                 "window_end": record.window_end, "packet_count": record.packet_count,
                 "logged_at": started}
         # Delay since the window ended; replayed pcaps have historical times, so no delay.
@@ -71,7 +77,7 @@ class Monitor:
 
     def status(self, pipeline, state, reason=None):
         """Machine-readable lifecycle/coverage limits alongside window audit records."""
-        line = {"record_type": "monitor_status", "monitor_only": True,
+        line = {"record_type": "monitor_status", "monitor_only": self.monitor_only,
                 "logged_at": self.clock(), "status": state, "reason": reason,
                 "source_mode": "live" if self.live else "replay",
                 "data_kind": self.loaded_model[1]["data"]["data_kind"],

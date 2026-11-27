@@ -139,14 +139,13 @@ Denominator: every packet that passed selection in that window, meaning IPv4 TCP
 - A single-source flood has share 1.0 and a 10-source flood has about 0.1 each, so a high `min_share` deliberately leaves distributed or spoofed floods to the separate rate-limiting proposal.
 - Because the denominator includes the legitimate client's traffic, the client's own share rises when it is the only source. The rate threshold, not the share, must keep it from qualifying.
 
-### Method to set the numbers (no numbers invented)
+### Method to validate the combined policy
 
-Pick every value only from lab and validation runs, never from 03-11 or other final-test data. For each protocol:
+Use the complete policy implemented in PR #47. A source qualifies only in a model-flagged aggregate window, subject to the source rate/SYN and share tests and the consecutive-window rule. Evaluate that combined sequence on the reviewed training/validation sessions.
 
-1. Benign ceiling: the maximum per-window packets/s (and SYN/s for TCP) of any legitimate source across the benign validation runs.
-2. Attack floor: the minimum per-window rate of a labelled attack source across the attack validation runs.
-3. If the floor is not clearly above the ceiling, leave that protocol's threshold unset. Otherwise choose a value in the gap. The margin is a decision for Ayden and Ali, not something the current data decides.
-4. `min_share`: pick from runs where the attacker and the client send at the same time. The value must keep the client's group below the rate threshold in every window and let the attacker through. Report how many validation windows change with each candidate value.
+The reported unconditional benign and attack rate overlap leaves the combined policy's performance unresolved. Select candidate settings using training evidence, compare them on validation and record source-level false requests, missed qualifying incidents, decision delay and exclusions. Retain the existing defaults until a candidate is supported by that evidence.
+
+Vince supplies complete per-window source/protocol packet and known SYN-only counts from the original S1/S2 captures, aligned with the aggregate score and reviewed labels. Preserve window/run identities, capture hashes, unknown/capped/boundary flags and gaps. The available aggregate-only records cannot establish those source counts. Use the measured processing delays and clock evidence to justify the maximum window age. Preserve S3 for the frozen final evaluation.
 
 ### Evidence to collect (proposed commands, run on the lab VMs)
 
@@ -253,4 +252,4 @@ Proposal: keep the twelve version-one features unchanged for the first validatio
 
 Ayden accepts the documented share denominator and bookkeeping design, including pending-slot reservations, no eviction, confirmed-removal expiry, fresh streaks after expiry and mode changes, no timer renewal, numeric-IP tie breaking and allowlist checks plus lab-interface scoping. Unknown installation/removal outcomes retain their cap reservation until verified reconciliation. Returning to monitor-only stops new automatic requests but does not silently claim existing blocks removed; confirmation and expiry still apply. This accepts a design, not working enforcement.
 
-Keep `syn_ack_ratio` and all twelve schema-v1 features unchanged for the baseline. The reported redundancy is worth recording but does not justify silently changing a model contract. A later schema-v2 comparison requires new artifacts, validation-only selection and retraining; the final test must not drive this choice. Retain null rate/share thresholds and `allowlist.verified=false` until actual evidence supports them. No runtime component loads these draft defaults.
+Keep `syn_ack_ratio` and all twelve schema-v1 features unchanged for the baseline. The reported redundancy is worth recording but does not justify silently changing a model contract. A later schema-v2 comparison requires new artifacts, validation-only selection and retraining; the final test must not drive this choice. Retain null rate/share thresholds and `allowlist.verified=false` until actual evidence supports them. The draft W4 runner reads these defaults for monitor-only review.

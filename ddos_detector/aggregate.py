@@ -8,6 +8,14 @@ from .features import WindowAccumulator
 
 
 @dataclass(frozen=True)
+class SourceCount:
+    source_ip: str
+    protocol: str
+    packets: int
+    syn_packets: int = 0
+
+
+@dataclass(frozen=True)
 class WindowRecord:
     window_start: float
     window_end: float  # exclusive
@@ -16,6 +24,7 @@ class WindowRecord:
     # Diagnostics, kept outside the model vector.
     capped: bool = False
     untracked_source_packets: int = 0  # packets from sources beyond the per-window cap
+    source_counts: tuple[SourceCount, ...] = ()  # diagnostics, never model inputs
 
     @property
     def features(self):
@@ -102,6 +111,8 @@ class WindowAggregator:
             packet_count=acc.n,
             capped=acc.capped,
             untracked_source_packets=acc.untracked_source_packets,
+            source_counts=tuple(SourceCount(src, proto, count, acc.source_syns[src, proto])
+                                for (src, proto), count in sorted(acc.source_protocols.items())),
         )
 
 

@@ -6,9 +6,9 @@ Owner: Mujtaba. November 19, 2026.
 
 1. Finish PR #36 updated-head lab verification with Vince and reviewer acceptance.
    The adapter is implemented; W3 stays In progress until acceptance and merge.
-2. Connect Ayden's approved policy producer to the adapter after the source
-   evidence and settings are available. W4 is Ready; its November 18 planning
-   deadline has passed. A ready card does not establish validated thresholds.
+2. Review and validate the [implemented W4 source-policy/enforcement runner](w4-enforcement.md)
+   with Ayden and Vince. The November 18 planning deadline has passed; owner
+   review and validated settings remain required before automatic lab acceptance.
 3. Collect W5 experiments using Ali's agreed schedule and frozen configuration;
    the planning deadline is November 25. The report contribution is prepared in
    [traffic and mitigation](contributions/mujtaba-traffic-mitigation.md).
@@ -28,12 +28,13 @@ Owner: Mujtaba. November 19, 2026.
 | Shutdown/reset | Stop accepting new requests, call verified cleanup, retain unresolved journal entries, and remove the owned table only after verified absence |
 
 `FirewallAdapter` enforces scope, cap, duplicate reservations, original deadlines
-and durable cleanup. Ayden's policy producer must own eligibility, ordering and
-streak resets. The current `Monitor.deliver` callback receives aggregate records;
-`WindowRecord` does not supply finalized source/protocol attribution. The current
-API store accepts monitor-only events and serves an empty block list. Those
-producer/store interfaces need integration with their owners before the automatic
-loop can be claimed complete. Do not invent sources or fill null thresholds.
+and durable cleanup. The W4 `SourcePolicy`/`Enforcement` implementation now owns
+eligibility, ordering and streak resets using finalized `WindowRecord.source_counts`.
+It needs Ayden's review against the accepted design and validated settings. The
+separate `mitigate` runner connects capture, scoring, policy and firewall. The
+current API store still accepts monitor-only events and serves an empty block
+list; dashboard controls/store integration remain with Aadi/Ayden. Do not invent
+sources or fill null thresholds.
 
 The manual lab helper in [the adapter guide](firewall-adapter.md#updated-head-external-removal-check)
 checks the latest polling fix. It does not substitute for policy-driven trials.
@@ -100,12 +101,13 @@ with its reason instead of labelling monitor-only traffic as ML mitigation.
 
 ## Acceptance still needed
 
-- Vince: updated-head PR #36 external-disappearance check and reachability, with
-  evidence path and tested commit; requested review before merge.
+- PR #36 is merged after Vince's November 20 exact-head external-disappearance
+  and HTTP/SSH reachability approval at `3de3ce6`. Preserve the review's limits;
+  the W4 policy-driven cases still require new isolated-Linux evidence.
 - Ali: W2 scenario export-format acceptance and W5 schedule/configuration.
-- Ayden: approved source-policy producer/settings and dashboard integration.
-- Mujtaba: connect that producer, exercise the full lifecycle across repeated
-  trials, preserve records and update the contribution with verified results.
+- Ayden: review the implemented source policy/settings and dashboard integration.
+- Mujtaba: resolve review findings, exercise the implemented lifecycle across
+  repeated lab trials, preserve records and update the contribution with verified results.
 - Aadi: incorporate the prepared prose into the final report with evidence links.
 
 This checklist and contribution are prepared work. No experiment is marked run,

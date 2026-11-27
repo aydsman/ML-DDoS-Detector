@@ -14,6 +14,10 @@ from .firewall_state import FirewallState
 
 def load_settings(path):
     document = json.loads(Path(path).read_text(encoding="utf-8"))
+    return settings_from_document(document)
+
+
+def settings_from_document(document):
     if document["schema"] != "policy-defaults-draft-1":
         raise ValueError("Unsupported policy configuration")
     scope = document["scope"]
@@ -24,8 +28,8 @@ def load_settings(path):
                          document["allowlist"]["verified"]), document["blocks"]["max_active_blocks"]
 
 
-def report(adapter):
-    last_state = {event.block_id: event.rule_state for event in adapter.audit_events}
+def report(adapter, *, include_events=True):
+    last_state = adapter.latest_rule_states
     pending = adapter.pending_requests
     blocks = [{"id": block.request.block_id, "source_ip": block.request.source_ip,
                "reason": block.request.reason,
@@ -37,7 +41,7 @@ def report(adapter):
     return {"reserved_slots": len(pending), "blocks": blocks,
             "uncertain_block_ids": sorted(request.block_id for request in pending
                                           if last_state.get(request.block_id) != RuleState.INSTALLED),
-            "events": list(adapter.audit_records)}
+            "events": list(adapter.audit_records) if include_events else []}
 
 
 def poll(adapter, interval, *, sleep=time.sleep):

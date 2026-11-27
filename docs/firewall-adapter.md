@@ -124,7 +124,7 @@ revisions only.
 
 Ayden's `aa327a4` rechecks active rules on each poll and includes startup
 reconciliation in interrupt cleanup. The November 17 lab report predates that
-change. Run the following on the isolated server after checking out the exact
+change. Run this from a Git checkout on the isolated server after checking out the exact
 PR head, with the owner-verified local configuration and no other firewall
 worker or experiment running:
 
@@ -152,11 +152,24 @@ that directory's `config.json` and `--state <directory>/state.sqlite`.
 A killed process can leave `status: running`; that record is incomplete.
 The test's own cleanup is attempted on an ordinary exception or Ctrl+C.
 
-Vince should attach the report reference and tested commit to PR #36, record
-HTTP/SSH reachability, and review the updated head before merge. Offline tests
-of this helper do not replace that lab result.
+Vince approved the tested head `3de3ce6` on November 20, 2026. His report
+records successful external removal, retirement and repeated cleanup
+(`check.json` SHA-256 `805d90d421e65486f9b9ddc33ee0ab1e984e7a46bc3f11a57578b91f354411ca`).
+A separate 90-second block stopped attacker HTTP until expiry while legitimate
+HTTP and management SSH remained reachable. These are collaborator-reported
+lab observations, not independently replayed raw artifacts. The November 17
+scope/crash checks were at `2895768` and were not repeated on this head.
+See [the exact-head review](https://github.com/aydsman/ML-DDoS-Detector/pull/36).
+PR #36 is merged into development; W4 automatic-policy trials remain separate.
+Offline tests do not replace lab acceptance.
 
 ## W4 handoff
+
+The [W4 enforcement runner](w4-enforcement.md) now connects finalized-window
+source diagnostics and the accepted policy design to this adapter. Its default
+is monitor-only; approved thresholds, reviewed source-policy behavior and runtime
+scope are still required for automatic lab acceptance. The original monitor/API
+flow below continues to operate independently.
 
 The adapter accepts explicit `BlockRequest` objects. The existing monitor and
 dashboard continue their monitor-only flow. W4 policy integration needs actual

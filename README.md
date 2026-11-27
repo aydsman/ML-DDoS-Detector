@@ -393,3 +393,11 @@ See [the training guide](docs/training.md) for labelled-window preparation, dete
 ### Monitor-only scoring
 
 See [the monitor runner and backend handoff](docs/monitor.md) for replay/live entry points, typed audit records, failure semantics and the direct-state-store integration decision. This remains monitor-only; no API or firewall connection is claimed.
+
+### W4 policy and enforcement runner
+
+See [the source-policy and enforcement guide](docs/w4-enforcement.md) for the
+separate `ddos_detector.mitigate` entry point, source attribution, temporary block
+lifecycle, cleanup and regression checks. Defaults remain monitor-only with
+unvalidated settings; automatic execution requires reviewed configuration and
+isolated-Linux verification. This runner does not add dashboard mode controls.
