@@ -1,0 +1,123 @@
+{
+  "date": "2026-11-26",
+  "scope": "Owner artifact staging, runtime and report-claim verification; not final release",
+  "operator": "Ayden via Codex (AI-assisted owner review; not Aadi approval)",
+  "reviewed_preparation_commit": "3a800cc2c764527b53c035f4164aecc7f6ac1feb",
+  "independent_method_review_ref": "https://github.com/aydsman/ML-DDoS-Detector/pull/52#pullrequestreview-6083217879",
+  "candidate_document_sha256": "de013945378376a5698596f160dacad6004ffd40bd498f43a286af010addd5c4",
+  "candidate_status": "proposed",
+  "approval_ref": null,
+  "artifacts": [
+    {
+      "name": "records",
+      "expected_sha256": "abfb8270d4120cda5aaf7d41245e8efaa8078c7c599ae1da674994ac0cb54519",
+      "source_sha256": "abfb8270d4120cda5aaf7d41245e8efaa8078c7c599ae1da674994ac0cb54519",
+      "staged_sha256": "abfb8270d4120cda5aaf7d41245e8efaa8078c7c599ae1da674994ac0cb54519",
+      "bytes": 1936751,
+      "matches": true
+    },
+    {
+      "name": "manifest",
+      "expected_sha256": "fd42c0d424a3fc61d51bec9c1f03b56f313c4021036bdaad8de7c8453dbefc05",
+      "source_sha256": "fd42c0d424a3fc61d51bec9c1f03b56f313c4021036bdaad8de7c8453dbefc05",
+      "staged_sha256": "fd42c0d424a3fc61d51bec9c1f03b56f313c4021036bdaad8de7c8453dbefc05",
+      "bytes": 5984,
+      "matches": true
+    },
+    {
+      "name": "forest_model",
+      "expected_sha256": "44f2ae879b63414c8af7d7c1165e7a0d462c9545f6190f7a8a7b2f00aa9e9fe7",
+      "source_sha256": "44f2ae879b63414c8af7d7c1165e7a0d462c9545f6190f7a8a7b2f00aa9e9fe7",
+      "staged_sha256": "44f2ae879b63414c8af7d7c1165e7a0d462c9545f6190f7a8a7b2f00aa9e9fe7",
+      "bytes": 69234,
+      "matches": true
+    },
+    {
+      "name": "forest_metadata",
+      "expected_sha256": "656e49369d3d625d69e8d4cab33769935a6c0f8511a0977a15bfe73016e337a3",
+      "source_sha256": "656e49369d3d625d69e8d4cab33769935a6c0f8511a0977a15bfe73016e337a3",
+      "staged_sha256": "656e49369d3d625d69e8d4cab33769935a6c0f8511a0977a15bfe73016e337a3",
+      "bytes": 2674,
+      "matches": true
+    },
+    {
+      "name": "forest_validation",
+      "expected_sha256": "d0d00b09e483734da01f08e4ed033e1c221b2945f5e0190025610f975eb7854f",
+      "source_sha256": "d0d00b09e483734da01f08e4ed033e1c221b2945f5e0190025610f975eb7854f",
+      "staged_sha256": "d0d00b09e483734da01f08e4ed033e1c221b2945f5e0190025610f975eb7854f",
+      "bytes": 63694,
+      "matches": true
+    },
+    {
+      "name": "mlp_model",
+      "expected_sha256": "4ccca7213657ada1e114d5df0a79b28c6e26de9ffc78a113e7f7491bb6120393",
+      "source_sha256": "4ccca7213657ada1e114d5df0a79b28c6e26de9ffc78a113e7f7491bb6120393",
+      "staged_sha256": "4ccca7213657ada1e114d5df0a79b28c6e26de9ffc78a113e7f7491bb6120393",
+      "bytes": 11524,
+      "matches": true
+    },
+    {
+      "name": "comparison_metadata",
+      "expected_sha256": "7275638fb13dfe60710ebb1c9dfdacebc6fff0d7af92e463f68301038e9eaef8",
+      "source_sha256": "7275638fb13dfe60710ebb1c9dfdacebc6fff0d7af92e463f68301038e9eaef8",
+      "staged_sha256": "7275638fb13dfe60710ebb1c9dfdacebc6fff0d7af92e463f68301038e9eaef8",
+      "bytes": 2850,
+      "matches": true
+    },
+    {
+      "name": "comparison_validation",
+      "expected_sha256": "1a95566bd66466221dcdafe187e8f96489769aafe526c047557c62c9d920f262",
+      "source_sha256": "1a95566bd66466221dcdafe187e8f96489769aafe526c047557c62c9d920f262",
+      "staged_sha256": "1a95566bd66466221dcdafe187e8f96489769aafe526c047557c62c9d920f262",
+      "bytes": 104529,
+      "matches": true
+    }
+  ],
+  "runtime": {
+    "python": "3.12.10",
+    "numpy": "2.5.4",
+    "scikit_learn": "1.9.1",
+    "scipy": "1.18.1",
+    "joblib": "1.6.0"
+  },
+  "runtime_matches_both_packages": true,
+  "feature_order_matches": true,
+  "model_and_input_metadata_links_match": true,
+  "saved_thresholds_match": true,
+  "recorded_run_assignments_disjoint": true,
+  "split_verification_scope": "Existing reviewed input/manifest hashes and saved split metadata; no new raw PCAP label verification",
+  "original_files_unchanged": true,
+  "proposed_release_refusal": "Final test requires an approved freeze and actual review reference",
+  "raw_timing_samples_sha256": "e0d38d695bbd307f890c3409d7a5cda2371f604825abc98c6647908ec6a334a4",
+  "raw_timing_summary_recomputed": {
+    "random_forest": {
+      "calls": 2750,
+      "median_ms": 21.807299999999998,
+      "p95_ms": 38.519209999999994,
+      "mean_ms": 24.559350763636367,
+      "min_ms": 12.8906,
+      "max_ms": 87.096
+    },
+    "mlp": {
+      "calls": 2750,
+      "median_ms": 1.1616,
+      "p95_ms": 2.194704999999999,
+      "mean_ms": 1.3479590181818182,
+      "min_ms": 0.4858,
+      "max_ms": 10.6721
+    }
+  },
+  "estimator_deserialization_performed": false,
+  "prediction_calls_performed": 0,
+  "real_models_refitted": false,
+  "final_test_executed": false,
+  "cross_team_no_prior_evaluation_confirmed": false,
+  "release_status": "withheld",
+  "remaining_release_gates": [
+    "Record final pre-S3 classifier choice; resolve whether W4 policy work could change it",
+    "Confirm with the team that no prior held-out attempt exists and record the single operator/output ledger",
+    "Create an actually approved freeze tied to the review and verified identities",
+    "Run and independently review the one planned S3 comparison; preserve all outcomes",
+    "Finalize the report with the measured results; W4 integrated experiments remain separate"
+  ]
+}

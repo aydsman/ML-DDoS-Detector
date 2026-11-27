@@ -1,8 +1,6 @@
 # Week 5 evaluation and model-selection handoff
 
-Prepared by Ayden, November 24, 2026. **Proposed protocol, not an approved
-experiment or a completed final evaluation.** Reviewers: Ali for experimental
-method/model selection, Aadi for report assembly, Vince for lab feasibility.
+Prepared by Ayden November 24; status updated November 26, 2026. **Preparation reviewed; final release withheld.** Ali approved the candidate rationale and guarded classifier-evaluation method in PR #52. Ayden completed the draft report-use review as owner under the user's instruction; this is not Aadi's approval. Aadi still assembles the report, and Vince supplies lab feasibility/evidence. Integrated trial/recovery parameters below remain proposals. No final evaluation is complete.
 The candidate inventory is [week5-model-candidates.json](week5-model-candidates.json).
 
 ## What is ready
@@ -47,14 +45,13 @@ are disappointing, report them; a later revised model needs new unseen data.
 ## Release checklist: classifier evaluation
 
 Ayden supplies the candidate identities and command; Ali independently reviews
-the method and supplied data evidence. Aadi checks that the report can use the
-result without mixing validation and final-test claims.
+the method and supplied data evidence. Ayden has checked that the draft report separates validation, final-test and live-system claims. Aadi remains responsible for report assembly; final results will require a later review.
 
-- [ ] Ali reviews the S1/S2 evidence, model rationale, candidate set and thresholds.
+- [x] Ali reviewed the S1/S2 evidence, rationale, candidate set and thresholds: [independent review](https://github.com/aydsman/ML-DDoS-Detector/pull/52#pullrequestreview-6083217879). This approves preparation, not release.
 - [ ] Confirm the reviewed labels, exclusions and independent session assignments.
       The existing S3 inventory is known; no additional model-score inspection
       is needed for this check.
-- [ ] Confirm exact inputs/model bytes and compatible runtime with the candidate file.
+- [x] Confirm exact input/model bytes and compatible runtime with the candidate file: [November 26 owner verification](reviews/week5-owner-verification-2026-11-26.json), all eight sources and staged copies match. Original files are unchanged.
 - [ ] Decide whether the system's classifier choice is final before revealing S3.
       If policy tuning in #50 could change that choice, keep S3 withheld.
 - [ ] Record the actual review reference; make a reviewed local copy of the
@@ -165,13 +162,13 @@ monitor-only, with null unvalidated settings.
 
 | Input / decision | Owner | Gate |
 | --- | --- | --- |
-| Complete S1/S2 source diagnostics and provenance, #49 | Vince | Missing |
+| New policy-calibration/validation diagnostics and provenance, #49 | Vince | Exporter corrections and new recordings pending; original S1/S2/S3 unchanged |
 | Combined model-gated policy/three-window validation, #50 | Ayden; Ali reviews evidence | Blocked by #49 |
 | Runtime scope/allowlist and lifecycle acceptance, #51/#47 | Vince and Mujtaba; Ayden accepts | Blocked by #50 |
 | Independent current start/stop runbook check, #41 | Lab-capable reviewer | Pending |
 | Accepted enforcement events displayed truthfully | Ayden/Aadi | Pending integration |
 | Trial schedule/load/recovery targets and actual calibration | Ali with Vince/Mujtaba | Proposed above; not approved |
-| Final report handoff and claims audit | Aadi with Ayden/Ali | Draft available |
+| Draft report-use review and final assembly | Ayden reviews own contribution; Aadi assembles; Ali reviews evidence | Owner draft review complete; final results/assembly pending |
 
 Each completed trial needs comparison/run IDs, phase boundaries, independent
 source/attack evidence, model/configuration hashes, actual HTTP/scenario exports,
@@ -191,3 +188,8 @@ Mock UI values and the benign live plumbing check are not attack-accuracy result
 Review this PR for the report structure and missing evidence; use it as a draft
 handoff rather than waiting for Week 4 to fill every result table. Final results,
 model adoption and report acceptance remain pending.
+
+
+## November 26 staging and owner review
+
+All eight candidate artifacts were copied into a fresh ignored staging directory and rehashed. Runtime versions and saved metadata/threshold links match; the proposed freeze still refuses release. [Owner handoff and remaining gates](week5-owner-review.md). This did not deserialize estimators, invoke predictions or score S3. The global single-run ledger is not yet confirmed.
