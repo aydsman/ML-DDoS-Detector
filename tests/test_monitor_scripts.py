@@ -1,7 +1,8 @@
 """Offline checks for scripts/monitor-start.sh and scripts/monitor-stop.sh.
 
 The functional test replaces the Python interpreter with a small shell stub, so
-it needs no root, no network interface and no model. Skipped where bash is missing.
+it needs no root, no network interface and no model. Skipped unless bash, Linux
+/proc and flock are all available, because monitor-lib.sh refuses to run without them.
 """
 import json
 import os
@@ -18,7 +19,26 @@ START = ROOT / "scripts" / "monitor-start.sh"
 STOP = ROOT / "scripts" / "monitor-stop.sh"
 BASH = shutil.which("bash")
 
-pytestmark = pytest.mark.skipif(BASH is None, reason="bash is not available")
+
+def _missing_shell_prerequisite():
+    """Return why the scripts cannot run here, or None. Checked through bash itself,
+    since bash may see a different filesystem than Python (for example Git Bash)."""
+    if BASH is None:
+        return "bash is not available"
+    probe = subprocess.run(
+        [BASH, "-c", "[ -r /proc/self/stat ] || exit 3; command -v flock >/dev/null || exit 4"],
+        capture_output=True, timeout=30)
+    if probe.returncode == 3:
+        return "monitor scripts need Linux /proc (/proc/self/stat is not readable)"
+    if probe.returncode == 4:
+        return "monitor scripts need flock (util-linux)"
+    if probe.returncode != 0:
+        return f"bash prerequisite probe failed with exit code {probe.returncode}"
+    return None
+
+
+_MISSING = _missing_shell_prerequisite()
+pytestmark = pytest.mark.skipif(_MISSING is not None, reason=_MISSING or "")
 
 
 def posix(path):
