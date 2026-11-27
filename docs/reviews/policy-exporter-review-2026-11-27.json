@@ -1,0 +1,52 @@
+{
+  "date": "2026-11-27",
+  "scope": "Offline re-review and owner hardening of PR 54; no lab/session acceptance",
+  "reviewed_vince_head": "96049166e388f928d667cb6544260e70e064bf25",
+  "reviewer": "Ayden via Codex; owner-authored clock/test fixes require teammate review",
+  "original_findings_checked": [
+    "unknown packet labels excluded before attack-share rule",
+    "caps and count mismatches make policy windows ineligible",
+    "unknown TCP flags retained per source/protocol",
+    "missing/incomplete inputs fail closed"
+  ],
+  "additional_reproduced_findings": [
+    "timestamp-free clock evidence accepted as valid",
+    "same clock file accepted for both before and after",
+    "real-time one-second export test can send zero packets due to scheduler/build delay"
+  ],
+  "owner_fixes": [
+    "require finite timestamped clock samples, nonnegative bounds, positive sample counts and ordered before/after evidence",
+    "reject calibration samples that do not bracket selected capture times",
+    "create documented clock output directory and reject empty sample sets",
+    "retain endpoint-clock continuity assumption rather than claiming observed intra-session bounds",
+    "make the real scenario export compatibility test independent of host scheduling speed",
+    "record attack schedule SHA-256"
+  ],
+  "source_sha256": {
+    "tools/lab_session_export.py": "34ec28151c5f04f4dd317656cfcb6930bf72267f788b60033f97ac3dc4311a09",
+    "tools/lab_clock_check.py": "7e407ebe8ae98de2e13601749d0326f7d4ce7ebcfd9621089d6527e50d17f33f",
+    "tests/test_lab_session_export.py": "b91903a4ffb7d13c615514e33501c31006456999bf4ca8606d5a18fc702f923d",
+    "docs/lab-policy-sessions.md": "3ffe9e540cb48b122d6246728c2c4a7233087b5b27b87e43b713e25ca1b9b67a"
+  },
+  "focused_tests": {
+    "passed": 44,
+    "failed": 0
+  },
+  "full_windows_suite": {
+    "passed": 634,
+    "skipped": 4,
+    "failed": 0,
+    "warnings": 1,
+    "warning_scope": "Existing FastAPI/Starlette HTTPX deprecation"
+  },
+  "attack_script_bash_syntax": "passed",
+  "real_lab_packets_sent": false,
+  "new_sessions_recorded": false,
+  "original_model_or_threshold_changed": false,
+  "real_s3_scored": false,
+  "remaining": [
+    "Independent teammate review of owner changes before accepting exporter tooling",
+    "Actual new calibration and validation recordings with traceable clock/capture/run evidence under #49",
+    "Policy settings validation under #50 and fresh Linux acceptance under #51"
+  ]
+}
