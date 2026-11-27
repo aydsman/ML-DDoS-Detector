@@ -1,0 +1,24 @@
+{
+  "base": "development",
+  "tested_commit": "a2ea4668682094390a02892ce5134b3844f35521",
+  "runtime": "macOS arm64",
+  "python": "3.12.15",
+  "node": "24.11.1",
+  "python_passed": 587,
+  "python_skipped": 7,
+  "python_failed": 0,
+  "frontend_passed": 39,
+  "frontend_failed": 0,
+  "dependency_check": "No broken requirements found",
+  "optional_skip_lines": [
+    "SKIPPED [1] tests/test_frames.py:152: lab pcap not present",
+    "SKIPPED [1] tests/test_live.py:85: got empty parameter set for (pcap)",
+    "SKIPPED [1] tests/test_offline.py:100: tshark not found",
+    "SKIPPED [1] tests/test_offline.py:106: got empty parameter set for (pcap)",
+    "SKIPPED [1] tests/test_offline.py:111: tshark not found",
+    "SKIPPED [1] tests/test_verify_pcap_features.py:80: tshark not found",
+    "SKIPPED [1] tests/test_verify_pcap_features.py:94: tshark not found"
+  ],
+  "initial_sandbox_failure": "Local HTTP listener bind denied. Full rerun with loopback access passed.",
+  "stage": "development candidate regression"
+}
