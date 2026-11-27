@@ -25,7 +25,7 @@
 
   <p align="center">
     <img alt="Python 3.12" src="https://img.shields.io/badge/python-3.12-blue?style=for-the-badge&logo=python&logoColor=white">
-    <img alt="Status: planning" src="https://img.shields.io/badge/status-in%20development-orange?style=for-the-badge">
+    <img alt="Status: in development" src="https://img.shields.io/badge/status-in%20development-orange?style=for-the-badge">
     <a href="https://github.com/aydsman/ML-DDoS-Detector/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/aydsman/ML-DDoS-Detector/ci.yml?branch=development&style=for-the-badge&label=CI"></a>
   </p>
 </div>
@@ -62,7 +62,9 @@
 <!-- ABOUT THE PROJECT -->
 ## About the project
 
-Planning and early implementation. The detector, mitigation and evaluation are not yet complete.
+Implemented and tested: shared packet-window extraction, saved Random Forest and offline MLP/rate comparison, trained-model monitor/API, the four-view dashboard and manual nftables lifecycle. Benign trained-model live integration is accepted at its recorded revision. Automatic policy/lab acceptance, final held-out evaluation and matched mitigation/service experiments remain incomplete.
+
+Current evidence: [accepted lab baseline](docs/week2-pilot-baseline.md), [model comparison](docs/model-comparison.md), [Week 5 owner verification](docs/week5-owner-review.md) and [presentation outline](docs/demo-rehearsal.md). Validation results and historical/sample dashboard records are not proof of current protection. Original raw lab captures were lost; surviving reviewed exports/models remain identifiable, and new policy sessions are tracked in [issue #49](https://github.com/aydsman/ML-DDoS-Detector/issues/49).
 
 An isolated lab contains a legitimate client, a controlled attack simulator, and a protected Linux server. The server captures packets, extracts window features, runs aggregate-window inference, and evaluates separate per-source attribution rules before requesting temporary firewall blocks. Startup defaults to monitor-only; enforcement requires validated policy settings. A local browser dashboard uses the backend API to show traffic, detections, actions, and system health.
 
@@ -77,8 +79,8 @@ See [the detection and mitigation design](docs/design.md) for IP-byte counting, 
 * [![Python][Python-badge]][Python-url]
 * Scapy, pandas, NumPy, scikit-learn (Random Forest first, then an MLP comparison)
 * FastAPI and Uvicorn for the backend API
-* iptables for mitigation
-* HTML, CSS, JavaScript and Chart.js for the dashboard
+* nftables for the scoped Linux firewall lifecycle
+* HTML, CSS, JavaScript and SVG traffic charts for the dashboard
 * Ubuntu Linux VMs, Wireshark or tcpdump, pytest, Git and GitHub
 
 Offline training and live capture must share the same feature definitions.
@@ -183,7 +185,7 @@ Start here if you are not sure where your work belongs. The "Main owner" column 
 | Path | What it is | Main owner |
 | --- | --- | --- |
 | `ddos_detector/` | Python package. Shared code for offline training and live capture. | Vince (feature extraction), Ayden (training, inference, API) |
-| `ddos_detector/features.py` | The single feature extractor and window grouping. Offline and live processing must both use it. | Vince |
+| `ddos_detector/features.py` | The twelve-feature arithmetic from shared aggregate windows. Offline and live processing both use it. | Vince |
 | `ddos_detector/normalize.py` | Shared raw-packet normalization (IPv4 only) for offline PCAP and live capture; skip reasons are counted. | Vince |
 | `ddos_detector/contracts.py` | Version-one feature input checks: exact names, order, finite nonnegative values. | Ayden |
 | `ddos_detector/config.py` | Shared settings (window length, data folder) and the feature name list. | Vince |
@@ -203,31 +205,35 @@ Start here if you are not sure where your work belongs. The "Main owner" column 
 | `docs/lab-setup.md` | How to build the isolated three-VM lab, verify capture, and move it to another PC. | Vince |
 | `docs/aadi-handoff.md` | Where Aadi starts on the dashboard and documentation. | Aadi |
 | `docs/dashboard-plan.md` | Backend and dashboard planning agreement. | Ayden, Aadi |
-| `docs/api-contract.md` | Proposed API field contract. Takes precedence over older examples. | Ayden |
+| `docs/api-contract.md` | API field and provenance contract. Takes precedence over older examples. | Ayden |
 | `docs/api-examples.json` | Mock JSON responses for building the dashboard. | Ayden, Aadi |
-| `frontend/` | Local mock dashboard; see [startup and checks](frontend/README.md). | Aadi |
+| `frontend/` | Four-view dashboard with sample and validated API sources; see [startup and checks](frontend/README.md). | Aadi |
 | `docs/report-outline.md` | Report outline, contributor responsibilities, and evidence checklist. | Aadi, all contributors |
+| `docs/week5-evaluation-plan.md`, `week5-model-candidates.json` | Classifier release plan and proposed artifact identities; final evaluation remains gated. | Ayden, Ali |
+| `docs/week5-owner-review.md`, `reviews/week5-owner-verification-2026-11-26.json` | Verified file/runtime identities and owner draft report-use review. | Ayden |
+| `docs/demo-rehearsal.md` | Existing-feature presentation outline and actual rehearsal checklist; no completed rehearsal is claimed. | Ayden; team rehearses |
+| `tools/evaluate_frozen_models.py` | Guarded common held-out evaluation helper; do not run before the approved release. | Ayden |
 | `docs/contributions/` | Per-contributor report drafts (lab and packet processing, ML methodology, traffic and mitigation). | Each author |
 | `CLAUDE.md` | Guidance for AI coding assistants: commands, architecture, deliberate design choices and lab rules. Keep it in step with this README. | Whole team |
 | `.github/workflows/ci.yml` | GitHub Actions CI. | Whole team |
 | `requirements.txt` | Python dependencies. `.python-version` records Python 3.12. | Whole team |
 | `data/` | Local datasets and captures. Gitignored, so it will not appear in a fresh clone. | Local only |
 
-Not in the repository yet: live packet capture, model training, the backend API, firewall mitigation, and experiment scripts. Add new code under `ddos_detector/` unless the team agrees otherwise, and mention the new file in this table.
+Also implemented: `ddos_detector/training.py` and `training_data.py` for validated training/metadata; `api.py` for the bounded dashboard state store and read-only responses; and `firewall*.py` for the scoped manual lifecycle. The automatic runner is still in draft PR #47 and is not on development. The classifier final-evaluation helper is preparation only; no held-out result is implied. Add new code under `ddos_detector/` unless the team agrees otherwise, and mention it in this table.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- USAGE -->
 ## Usage
 
-There is no end-to-end pipeline to run yet. What you can do today:
+The monitor-only capture/replay -> saved-model -> API/dashboard path is implemented. Full automatic mitigation and recovery acceptance remains pending. Available paths:
 
 * Run the feature-extraction tests (see [Run the tests](#run-the-tests)).
 * Preview the [bounded SYN/UDP scenarios](docs/scenarios.md) offline. Live sending is restricted to the isolated Linux attacker VM. Vince's lab recheck of Ctrl+C during ARP and the evaluation-format review remain pending.
 * Review the [QA test plan](docs/test-plan.md) and [measurement formats](docs/measurement-formats.md) before recording experiment results. Later collection decisions and lab evidence remain pending.
 * Try the [HTTP client locally](docs/http-client.md), with a configurable request rate and duration and optional JSON/CSV exports. PR #7 is merged after review; retain each lab run's tested revision and evidence.
 * Build the isolated lab and verify packet capture with [the lab setup notes](docs/lab-setup.md).
-* Build the dashboard against the mock responses in [`docs/api-examples.json`](docs/api-examples.json), starting from [Aadi's handoff](docs/aadi-handoff.md). See also the [backend and frontend planning draft](docs/dashboard-plan.md) and the [API field contract](docs/api-contract.md).
+* Run the dashboard using [the frontend instructions](frontend/README.md) and the [API contract](docs/api-contract.md). Use sample data for explicitly fabricated scenarios, or the documented recorded/live monitor producer. An empty API starts no capture and must not appear healthy. [Aadi's handoff](docs/aadi-handoff.md) remains a historical task guide.
 
 ### Offline extraction and verification
 
@@ -260,7 +266,7 @@ Replay a saved pcap through the live pipeline (works on Windows, needs no privil
 .\.venv\Scripts\python.exe -m ddos_detector.live --replay data\lab-runs\pr16-syn-run1\syn1.pcap --out records.jsonl
 ```
 
-Capture on a Linux VM (AF_PACKET, standard library only; needs root or CAP_NET_RAW, and the repository copied into a Python 3.12+ environment). This has not been run live yet:
+Capture on a Linux VM (AF_PACKET, standard library only; needs root or CAP_NET_RAW, and the repository copied into a Python 3.12+ environment). Benign trained-model live integration is accepted in issue #48 at its recorded revision; this command still requires the configured isolated lab:
 
 ```sh
 sudo ./.venv/bin/python -m ddos_detector.live --interface enp0s8 --victim 10.10.10.10 --duration 60 --out records.jsonl
@@ -280,7 +286,7 @@ Replay a saved pcap (any OS; the model folder comes from the training commands a
 .\.venv\Scripts\python.exe -m ddos_detector.monitor --replay capture.pcap --model results\w2-demo-model --log predictions.jsonl --victim 10.10.10.10
 ```
 
-Live on the Linux VM (root or CAP_NET_RAW; **not yet run on a real interface**). Stop with Ctrl+C or `--duration`:
+Live on the Linux VM (root or CAP_NET_RAW; **benign live integration accepted in issue #48; retain its revision and scope**). Stop with Ctrl+C or `--duration`:
 
 ```bash
 sudo ./.venv/bin/python -m ddos_detector.monitor --interface enp0s8 --model results/w2-demo-model --log predictions.jsonl --victim 10.10.10.10 --duration 60
@@ -288,7 +294,7 @@ sudo ./.venv/bin/python -m ddos_detector.monitor --interface enp0s8 --model resu
 
 Each line has `window_start`, `window_end`, `packet_count`, `scored`, `attack_score`, `predicted_attack`, `decision_threshold`, `model_sha256`, `processing_delay_s` (live only; `null` on replay) and `scoring_s`. A window that cannot be scored has `scored: false` and a reason. Processing backlog is not measured yet. A demo model is synthetic, so its scores only check the wiring.
 
-Usage examples for live capture, training, and mitigation will be added as those parts land.
+See [training](docs/training.md), [monitor operation](docs/monitor.md) and [the API contract](docs/api-contract.md) for implemented paths. Temporary firewall lifecycle and automatic policy acceptance are separate; keep unvalidated settings unset.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -298,14 +304,17 @@ Usage examples for live capture, training, and mitigation will be added as those
 - [x] Design decisions: dataset, 1 second window, feature list, leakage rules
 - [x] Shared feature extractor with tests, and CI
 - [x] Isolated three-VM lab with verified packet capture
-- [ ] Legitimate-traffic generator on the client VM
+- [x] Legitimate HTTP client with retained benign lab-run evidence
 - [ ] Bounded SYN/UDP scenarios verified in the lab (runner and offline tests implemented)
-- [ ] PCAP reader and labelling
-- [ ] Offline Random Forest model, then MLP comparison
-- [ ] Live capture on the protected server
-- [ ] Backend API
-- [ ] iptables mitigation with block expiry and cleanup
-- [ ] Dashboard
+- [x] PCAP reader/shared feature extractor and bounded controlled-lab label review
+- [ ] Public CIC source/label/split acceptance (issue #3)
+- [x] Offline Random Forest, MLP/rate comparison and S2 validation
+- [ ] Approved frozen S3 evaluation and final result review
+- [x] Trained-model benign live capture/monitor/API integration accepted at its recorded revision
+- [x] Bounded read-only backend API with provenance/data-state handling
+- [x] Manual scoped nftables lifecycle with revision-specific lab review
+- [ ] Automatic source-policy settings and Linux acceptance (issues #49-#51; draft #47)
+- [x] Four-view sample/API dashboard
 - [ ] Four-way experiment: no defense, monitor-only, simple rules, ML mitigation
 - [ ] Final report and presentation
 

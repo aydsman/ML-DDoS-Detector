@@ -1,6 +1,6 @@
 # Ayden's report contribution: architecture and machine learning
 
-Author: Ayden Sendrea. Updated November 24, 2026 for Aadi's report assembly.
+Author: Ayden Sendrea. Updated November 26, 2026 for Aadi's report assembly. Ayden completed the draft report-use review via Codex; this is an owner review, not Aadi's approval.
 
 **Evidence boundary.** The controlled-lab Random Forest has been trained, saved,
 reloaded and evaluated on S2 validation windows. An offline MLP and rate-rule
@@ -112,6 +112,12 @@ replace the frozen reviewed windows, splits or model, and it did not score S3.
 Details and checksum verification are retained in
 [PR #42](https://github.com/aydsman/ML-DDoS-Detector/pull/42).
 
+## Original capture loss and new policy evidence
+
+Vince reported that the original raw S1-S3 captures were lost in the November 21 host reset. The reviewed window exports, split manifest, reconciliation samples and trusted model survive. Their recorded hashes can still be checked; full original-PCAP extraction and source-count reconstruction cannot be repeated from the surviving aggregates. Describe original capture counters as reported evidence, not as a new independent replay.
+
+The [November 26 owner decision](https://github.com/aydsman/ML-DDoS-Detector/issues/49#issuecomment-7209474625) requires new, separately identified policy-calibration and policy-validation sessions using the unchanged original model and score threshold. They do not replace historical classifier S1/S2/S3. Use complete chronological sequences for the three-window source policy, retaining uncertainty, caps, gaps and exclusions; the classifier's class cap must not manufacture policy streaks. Exporter corrections in draft #54, settings validation in #50 and fresh Linux acceptance in #51 remain pending.
+
 ## Models, preprocessing and validation
 
 The saved Random Forest uses 100 trees, seed 3670, one worker and balanced
@@ -164,8 +170,7 @@ comparison implementation was f4a3492. Package metadata retains those identities
 
 Windows, serialized models, raw scores and raw timing samples stay in ignored
 results directories or the private OneDrive handoff. Commit bounded reports,
-configuration and hashes. These are frozen candidate identities; final
-deployment-model selection is still pending peer review and final evaluation.
+configuration and hashes. These identify the frozen proposal. Ali has independently approved the candidate rationale and guarded evaluation method; the final pre-S3 choice and actual release freeze remain pending. Do not select or retune the deployment model using S3 results.
 
 ## Working model choice
 
@@ -173,9 +178,7 @@ The Random Forest remains the existing W3 handoff baseline: its saved-artifact
 guards, reload/scoring path and offline monitor/API replay have been exercised.
 The MLP ties its eligible S2 validation scores and is a comparison candidate.
 This is a provisional integration choice, not evidence that the forest is
-more accurate or faster. Final selection requires independent review,
-reproducible settings and the agreed evaluation; neither the validation tie
-nor local timing alone establishes the best deployed detector.
+more accurate or faster. Fix the primary classifier choice using independently reviewed validation evidence and reproducible settings before revealing S3. The held-out comparison measures those frozen choices; it must not be used to retune or switch the deployed classifier. Neither the validation tie nor local timing alone establishes the best deployed detector.
 
 ## Inference-time measurement
 
@@ -201,8 +204,7 @@ retains per-round statistics, environment, hashes and clean tool revision
 
 ## Remaining evaluation and handoff
 
-- Complete the Week 5 model-choice and evaluation-protocol review with Ali;
-  the baseline/comparison implementation reviews in PRs #42/#44 are merged.
+- Ali approved the Week 5 preparation method and candidate rationale in PR #52. The baseline/comparison reviews in PRs #42/#44 are merged; the final pre-S3 choice, release ledger and approved freeze are still required.
 - Local inference timing and repeated-run summaries are recorded above.
   Target-VM timing and full capture-to-detection latency remain separate work.
 - Agree the final candidate/configuration with Ali using validation evidence,
@@ -225,7 +227,7 @@ Neither these lab validation results nor historical block records establish
 that the finished system currently protects a live server.
 
 
-## Week 5 review handoff, November 24
+## Week 5 review handoff, updated November 26
 
 The [evaluation plan](../week5-evaluation-plan.md) and
 [proposed candidate inventory](../week5-model-candidates.json) make the remaining
@@ -240,3 +242,12 @@ Aadi can review this draft contribution and use the completed method/validation
 material now. Ali must record the model/protocol review before classifier final
 evaluation. The full-system experiment additionally needs Week 4 policy and lab
 acceptance. No new accuracy, mitigation or service-recovery result is claimed.
+
+
+## Owner verification and report-use review, November 26
+
+[The bounded owner record](../reviews/week5-owner-verification-2026-11-26.json) verifies all eight original and staged artifact hashes, runtime pins, feature order, model/input links, saved thresholds and disjoint recorded session assignments. These checks verify the reviewed files and metadata; they do not independently recover lost raw PCAP evidence. All original files remain unchanged.
+
+The same review recomputed the recorded 2,750 raw prediction timings per model, reproducing the published summary rather than running a new benchmark. No estimator was deserialized and no prediction, retraining or S3 scoring occurred. The proposed freeze is still rejected by the release guard. Cross-team confirmation that no previous held-out attempt exists remains outstanding.
+
+Ayden accepts this method/validation contribution for draft report use under the user's instruction to perform that review. Aadi remains the report assembler. Final outcomes and final assembled-report acceptance remain pending. See [the owner handoff](../week5-owner-review.md) and [presentation rehearsal outline](../demo-rehearsal.md).
