@@ -1,0 +1,71 @@
+{
+  "archive_sha256": "3979d320fe760c0ad2e0b549c22d719fb3c330b18804651c0af2cdf9b0b572e6",
+  "manifest_members_verified": 92,
+  "http": {
+    "01": {
+      "source_member": "client/w48-client-01/7a6d205f-aa16-4044-af69-03948ef77580/run.json",
+      "run_id": "7a6d205f-aa16-4044-af69-03948ef77580",
+      "attempts": 205,
+      "http_200": 205,
+      "observed_attempt_success_fraction": 1.0,
+      "request_elapsed_ms_p50": 2.1688300039386377,
+      "request_elapsed_ms_p95": 3.6460742063354696,
+      "requested_per_second": 5.0,
+      "achieved_per_second": 2.5298941682678935,
+      "lag_skips": 192,
+      "scheduled_slots": null,
+      "cancelled_slots": null
+    },
+    "02": {
+      "source_member": "client/w48-client-02/0326ba37-3281-41ca-96b7-a399ea5e1099/run.json",
+      "run_id": "0326ba37-3281-41ca-96b7-a399ea5e1099",
+      "attempts": 113,
+      "http_200": 113,
+      "observed_attempt_success_fraction": 1.0,
+      "request_elapsed_ms_p50": 2.2665530123049393,
+      "request_elapsed_ms_p95": 4.184650795650668,
+      "requested_per_second": 5.0,
+      "achieved_per_second": 1.5864968263901447,
+      "lag_skips": 235,
+      "scheduled_slots": null,
+      "cancelled_slots": null
+    },
+    "03": {
+      "source_member": "client/w48-client-03/b96175f0-9002-45ab-884c-0e5f3c238033/run.json",
+      "run_id": "b96175f0-9002-45ab-884c-0e5f3c238033",
+      "attempts": 100,
+      "http_200": 100,
+      "observed_attempt_success_fraction": 1.0,
+      "request_elapsed_ms_p50": 2.2776015030103736,
+      "request_elapsed_ms_p95": 3.8546900927030943,
+      "requested_per_second": 5.0,
+      "achieved_per_second": 1.9984224025494113,
+      "lag_skips": 150,
+      "scheduled_slots": null,
+      "cancelled_slots": null
+    }
+  },
+  "historical_scenario_review": {
+    "archive_sha256": {
+      "lab-handoff.zip": "691e9887215e0a2f7451ff547739ca813b9b15a4a640de8b3d866e99f9916651",
+      "reconciliation.zip": "c379e2c84532341cd9250a7a8fc642ebdd085770445911fc1dbb437433b85d31"
+    },
+    "sessions": {
+      "S1": {
+        "matched_run_ids": 6,
+        "sender_reported_packets": 55558,
+        "reported_matching_packets": 55558,
+        "reported_attacker_offset_seconds": -0.7,
+        "reported_boundary_slack_seconds": 2.5
+      },
+      "S2": {
+        "matched_run_ids": 6,
+        "sender_reported_packets": 56043,
+        "reported_matching_packets": 56043,
+        "reported_attacker_offset_seconds": -0.677,
+        "reported_boundary_slack_seconds": 2.5
+      }
+    },
+    "scope": "S1/S2 supplied logs and derived capture summaries"
+  }
+}
