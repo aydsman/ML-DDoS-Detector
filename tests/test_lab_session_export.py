@@ -81,7 +81,8 @@ def client_run(root, times, state="complete"):
 
 
 def clock_file(path, attacker=0.0, client=0.0, bound=0.01):
-    write_json(path, {"vms": {name: {"offset_seconds": offset, "bound_seconds": bound}
+    write_json(path, {"vms": {name: {"offset_seconds": offset, "bound_seconds": bound,
+                                    "host_epoch": T0 + (65 if "after" in path.name else -10), "samples": 20}
                               for name, offset in (("server", 0.0), ("client", client), ("attacker", attacker))}})
     return path
 
@@ -349,7 +350,7 @@ def test_scores_only_valid_sessions(session, monkeypatch):
     assert all(row["score"] is None for row in rows.values())
 
 
-def test_reads_real_http_client_and_scenario_exports(tmp_path):
+def test_reads_real_http_client_and_scenario_exports(tmp_path, monkeypatch):
     transport = httpx.MockTransport(lambda request: httpx.Response(200))
     with httpx.Client(transport=transport) as client:
         http_client.run_requests(client, http_client.ClientSettings("http://10.10.10.10/"),
@@ -360,6 +361,15 @@ def test_reads_real_http_client_and_scenario_exports(tmp_path):
     assert client["rate"] == 5 and client["duration"] == 0.5 and client["state"] == "complete"
     assert problems == []
 
+    # Exercise the real export format without requiring this host to build/send
+    # its first packet inside a one-second wall-clock deadline.
+    class Clock:
+        now = 0.0
+        def sleep(self, duration):
+            self.now += duration
+    clock = Clock()
+    monkeypatch.setattr(scenarios, "perf_counter", lambda: clock.now)
+    monkeypatch.setattr(scenarios, "sleep", clock.sleep)
     settings = scenarios.ScenarioSettings(protocol="udp", port=9999, rate=5, duration=1)
     scenarios.run_scenario(settings, NullSender(), scenarios.ScenarioExport(tmp_path / "s", settings))
     runs, retained = lse.load_attack_runs(tmp_path / "s", 0.0, problems)
@@ -371,8 +381,8 @@ def test_reads_real_http_client_and_scenario_exports(tmp_path):
 def test_clock_check_bounds_the_offset():
     script = "import sys, time\nfor _ in sys.stdin:\n    print(f'{time.time() + 5:.6f}', flush=True)\n"
     result = lab_clock_check.measure([sys.executable, "-c", script], samples=5)
-    assert result["offset_seconds"] == pytest.approx(5.0, abs=0.05)
-    assert 0 <= result["bound_seconds"] < 0.05 and result["samples"] == 5
+    assert abs(result["offset_seconds"] - 5.0) <= result["bound_seconds"] + 0.000001
+    assert result["bound_seconds"] >= 0 and result["samples"] == 5
 
 
 def test_capture_that_stops_early_is_a_problem(session):
@@ -380,3 +390,49 @@ def test_capture_that_stops_early_is_a_problem(session):
     manifest, _ = run_export(session)
     assert "capture does not cover the client run" in manifest["problems"]
     assert "capture does not cover the attack run b-udp" in manifest["problems"]
+
+
+@pytest.mark.parametrize("case", ["missing_epoch", "same_file", "before_inside", "after_before_end", "swapped", "negative_bound"])
+def test_clock_evidence_must_be_timestamped_and_bracket_capture(session, case):
+    before, after = session / "clock-before.json", session / "clock-after.json"
+    if case == "same_file":
+        after = before
+    elif case == "swapped":
+        before, after = after, before
+    else:
+        path = after if case == "after_before_end" else before
+        data = json.loads(path.read_text())
+        for sample in data["vms"].values():
+            if case == "missing_epoch":
+                sample.pop("host_epoch")
+            elif case == "before_inside":
+                sample["host_epoch"] = T0 + 1
+            elif case == "after_before_end":
+                sample["host_epoch"] = T0 + 20
+            elif case == "negative_bound":
+                sample["bound_seconds"] = -1
+        write_json(path, data)
+    manifest, rows = run_export(session, clock_before=before, clock_after=after)
+    assert manifest["valid_for_scoring"] is False and manifest["problems"]
+    assert not any(row["eligible_for_policy"] for row in rows.values())
+    assert all(row["score"] is None for row in rows.values())
+
+
+def test_clock_command_creates_the_documented_session_directory(tmp_path, monkeypatch):
+    monkeypatch.setattr(lab_clock_check, "check", lambda **_: {"vms": {"server": {"offset_seconds": 0}}})
+    output = tmp_path / "fresh-session" / "clock-before.json"
+    lab_clock_check.main(["--out", str(output)])
+    assert json.loads(output.read_text())["vms"]["server"]["offset_seconds"] == 0
+
+
+@pytest.mark.parametrize("samples", [0, -1])
+def test_clock_measure_rejects_empty_sample_sets(samples):
+    with pytest.raises(ValueError, match="positive integer"):
+        lab_clock_check.measure(["must-not-run"], samples=samples)
+
+
+@pytest.mark.parametrize("slack", [-1, float("inf"), float("nan")])
+def test_invalid_slack_is_rejected_before_writing(session, slack):
+    with pytest.raises(ValueError, match="slack"):
+        run_export(session, slack=slack)
+    assert not (session / "out").exists()

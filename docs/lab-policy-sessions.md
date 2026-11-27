@@ -132,7 +132,9 @@ Reboot all three VMs between sessions (`sudo reboot` at each console; wait about
 python -m tools.lab_clock_check --out D:/lab-sessions/<session-id>/clock-after.json
 ```
 
-The export uses the midpoint of the before and after offsets. Its uncertainty is half their difference plus the larger measurement bound. It widens the boundary exclusions by that uncertainty. If the uncertainty exceeds the 2.5 s slack, the session isn't valid for scoring. A single constant offset is never applied silently.
+The export requires finite, nonnegative-bound samples with epochs and sample counts. Before/after sample times must be ordered and bracket the actual capture; copied, stale or mid-session files are rejected. The clock command creates the new output directory.
+
+The export uses the midpoint of the before and after offsets. Its uncertainty is half their difference plus the larger measurement bound. It widens the boundary exclusions by that uncertainty. If the uncertainty exceeds the 2.5 s slack, the session isn't valid for scoring. This is an endpoint-calibration estimate, not proof of the maximum clock excursion inside the session. Retain clock/NTP state and any suspend, pause or time-adjustment events. Do not allow a clock step (including resynchronization after NAT is restored) before the after-sample collection; otherwise mark the evidence uncertain and re-record or obtain defensible independent timing. No constant offset may silently repair an observed clock step.
 
 Copy the files to the session folder outside the repository. Raw captures stay out of Git.
 
@@ -193,5 +195,5 @@ Attach `manifest.json` and `windows.jsonl` to #49. The raw pcap and logs stay in
 
 - Labels assume the lab network held only the three VMs.
 - Captured-vs-sent matches source and protocol (SYN-only for TCP), not destination port.
-- VM clocks run unsynchronised while NAT is off. Drift is bounded by the before/after measurements, not measured during the session.
+- VM clocks run unsynchronised while NAT is off. Before/after calibration assumes continuous clocks with no unobserved steps or excursions. Their absence is not established by endpoint files alone; report the assumption and any contrary evidence.
 - The sessions use the same VMs and images as before. They are new captures, not new networks.

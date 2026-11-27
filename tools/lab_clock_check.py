@@ -8,15 +8,16 @@ reply, so the VM clock was read somewhere inside that interval:
     offset = vm_time - midpoint(host_before, host_after)
     bound  = (host_after - host_before) / 2      (the offset is within +/- bound)
 
-The sample with the smallest round trip is kept. The export compares a before
-and an after file to bound drift during the session; one file alone is not
-enough evidence of clock agreement.
+The sample with the smallest round trip is kept. The export checks that distinct before/after samples bracket the capture.
+Endpoint calibration still assumes no unobserved clock steps or excursions
+inside the session; it does not measure or prove their absence.
 
 Usage (host, NAT on):
   python -m tools.lab_clock_check --out D:/lab-rerec/<session-id>/clock-before.json
 """
 import argparse
 import json
+import math
 import subprocess
 import time
 from pathlib import Path
@@ -32,6 +33,8 @@ def ssh_command(port, user="lab", host="127.0.0.1"):
 
 def measure(command, samples=20, clock=time.time):
     """Run command (a remote 'read line, print epoch' loop) and return the tightest sample."""
+    if not isinstance(samples, int) or isinstance(samples, bool) or samples < 1:
+        raise ValueError("samples must be a positive integer")
     proc = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE, text=True, bufsize=1)
     rows = []
@@ -44,13 +47,16 @@ def measure(command, samples=20, clock=time.time):
             after = clock()
             if not line:
                 raise RuntimeError(f"no answer from {' '.join(command)}: {proc.stderr.read().strip()}")
-            rows.append((before, float(line), after))
+            vm_time = float(line)
+            if not all(math.isfinite(v) for v in (before, vm_time, after)) or after < before:
+                raise ValueError("clock sample must be finite with a nonnegative round trip")
+            rows.append((before, vm_time, after))
     finally:
         proc.stdin.close()
         proc.wait(timeout=30)
     rows = rows[1:]
     before, vm, after = min(rows, key=lambda row: row[2] - row[0])
-    return {"offset_seconds": round(vm - (before + after) / 2, 6), "bound_seconds": round((after - before) / 2, 6),
+    return {"offset_seconds": round(vm - (before + after) / 2, 6), "bound_seconds": math.ceil(((after - before) / 2 + 0.0000005) * 1_000_000) / 1_000_000,
             "samples": len(rows), "host_epoch": round((before + after) / 2, 6)}
 
 
@@ -65,9 +71,15 @@ def main(argv=None):
     ap.add_argument("--out", required=True, help="new JSON file (must not exist)")
     ap.add_argument("--samples", type=int, default=20)
     args = ap.parse_args(argv)
+    if args.samples < 1:
+        ap.error("--samples must be positive")
+    output = Path(args.out)
+    if output.exists():
+        raise FileExistsError(output)
+    output.parent.mkdir(parents=True, exist_ok=True)
     result = check(samples=args.samples)
-    with Path(args.out).open("x", encoding="utf-8") as handle:
-        json.dump(result, handle, indent=2)
+    with output.open("x", encoding="utf-8") as handle:
+        json.dump(result, handle, indent=2, allow_nan=False)
         handle.write("\n")
     print(json.dumps(result["vms"], indent=2))
 

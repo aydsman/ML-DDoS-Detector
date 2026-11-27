@@ -199,32 +199,50 @@ def load_client_run(directory, offset, plan, problems):
 
 
 def load_clocks(before_path, after_path, slack, problems):
-    """Seconds to add to attacker/client times to reach the server clock, and their uncertainty.
+    """Validate timestamped endpoint calibrations, then estimate relative offsets.
 
-    Uses the midpoint of the before and after offsets. Uncertainty is half the
-    drift between them plus the larger summed measurement bound. A session whose
-    uncertainty exceeds the slack fails closed rather than being silently shifted.
+    Bounds apply to the observed samples. Applying them inside the session also
+    assumes continuous clocks without unobserved steps; retain that limitation.
     """
-    files = {"before": before_path, "after": after_path}
-    loaded = {}
-    for when, path in files.items():
+    shifts = {"attacker": 0.0, "client": 0.0}
+    uncertainty = {"attacker": None, "client": None}
+    detail = {"files": {}, "samples": {},
+              "assumption": "Endpoint calibration assumes no unobserved clock step or excursion during the session."}
+    for when, path in (("before", before_path), ("after", after_path)):
         if path is None:
             problems.append(f"clock evidence missing: no {when}-session clock file")
             continue
         data = read_json(path, problems, f"{when}-session clock file")
-        if data is not None:
-            loaded[when] = {**data, "sha256": file_sha256(path)}
-    shifts, uncertainty, detail = {"attacker": 0.0, "client": 0.0}, {"attacker": None, "client": None}, {}
-    if len(loaded) != 2:
-        return shifts, uncertainty, {"files": {k: v.get("sha256") for k, v in loaded.items()}}
-    for vm in ("attacker", "client"):
-        try:
-            pairs = [(loaded[w]["vms"]["server"]["offset_seconds"] - loaded[w]["vms"][vm]["offset_seconds"],
-                      loaded[w]["vms"]["server"]["bound_seconds"] + loaded[w]["vms"][vm]["bound_seconds"])
-                     for w in ("before", "after")]
-        except (KeyError, TypeError):
-            problems.append(f"clock evidence incomplete for {vm} or server")
+        if data is None:
             continue
+        detail["files"][when] = file_sha256(path)
+        values = {}
+        for vm in ("server", "client", "attacker"):
+            sample = (data.get("vms") or {}).get(vm) if isinstance(data, dict) else None
+            valid = isinstance(sample, dict)
+            for key in ("offset_seconds", "bound_seconds", "host_epoch"):
+                value = sample.get(key) if isinstance(sample, dict) else None
+                valid = valid and isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+            if valid:
+                count = sample.get("samples")
+                valid = (sample["bound_seconds"] >= 0 and sample["host_epoch"] > 0
+                         and isinstance(count, int) and not isinstance(count, bool) and count > 0)
+            if not valid:
+                problems.append(f"{when}-session clock evidence invalid for {vm}: need finite offsets, "
+                                "nonnegative bounds, sample epoch and positive sample count")
+            else:
+                values[vm] = {key: sample[key] for key in ("offset_seconds", "bound_seconds", "host_epoch", "samples")}
+        if len(values) == 3:
+            detail["samples"][when] = values
+    if len(detail["samples"]) != 2:
+        return shifts, uncertainty, detail
+    for vm in ("server", "client", "attacker"):
+        if detail["samples"]["before"][vm]["host_epoch"] >= detail["samples"]["after"][vm]["host_epoch"]:
+            problems.append(f"clock evidence for {vm} is not ordered before then after")
+    for vm in ("attacker", "client"):
+        pairs = [(detail["samples"][w]["server"]["offset_seconds"] - detail["samples"][w][vm]["offset_seconds"],
+                  detail["samples"][w]["server"]["bound_seconds"] + detail["samples"][w][vm]["bound_seconds"])
+                 for w in ("before", "after")]
         (shift_b, bound_b), (shift_a, bound_a) = pairs
         shifts[vm] = (shift_b + shift_a) / 2
         uncertainty[vm] = abs(shift_a - shift_b) / 2 + max(bound_b, bound_a)
@@ -232,8 +250,23 @@ def load_clocks(before_path, after_path, slack, problems):
                       "bound_after": bound_a, "shift_used": shifts[vm], "uncertainty": uncertainty[vm]}
         if uncertainty[vm] > slack:
             problems.append(f"{vm} clock uncertainty {uncertainty[vm]:.3f} s exceeds the {slack} s slack")
-    detail["files"] = {when: data["sha256"] for when, data in loaded.items()}
     return shifts, uncertainty, detail
+
+
+def check_clock_coverage(detail, first_ts, last_ts, problems):
+    """Reject stale, copied or mid-recording clock samples, under the stated continuity assumption."""
+    samples = detail.get("samples", {})
+    if first_ts is None or len(samples) != 2:
+        return
+    before, after = samples["before"], samples["after"]
+    latest_before = max(s["host_epoch"] + s["bound_seconds"] for s in before.values())
+    latest_before += before["server"]["offset_seconds"] + before["server"]["bound_seconds"]
+    earliest_after = min(s["host_epoch"] - s["bound_seconds"] for s in after.values())
+    earliest_after += after["server"]["offset_seconds"] - after["server"]["bound_seconds"]
+    if latest_before > first_ts:
+        problems.append("before-session clock measurements do not precede the capture")
+    if earliest_after < last_ts:
+        problems.append("after-session clock measurements do not follow the capture")
 
 
 def packet_label(packet, runs, client, slack):
@@ -282,6 +315,8 @@ def _empty_tally():
 def export(session_id, pcap, attacker_dir, client_run, out, *, clock_before=None, clock_after=None,
            slack=2.5, tcpdump_dropped=None, model=None, config=None):
     role = session_role(session_id)
+    if isinstance(slack, bool) or not math.isfinite(slack) or slack < 0:
+        raise ValueError("slack must be finite and nonnegative")
     config = config or Config()
     out = Path(out)
     out.mkdir(parents=True, exist_ok=False)
@@ -330,6 +365,7 @@ def export(session_id, pcap, attacker_dir, client_run, out, *, clock_before=None
                 elif (run["protocol"] == "syn" and flag) or (run["protocol"] == "udp" and packet.proto == "udp"):
                     captured[index] += 1
 
+    check_clock_coverage(clock_detail, first_ts, last_ts, problems)
     if first_ts is None:
         problems.append("capture holds no selected packets")
     else:
@@ -432,7 +468,9 @@ def export(session_id, pcap, attacker_dir, client_run, out, *, clock_before=None
                      "scope": "protected_server_inbound_ipv4_tcp_udp_icmp",
                      "size_definition": "ipv4_total_length_bytes",
                      "feature_schema_version": FEATURE_SCHEMA_VERSION},
-        "schedule": schedule, "attack_runs": run_checks, "retained_incomplete_attack_runs": retained,
+        "schedule": schedule,
+        "schedule_sha256": file_sha256(Path(attacker_dir) / "schedule.json") if schedule is not None else None,
+        "attack_runs": run_checks, "retained_incomplete_attack_runs": retained,
         "client_run": client,
         "packet_labels": dict(reasons), "selection_skips": dict(skips), "feature_skips": dict(feature_skips),
         "window_counts": dict(counts), "windows_total": len(labels), "windows_eligible_for_policy": eligible_count,
@@ -444,8 +482,8 @@ def export(session_id, pcap, attacker_dir, client_run, out, *, clock_before=None
                          "complete_sequence": "every second from first to last captured window; no subsetting"},
         "limits": ["Labels assume the lab network held only the server, client and attacker.",
                    "Captured-vs-sent matches source and protocol (SYN-only for TCP), not destination port.",
-                   "Clock shifts are the midpoint of before/after measurements; drift inside the session is "
-                   "bounded, not measured.",
+                   "Clock shifts use bracketed before/after samples; intra-session behavior assumes no "
+                   "unobserved steps or excursions. Endpoint checks do not prove that assumption.",
                    "Source counts are diagnostics, never model inputs."],
     }
     with (out / "manifest.json").open("x", encoding="utf-8") as handle:
