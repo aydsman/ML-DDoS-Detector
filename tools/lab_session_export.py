@@ -1,32 +1,46 @@
-"""Label, count and (optionally) score one re-recorded lab session for issue #49.
+"""Label, count and (optionally) score one new policy lab session for issue #49.
 
-Rebuilds the labeling rules of the original lab pilot (the lost tools/lab_join.py,
-as recorded in the lab-handoff.zip coverage files on issue #3):
+Per the #49 owner decision, the sessions recorded on the rebuilt lab are new,
+independently identified policy-calibration and policy-validation sessions. They
+do not replace the original S1/S2. The original model and score threshold are
+used unchanged. The labeling rules rebuild those of the original lab pilot (the
+lost tools/lab_join.py, as recorded in the lab-handoff.zip coverage files on
+issue #3), with the dataset decision order of docs/dataset-plan.md:
 
 - A packet from the attacker inside a logged scenario run (first to last sent
-  packet, attacker clock offset applied, +/- slack) is attack-labelled, including
+  packet, moved onto the server clock, +/- slack) is attack-labelled, including
   the attacker's RSTs to the server's SYN-ACKs.
 - A packet from the client inside its logged HTTP run is benign-labelled.
 - Anything else is unknown.
-- A window touching the first/last selected window or within slack of any attack
-  run start/stop is excluded as a boundary.
-- A window overlapping an attack run is attack if at least 80% of its inbound
-  packets are attack-labelled, otherwise excluded as mixed.
-- Any other non-empty window is benign only if all its packets are benign-labelled.
+- In order, a window is excluded when it touches the first/last selected window,
+  lies within slack plus clock uncertainty of an attack run start/stop, is empty,
+  or holds any unknown-labelled packet. Only then: a window overlapping an attack
+  run is attack at >= 80% attack share, else excluded as mixed; any other window
+  is benign when all its packets are benign-labelled.
 
-Windows are one-second Unix-epoch windows over the repository's inbound IPv4
-selection (ddos_detector.frames.iter_packets). Features come from
-ddos_detector.offline.extract_pcap. Per-source counts are diagnostics only.
+Every window from the first to the last captured second is written, including
+exclusions. Each row also says whether it is eligible as policy evidence, with
+the reasons when it is not. Ineligible windows must reset policy streaks.
+
+The session is valid for scoring only when every check passes: the schedule and
+complete run inventory, the client run's completion, log reconciliation, clock
+evidence from before and after the session, capture coverage, zero kernel drops
+and per-window reconciliation. Otherwise the export is still written as
+diagnostics, with valid_for_scoring false and the reasons listed.
 
 Usage:
-  python -m tools.lab_session_export --session S1 --pcap server.pcap \
-      --attacker-runs results/rerec-S1/scenarios --client-run results/rerec-S1/client/<uuid> \
-      --tcpdump-dropped 0 --out export-S1 [--model DIR]
+  python -m tools.lab_session_export --session-id policy-calibration-2026-11-27-a \
+      --pcap server.pcap --attacker-dir <attacker results/<session-id>> \
+      --client-run <client results/<session-id>/client/<uuid>> \
+      --clock-before clock-before.json --clock-after clock-after.json \
+      --tcpdump-dropped 0 --out export [--model DIR]
 """
 import argparse
 import csv
 import json
 import math
+import re
+import uuid
 from collections import Counter, defaultdict
 from importlib import metadata as importlib_metadata
 from pathlib import Path
@@ -41,16 +55,15 @@ from ddos_detector.training_data import file_sha256
 SYN, ACK = 0x02, 0x10
 ATTACKER, CLIENT = "10.10.10.30", "10.10.10.20"
 ATTACK_SHARE = 0.8
-TOOL_VERSION = "lab-rerec-1"
-# Reported in lab-handoff.zip (issue #3) for the lost original sessions, for comparison only.
-ORIGINAL_REPORTED = {
-    "S1": {"attack": 253, "benign": 527, "excluded": 151, "syn": 163, "udp": 90, "mixed": 72, "boundary": 79},
-    "S2": {"attack": 250, "benign": 528, "excluded": 153, "syn": 162, "udp": 88, "mixed": 74, "boundary": 79},
-}
+TOOL_VERSION = "lab-policy-2"
+SESSION_ID = re.compile(r"^policy-(calibration|validation)-\d{4}-\d{2}-\d{2}-[a-z0-9]+$")
 
 
 def syn_only(packet):
-    return packet.proto == "tcp" and packet.flags is not None and bool(packet.flags & SYN) and not packet.flags & ACK
+    """True/False for TCP with known flags; None when the flags are unknown or not TCP."""
+    if packet.proto != "tcp" or packet.flags is None:
+        return None
+    return bool(packet.flags & SYN) and not packet.flags & ACK
 
 
 def read_csv(path):
@@ -58,56 +71,184 @@ def read_csv(path):
         return list(csv.DictReader(handle))
 
 
-def load_attack_runs(directory, offset):
-    """Scenario runs under directory: (used, ignored). Times are shifted onto the server clock."""
-    used, ignored = [], []
-    for run_json in sorted(Path(directory).glob("*/run.json")):
-        meta = json.loads(run_json.read_text(encoding="utf-8"))
-        if meta.get("schema_version") != "scenario-draft-1":
-            raise ValueError(f"{run_json}: not a scenario-draft-1 run")
-        sent = [float(row["epoch_seconds"]) for row in read_csv(run_json.parent / meta["activity_file"])
-                if row["outcome"] == "sent"]
-        entry = {"run_id": meta["run_id"], "protocol": meta["settings"]["protocol"],
-                 "rate": meta["settings"]["rate"], "duration": meta["settings"]["duration"],
-                 "port": meta["settings"]["port"], "state": meta["state"],
-                 "reported_sent": (meta.get("summary") or {}).get("sent"),
-                 "run_json_sha256": file_sha256(run_json),
-                 "activity_sha256": file_sha256(run_json.parent / meta["activity_file"])}
-        if meta["state"] != "complete" or not sent:
-            ignored.append({**entry, "reason": "state not complete" if meta["state"] != "complete" else "no sent packets"})
-            continue
-        used.append({**entry, "start": min(sent) + offset, "stop": max(sent) + offset, "sent_rows": len(sent)})
-    return sorted(used, key=lambda run: run["start"]), ignored
+def read_json(path, problems, what):
+    try:
+        return json.loads(Path(path).read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        problems.append(f"{what} missing: {path}")
+    except (OSError, ValueError) as exc:
+        problems.append(f"{what} unreadable: {path}: {exc}")
+    return None
 
 
-def load_client_run(directory, offset):
+def session_role(session_id):
+    match = SESSION_ID.match(session_id)
+    if not match:
+        raise ValueError("session id must look like policy-calibration-YYYY-MM-DD-a or policy-validation-YYYY-MM-DD-b")
+    return match.group(1)
+
+
+def load_schedule(attacker_dir, session_id, problems):
+    schedule = read_json(Path(attacker_dir) / "schedule.json", problems, "attack schedule")
+    if schedule is None:
+        return None
+    if schedule.get("session_id") != session_id:
+        problems.append(f"attack schedule is for session {schedule.get('session_id')!r}, not {session_id!r}")
+    if not schedule.get("runs"):
+        problems.append("attack schedule lists no runs")
+    return schedule
+
+
+def _reconcile(rows, meta, index_field, count_field, what, problems):
+    """Check log rows against their run.json: run IDs, unique indices and the summary count."""
+    if any(row.get("run_id") != meta["run_id"] for row in rows):
+        problems.append(f"{what}: log rows carry a different run_id")
+    indices = [row.get(index_field) for row in rows]
+    if len(indices) != len(set(indices)):
+        problems.append(f"{what}: duplicate {index_field} in log rows")
+    summary = meta.get("summary") or {}
+    if summary.get(count_field) != len(rows):
+        problems.append(f"{what}: summary {count_field}={summary.get(count_field)} but log has {len(rows)} rows")
+
+
+def load_attack_runs(directory, offset, problems):
+    """Complete scenario runs (times on the server clock) and retained incomplete/failed ones."""
+    used, retained = [], []
     directory = Path(directory)
-    meta = json.loads((directory / "run.json").read_text(encoding="utf-8"))
+    if not directory.is_dir():
+        problems.append(f"attacker scenario folder missing: {directory}")
+        return used, retained
+    for run_json in sorted(directory.glob("*/run.json")):
+        meta = read_json(run_json, problems, "scenario run")
+        if meta is None:
+            continue
+        if meta.get("schema_version") != "scenario-draft-1":
+            problems.append(f"{run_json}: not a scenario-draft-1 run")
+            continue
+        what = f"attack run {meta['run_id']}"
+        activity = run_json.parent / meta["activity_file"]
+        rows = read_csv(activity) if activity.exists() else []
+        settings = meta.get("settings") or {}
+        sent = [float(row["epoch_seconds"]) for row in rows if row["outcome"] == "sent"]
+        entry = {"run_id": meta["run_id"], "protocol": settings.get("protocol"), "rate": settings.get("rate"),
+                 "duration": settings.get("duration"), "port": settings.get("port"), "state": meta.get("state"),
+                 "reported_sent": (meta.get("summary") or {}).get("sent"), "sent_rows": len(sent),
+                 "run_json_sha256": file_sha256(run_json),
+                 "activity_sha256": file_sha256(activity) if activity.exists() else None}
+        reason = None
+        if not activity.exists():
+            reason = "activity log missing"
+        elif meta.get("state") != "complete":
+            reason = f"state {meta.get('state')!r}"
+        elif not sent:
+            reason = "no sent packets"
+        if reason:
+            retained.append({**entry, "reason": reason})
+            problems.append(f"{what}: {reason}")
+            continue
+        _reconcile(rows, meta, "packet_index", "attempted", what, problems)
+        if entry["reported_sent"] != len(sent):
+            problems.append(f"{what}: summary sent={entry['reported_sent']} but log has {len(sent)} sent rows")
+        used.append({**entry, "start": min(sent) + offset, "stop": max(sent) + offset})
+    return sorted(used, key=lambda run: run["start"]), retained
+
+
+def check_inventory(runs, schedule, problems):
+    """Each scheduled run must have exactly one complete run with the same settings, in order."""
+    if schedule is None:
+        return
+    planned = schedule.get("runs") or []
+    if len(runs) != len(planned):
+        problems.append(f"run inventory: {len(runs)} complete runs, schedule has {len(planned)}")
+    for number, (run, plan) in enumerate(zip(runs, planned), start=1):
+        for key in ("protocol", "port", "rate", "duration"):
+            if run[key] != plan.get(key) and not (
+                    isinstance(run[key], (int, float)) and isinstance(plan.get(key), (int, float))
+                    and float(run[key]) == float(plan[key])):
+                problems.append(f"run {number}: {key} {run[key]!r} differs from schedule {plan.get(key)!r}")
+
+
+def load_client_run(directory, offset, plan, problems):
+    directory = Path(directory)
+    meta = read_json(directory / "run.json", problems, "client run")
+    if meta is None:
+        return None
     if meta.get("schema_version") != "draft-2":
-        raise ValueError(f"{directory}: not a draft-2 HTTP client run")
-    rows = read_csv(directory / meta["requests_file"])
+        problems.append(f"{directory}: not a draft-2 HTTP client run")
+        return None
+    requests = directory / meta["requests_file"]
+    rows = read_csv(requests) if requests.exists() else []
+    settings = meta.get("settings") or {}
+    if meta.get("state") != "complete":
+        problems.append(f"client run {meta['run_id']}: state {meta.get('state')!r}, not complete")
     if not rows:
-        raise ValueError(f"{directory}: no requests")
+        problems.append(f"client run {meta['run_id']}: no request rows")
+        return None
+    _reconcile(rows, meta, "request_index", "attempted", f"client run {meta['run_id']}", problems)
+    rate, duration = settings.get("request_rate"), settings.get("duration_seconds")
+    if plan:
+        for key, value in (("rate", rate), ("duration", duration)):
+            if value is None or float(value) != float(plan.get(key, math.nan)):
+                problems.append(f"client run: {key} {value!r} differs from schedule {plan.get(key)!r}")
     starts = [float(row["epoch_seconds"]) for row in rows]
     ends = [float(row["epoch_seconds"]) + float(row["elapsed_ms"] or 0) / 1000 for row in rows]
-    return {"run_id": meta["run_id"], "state": meta["state"], "rate": meta["settings"].get("rate"),
-            "attempted": len(rows), "start": min(starts) + offset, "stop": max(ends) + offset,
-            "run_json_sha256": file_sha256(directory / "run.json"),
-            "requests_sha256": file_sha256(directory / meta["requests_file"])}
+    return {"run_id": meta["run_id"], "state": meta.get("state"), "rate": rate, "duration": duration,
+            "attempted": len(rows), "summary": meta.get("summary"),
+            "start": min(starts) + offset, "stop": max(ends) + offset,
+            "run_json_sha256": file_sha256(directory / "run.json"), "requests_sha256": file_sha256(requests)}
+
+
+def load_clocks(before_path, after_path, slack, problems):
+    """Seconds to add to attacker/client times to reach the server clock, and their uncertainty.
+
+    Uses the midpoint of the before and after offsets. Uncertainty is half the
+    drift between them plus the larger summed measurement bound. A session whose
+    uncertainty exceeds the slack fails closed rather than being silently shifted.
+    """
+    files = {"before": before_path, "after": after_path}
+    loaded = {}
+    for when, path in files.items():
+        if path is None:
+            problems.append(f"clock evidence missing: no {when}-session clock file")
+            continue
+        data = read_json(path, problems, f"{when}-session clock file")
+        if data is not None:
+            loaded[when] = {**data, "sha256": file_sha256(path)}
+    shifts, uncertainty, detail = {"attacker": 0.0, "client": 0.0}, {"attacker": None, "client": None}, {}
+    if len(loaded) != 2:
+        return shifts, uncertainty, {"files": {k: v.get("sha256") for k, v in loaded.items()}}
+    for vm in ("attacker", "client"):
+        try:
+            pairs = [(loaded[w]["vms"]["server"]["offset_seconds"] - loaded[w]["vms"][vm]["offset_seconds"],
+                      loaded[w]["vms"]["server"]["bound_seconds"] + loaded[w]["vms"][vm]["bound_seconds"])
+                     for w in ("before", "after")]
+        except (KeyError, TypeError):
+            problems.append(f"clock evidence incomplete for {vm} or server")
+            continue
+        (shift_b, bound_b), (shift_a, bound_a) = pairs
+        shifts[vm] = (shift_b + shift_a) / 2
+        uncertainty[vm] = abs(shift_a - shift_b) / 2 + max(bound_b, bound_a)
+        detail[vm] = {"shift_before": shift_b, "shift_after": shift_a, "bound_before": bound_b,
+                      "bound_after": bound_a, "shift_used": shifts[vm], "uncertainty": uncertainty[vm]}
+        if uncertainty[vm] > slack:
+            problems.append(f"{vm} clock uncertainty {uncertainty[vm]:.3f} s exceeds the {slack} s slack")
+    detail["files"] = {when: data["sha256"] for when, data in loaded.items()}
+    return shifts, uncertainty, detail
 
 
 def packet_label(packet, runs, client, slack):
     if packet.src == ATTACKER and any(run["start"] - slack <= packet.ts <= run["stop"] + slack for run in runs):
         return "attack"
-    if packet.src == CLIENT and client["start"] - slack <= packet.ts <= client["stop"] + slack:
+    if client and packet.src == CLIENT and client["start"] - slack <= packet.ts <= client["stop"] + slack:
         return "benign"
     return "unknown"
 
 
-def label_windows(windows, runs, slack):
-    """windows: {epoch second: per-window tallies}. Returns {second: (label, protocol, reason)}."""
+def label_windows(windows, runs, slack, boundary=None):
+    """windows: {epoch second: tallies}. Returns {second: (label, protocol, reason)} for every second."""
     if not windows:
         return {}
+    boundary = slack if boundary is None else boundary
     first, last = min(windows), max(windows)
     out = {}
     for second in range(first, last + 1):
@@ -115,17 +256,14 @@ def label_windows(windows, runs, slack):
         lo, hi = second, second + 1
         if second in (first, last):
             out[second] = ("excluded", None, "capture edge")
-            continue
-        if any(lo < edge + slack and hi > edge - slack for run in runs for edge in (run["start"], run["stop"])):
+        elif any(lo < edge + boundary and hi > edge - boundary for run in runs for edge in (run["start"], run["stop"])):
             out[second] = ("excluded", None, "run start/stop boundary")
-            continue
-        if tally is None or tally["total"] == 0:
+        elif tally is None or tally["total"] == 0:
             out[second] = ("excluded", None, "empty")
-            continue
-        overlapping = [run for run in runs if lo < run["stop"] and hi > run["start"]]
-        if overlapping:
-            share = tally["attack"] / tally["total"]
-            if share >= ATTACK_SHARE:
+        elif tally["unknown"]:
+            out[second] = ("excluded", None, "unknown packet labels")
+        elif overlapping := [run for run in runs if lo < run["stop"] and hi > run["start"]]:
+            if tally["attack"] / tally["total"] >= ATTACK_SHARE:
                 out[second] = ("attack", overlapping[0]["protocol"], None)
             else:
                 out[second] = ("excluded", None, "inside attack run, attack share below 80% (mixed)")
@@ -136,56 +274,124 @@ def label_windows(windows, runs, slack):
     return out
 
 
-def export(session, pcap, attacker_runs, client_run, out, *, offset_attacker=0.0, offset_client=0.0,
+def _empty_tally():
+    return {"total": 0, "attack": 0, "benign": 0, "unknown": 0, "tcp_flags_unknown": 0,
+            "sources": defaultdict(lambda: {"packets": 0, "flags_known": 0, "flags_unknown": 0, "syn_only": 0})}
+
+
+def export(session_id, pcap, attacker_dir, client_run, out, *, clock_before=None, clock_after=None,
            slack=2.5, tcpdump_dropped=None, model=None, config=None):
+    role = session_role(session_id)
     config = config or Config()
     out = Path(out)
     out.mkdir(parents=True, exist_ok=False)
-    runs, ignored = load_attack_runs(attacker_runs, offset_attacker)
-    client = load_client_run(client_run, offset_client)
+    problems = []
+    if tcpdump_dropped is None:
+        problems.append("tcpdump kernel drop count not recorded")
+    elif tcpdump_dropped != 0:
+        problems.append(f"tcpdump reported {tcpdump_dropped} packets dropped by kernel")
+    shifts, uncertainty, clock_detail = load_clocks(clock_before, clock_after, slack, problems)
+    schedule = load_schedule(attacker_dir, session_id, problems)
+    runs, retained = load_attack_runs(Path(attacker_dir) / "scenarios", shifts["attacker"], problems)
+    check_inventory(runs, schedule, problems)
+    client = load_client_run(client_run, shifts["client"], (schedule or {}).get("client"), problems)
+    boundary = slack + (uncertainty["attacker"] or 0.0)
 
-    windows = defaultdict(lambda: {"total": 0, "attack": 0, "benign": 0, "unknown": 0,
-                                   "sources": defaultdict(lambda: [0, 0])})
+    windows = defaultdict(_empty_tally)
     reasons = Counter()
     captured = Counter()
+    captured_unknown_flags = Counter()
     skips = SkipCounter()
+    first_ts = last_ts = None
     for packet in iter_packets(pcap, config.victim_ip, skips=skips):
+        first_ts = packet.ts if first_ts is None else min(first_ts, packet.ts)
+        last_ts = packet.ts if last_ts is None else max(last_ts, packet.ts)
         label = packet_label(packet, runs, client, slack)
         tally = windows[math.floor(packet.ts)]
         tally["total"] += 1
         tally[label] += 1
-        counts = tally["sources"][packet.src, packet.proto]
-        counts[0] += 1
-        counts[1] += syn_only(packet)
+        flag = syn_only(packet)
+        source = tally["sources"][packet.src, packet.proto]
+        source["packets"] += 1
+        if packet.proto == "tcp":
+            if flag is None:
+                source["flags_unknown"] += 1
+                tally["tcp_flags_unknown"] += 1
+            else:
+                source["flags_known"] += 1
+                source["syn_only"] += flag
         reasons[label] += 1
         if packet.src == ATTACKER:
             for index, run in enumerate(runs):
-                if run["start"] - slack <= packet.ts <= run["stop"] + slack and (
-                        (run["protocol"] == "syn" and syn_only(packet))
-                        or (run["protocol"] == "udp" and packet.proto == "udp")):
+                if not run["start"] - slack <= packet.ts <= run["stop"] + slack:
+                    continue
+                if run["protocol"] == "syn" and packet.proto == "tcp" and flag is None:
+                    captured_unknown_flags[index] += 1
+                elif (run["protocol"] == "syn" and flag) or (run["protocol"] == "udp" and packet.proto == "udp"):
                     captured[index] += 1
+
+    if first_ts is None:
+        problems.append("capture holds no selected packets")
+    else:
+        spans = [("client run", client)] if client else []
+        spans += [(f"attack run {run['run_id']}", run) for run in runs]
+        for name, span in spans:  # same +/- slack as packet labels: a run's last replies may follow it
+            if span["start"] < first_ts - slack or span["stop"] > last_ts + slack:
+                problems.append(f"capture does not cover the {name}")
+
+    run_checks = []
+    for index, run in enumerate(runs):
+        matches = captured[index] == run["reported_sent"] and not captured_unknown_flags[index]
+        if not matches:
+            problems.append(f"attack run {run['run_id']}: captured {captured[index]} matching packets "
+                            f"({captured_unknown_flags[index]} with unknown flags) of {run['reported_sent']} sent")
+        run_checks.append({**{k: run[k] for k in ("run_id", "protocol", "rate", "duration", "port", "state",
+                                                   "reported_sent", "sent_rows", "run_json_sha256",
+                                                   "activity_sha256")},
+                           "start_server_epoch": run["start"], "stop_server_epoch": run["stop"],
+                           "captured_matching_packets": captured[index],
+                           "captured_unknown_flag_packets": captured_unknown_flags[index],
+                           "sent_equals_captured": matches})
 
     records, feature_skips = extract_pcap(pcap, config)
     by_second = {math.floor(record.window_start): record for record in records}
-    labels = label_windows(windows, runs, slack)
+    labels = label_windows(windows, runs, slack, boundary)
+    mismatched = [second for second in labels
+                  if (by_second[second].packet_count if second in by_second else 0) != windows.get(
+                      second, {"total": 0})["total"]]
+    if mismatched:
+        problems.append(f"{len(mismatched)} windows where feature packet counts differ from labelled packets")
+    valid = not problems
 
     scorer = None
+    model_meta = None
     if model is not None:
         from ddos_detector.training import load_model, score_loaded_record
         pipeline, model_meta = load_model(model)
         scorer = lambda record: score_loaded_record(pipeline, model_meta, record)  # noqa: E731
-    capture_valid = tcpdump_dropped == 0
 
+    session_uuid = str(uuid.uuid4())
     counts = Counter()
-    mismatches = 0
+    eligible_count = 0
+    mismatched = set(mismatched)
     with (out / "windows.jsonl").open("x", encoding="utf-8") as handle:
         for second, (label, protocol, reason) in sorted(labels.items()):
-            tally = windows.get(second, {"total": 0, "attack": 0, "benign": 0, "unknown": 0, "sources": {}})
+            tally = windows.get(second) or _empty_tally()
             record = by_second.get(second)
-            if (record.packet_count if record else 0) != tally["total"]:
-                mismatches += 1
+            ineligible = []
+            if reason:
+                ineligible.append(reason)
+            if record is not None and record.capped:
+                ineligible.append("source cap reached")
+            if second in mismatched:
+                ineligible.append("packet count mismatch")
+            if tally["tcp_flags_unknown"]:
+                ineligible.append("unknown TCP flags")
+            if not valid:
+                ineligible.append("session not valid for scoring")
             score = None
-            if scorer and record is not None and record.packet_count > 0 and capture_valid and not record.capped:
+            if (scorer and valid and record is not None and record.packet_count > 0 and not record.capped
+                    and second not in mismatched):
                 score = scorer({"capture_state": "valid", "capped": record.capped, "window_seconds": 1.0,
                                 "feature_schema_version": FEATURE_SCHEMA_VERSION, "features": record.features})
             counts[label] += 1
@@ -193,46 +399,53 @@ def export(session, pcap, attacker_runs, client_run, out, *, offset_attacker=0.0
                 counts[protocol] += 1
             if reason:
                 counts[reason] += 1
-            row = {"window_id": f"lab-rerec-{session}-{second}", "session": session, "window_start": second,
-                   "label": label, "attack_protocol": protocol, "exclusion_reason": reason,
+            eligible_count += not ineligible
+            row = {"window_id": f"{session_id}-{second}", "session_id": session_id, "session_uuid": session_uuid,
+                   "role": role, "window_start": second, "label": label, "attack_protocol": protocol,
+                   "exclusion_reason": reason, "eligible_for_policy": not ineligible,
+                   "ineligible_reasons": ineligible,
                    "packet_count": tally["total"], "attack_packets": tally["attack"],
                    "benign_packets": tally["benign"], "unknown_packets": tally["unknown"],
+                   "tcp_flags_unknown_packets": tally["tcp_flags_unknown"],
                    "attack_share": round(tally["attack"] / tally["total"], 6) if tally["total"] else None,
                    "features": record.features if record else None, "capped": record.capped if record else False,
-                   "source_counts": [{"src": src, "proto": proto, "packets": n, "syn_only": syn}
-                                     for (src, proto), (n, syn) in sorted(tally["sources"].items())],
+                   "source_counts": [{"src": src, "proto": proto, **values}
+                                     for (src, proto), values in sorted(tally["sources"].items())],
                    "score": score}
             handle.write(json.dumps(row, allow_nan=False) + "\n")
 
-    run_checks = [{**{k: run[k] for k in ("run_id", "protocol", "rate", "duration", "port", "state",
-                                           "reported_sent", "sent_rows", "run_json_sha256", "activity_sha256")},
-                   "start_server_epoch": run["start"], "stop_server_epoch": run["stop"],
-                   "captured_matching_packets": captured[index],
-                   "sent_equals_captured": captured[index] == run["reported_sent"]}
-                  for index, run in enumerate(runs)]
     from ddos_detector.training import source_revision, versions
     manifest = {
-        "tool": "tools/lab_session_export.py", "tool_version": TOOL_VERSION, "session": session,
-        "data_kind": "rerecorded_lab_session_unreviewed", "source_revision": source_revision(),
-        "versions": {**versions(), "ddos_detector": _package_version()},
+        "tool": "tools/lab_session_export.py", "tool_version": TOOL_VERSION,
+        "session_id": session_id, "session_uuid": session_uuid, "role": role,
+        "data_kind": "new_policy_lab_session_unreviewed",
+        "decision": "issue #49 owner decision: new sessions, not replacements for S1/S2; original model and "
+                    "threshold unchanged; no retraining; S3 untouched",
+        "source_revision": source_revision(), "versions": {**versions(), "ddos_detector": _package_version()},
+        "valid_for_scoring": valid, "problems": problems,
         "capture": {"file": Path(pcap).name, "sha256": file_sha256(pcap), "tcpdump_dropped": tcpdump_dropped,
-                    "valid_for_scoring": capture_valid},
+                    "first_packet_epoch": first_ts, "last_packet_epoch": last_ts},
+        "clock": clock_detail,
         "settings": {"victim_ip": config.victim_ip, "attacker": ATTACKER, "client": CLIENT,
-                     "offset_attacker_seconds": offset_attacker, "offset_client_seconds": offset_client,
-                     "slack_seconds": slack, "attack_share_threshold": ATTACK_SHARE,
+                     "slack_seconds": slack, "boundary_seconds": boundary, "attack_share_threshold": ATTACK_SHARE,
                      "window_seconds": 1.0, "window_alignment": "unix_epoch",
                      "scope": "protected_server_inbound_ipv4_tcp_udp_icmp",
                      "size_definition": "ipv4_total_length_bytes",
                      "feature_schema_version": FEATURE_SCHEMA_VERSION},
-        "attack_runs": run_checks, "ignored_attack_runs": ignored, "client_run": client,
+        "schedule": schedule, "attack_runs": run_checks, "retained_incomplete_attack_runs": retained,
+        "client_run": client,
         "packet_labels": dict(reasons), "selection_skips": dict(skips), "feature_skips": dict(feature_skips),
-        "window_counts": dict(counts), "windows_total": len(labels), "window_packet_count_mismatches": mismatches,
-        "original_reported_counts": ORIGINAL_REPORTED.get(session),
-        "model": None if model is None else {"directory": str(model), "model_sha256": model_meta["model_sha256"],
-                                             "decision_threshold": model_meta["decision_threshold"]},
+        "window_counts": dict(counts), "windows_total": len(labels), "windows_eligible_for_policy": eligible_count,
+        "window_packet_count_mismatches": len(mismatched),
+        "model": None if model_meta is None else {"directory": str(model), "model_sha256": model_meta["model_sha256"],
+                                                  "decision_threshold": model_meta["decision_threshold"]},
         "windows_file": "windows.jsonl", "windows_sha256": file_sha256(out / "windows.jsonl"),
+        "policy_rules": {"ineligible_window_resets_streak": True,
+                         "complete_sequence": "every second from first to last captured window; no subsetting"},
         "limits": ["Labels assume the lab network held only the server, client and attacker.",
                    "Captured-vs-sent matches source and protocol (SYN-only for TCP), not destination port.",
+                   "Clock shifts are the midpoint of before/after measurements; drift inside the session is "
+                   "bounded, not measured.",
                    "Source counts are diagnostics, never model inputs."],
     }
     with (out / "manifest.json").open("x", encoding="utf-8") as handle:
@@ -250,25 +463,25 @@ def _package_version():
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--session", required=True, help="session name, e.g. S1")
+    ap.add_argument("--session-id", required=True, help="e.g. policy-calibration-2026-11-27-a")
     ap.add_argument("--pcap", required=True, help="server capture")
-    ap.add_argument("--attacker-runs", required=True, help="scenarios --output folder holding the run UUID folders")
+    ap.add_argument("--attacker-dir", required=True, help="attacker results/<session-id> (schedule.json, scenarios/)")
     ap.add_argument("--client-run", required=True, help="the HTTP client's run UUID folder")
+    ap.add_argument("--clock-before", help="tools/lab_clock_check.py output from before the session")
+    ap.add_argument("--clock-after", help="tools/lab_clock_check.py output from after the session")
     ap.add_argument("--out", required=True, help="new export folder (must not exist)")
-    ap.add_argument("--offset-attacker", type=float, default=0.0, help="seconds added to attacker times")
-    ap.add_argument("--offset-client", type=float, default=0.0, help="seconds added to client times")
     ap.add_argument("--slack", type=float, default=2.5)
-    ap.add_argument("--tcpdump-dropped", type=int, help="'packets dropped by kernel' from tcpdump; 0 enables scoring")
+    ap.add_argument("--tcpdump-dropped", type=int, help="'packets dropped by kernel' from tcpdump")
     ap.add_argument("--model", help="trusted model folder (metadata.json + model.joblib)")
     args = ap.parse_args(argv)
-    manifest = export(args.session, args.pcap, args.attacker_runs, args.client_run, args.out,
-                      offset_attacker=args.offset_attacker, offset_client=args.offset_client, slack=args.slack,
+    manifest = export(args.session_id, args.pcap, args.attacker_dir, args.client_run, args.out,
+                      clock_before=args.clock_before, clock_after=args.clock_after, slack=args.slack,
                       tcpdump_dropped=args.tcpdump_dropped, model=args.model)
-    print(json.dumps({"out": args.out, "window_counts": manifest["window_counts"],
-                      "original_reported_counts": manifest["original_reported_counts"],
-                      "sent_equals_captured": [run["sent_equals_captured"] for run in manifest["attack_runs"]],
-                      "window_packet_count_mismatches": manifest["window_packet_count_mismatches"]}, indent=2))
+    print(json.dumps({"out": args.out, "valid_for_scoring": manifest["valid_for_scoring"],
+                      "problems": manifest["problems"], "window_counts": manifest["window_counts"],
+                      "windows_eligible_for_policy": manifest["windows_eligible_for_policy"]}, indent=2))
+    return 0 if manifest["valid_for_scoring"] else 1
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

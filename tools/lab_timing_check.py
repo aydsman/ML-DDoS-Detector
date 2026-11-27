@@ -1,4 +1,4 @@
-"""Check that a lab VM can keep the S1/S2 schedule, without sending any traffic.
+"""Check that a lab VM can keep the policy-session schedule (docs/lab-policy-sessions.md), sending nothing.
 
 Runs the real schedulers at the session rates: the attacker's scenario loop
 against a no-op sender, and the client's HTTP loop against a mock transport.
