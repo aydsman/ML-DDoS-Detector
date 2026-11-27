@@ -26,4 +26,10 @@ The [saved regression record](ali-week6-regression.json) lists the exact skipped
 | CIC 479 windows, eight candidate positives, 471 excluded | Historical v1 candidate count and manifest reconciliation. CIC labels and train/test split require the [source handoff](https://github.com/aydsman/ML-DDoS-Detector/issues/3). |
 | Incident delay, protection benefit, service recovery, held-out accuracy | Pending approved policy, matched full-system logs and held-out release. |
 
-For the demo, the frontend tests exercise current, recorded, stale and unavailable states. The saved benign lab acceptance includes advancing API results and capture startup failure. Active block and expiry with measured client recovery require the integrated Linux acceptance. Repeat the candidate checks and compare each figure and number against its named evidence after the report and demonstration are assembled.
+For the demo, the frontend tests exercise current, recorded, stale and unavailable states. The saved benign lab acceptance includes advancing API results and capture startup failure. Active block and expiry with measured client recovery require the integrated Linux acceptance. ## Final handoff
+
+- Run the checks above on the final candidate and retain the full commit ID, runtime and skipped cases.
+- Reconcile sections 9 and 10 with the [evaluation figure and its source data](https://github.com/aydsman/ML-DDoS-Detector/pull/59). Preserve the label on the benign monitor runs and the achieved request rate in every reuse of the chart.
+- In the infrastructure section, reconcile the packet-count discrepancy identified in [PR #53](https://github.com/aydsman/ML-DDoS-Detector/pull/53) with the dated [rebuild record](https://github.com/aydsman/ML-DDoS-Detector/issues/49#issuecomment-7206990025).
+- Match any final classifier numbers to the reviewed release output from [PR #52](https://github.com/aydsman/ML-DDoS-Detector/pull/52). The existing S2 numbers are validation results.
+- Confirm the Linux demo behavior from the completed [monitor retest](https://github.com/aydsman/ML-DDoS-Detector/pull/41) and [policy acceptance](https://github.com/aydsman/ML-DDoS-Detector/issues/51). Use the saved benign monitor evidence for claims at that scope until these are available.
