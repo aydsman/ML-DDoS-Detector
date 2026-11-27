@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-COMP-3670 team project (final deadline 2026-12-09): ML detection of SYN/UDP floods on a protected Linux server, temporary firewall blocks, and a local web dashboard. All active work is on `development`; `main` only receives reviewed weekly promotions, so a stale local `main` looks like an empty project. Work is tracked in GitHub issues (the decision and evidence record) and on the Trello board linked in README.md. README.md has the team roles and a repository map. Add new top-level files to that map.
+COMP-3670 team project (team completion target 2026-12-01; verify any separate course submission deadline against the assignment): ML detection of SYN/UDP floods on a protected Linux server, temporary firewall blocks, and a local web dashboard. All active work is on `development`; `main` only receives reviewed weekly promotions, so a stale local `main` looks like an empty project. Work is tracked in GitHub issues (the decision and evidence record) and on the Trello board linked in README.md. README.md has the team roles and a repository map. Add new top-level files to that map.
 
 ## Commands
 
@@ -16,7 +16,7 @@ Python 3.12 (`.python-version`). Call the venv interpreter directly; don't activ
     .\.venv\Scripts\python.exe -m pytest -q tests/test_features.py::test_windows_split
     node --test tests/frontend-api.mjs tests/frontend-validation.mjs tests/frontend-status.mjs tests/frontend-graphs.mjs tests/frontend-refresh.mjs
 
-On Linux use `./.venv/bin/python`. CI (`.github/workflows/ci.yml`, Ubuntu) runs only `pip check` and `pytest -q`. It doesn't run the Node frontend tests. No linter is configured, and dependencies are unpinned. Tests that need real captures, tshark, root or Linux-only features (AF_PACKET, flock, nftables) skip themselves. Skipped is not the same as lab-verified.
+On Linux use `./.venv/bin/python`. CI (`.github/workflows/ci.yml`, Ubuntu) runs only `pip check` and `pytest -q`. It doesn't run the Node frontend tests. No linter is configured, and project dependencies are unpinned. Loading a trusted model also requires the private handoff's `model-requirements.txt`; installing the latest NumPy can make that model incompatible. Tests that need real captures, tshark, root or Linux-only features (AF_PACKET, flock, nftables) skip themselves. Skipped is not the same as lab-verified.
 
 Main entry points (`python -m ...`):
 - `ddos_detector.offline <pcap> --victim 10.10.10.10 --out records.csv`: features for a saved classic pcap.
@@ -44,4 +44,4 @@ Things that look wrong but are deliberate:
 
 ## Lab and data
 
-The lab is three VirtualBox VMs on an internal network (`docs/lab-setup.md`): ddos-server 10.10.10.10 (capture on `enp0s8`; `enp0s3` is management/NAT and must never be monitored or blocked), ddos-client 10.10.10.20 and ddos-attacker 10.10.10.30. Attack traffic and firewall experiments run only inside this lab. Raw captures, models and run logs go in the gitignored `data/` and `results/` folders. They're shared as hashed ZIPs attached to GitHub issues, never committed.
+The lab is three VirtualBox VMs on an internal network (`docs/lab-setup.md`): ddos-server 10.10.10.10 (capture on `enp0s8`; `enp0s3` is management/NAT and must never be monitored or blocked), ddos-client 10.10.10.20 and ddos-attacker 10.10.10.30. Attack traffic and firewall experiments run only inside this lab. Raw captures, models and run logs go in the gitignored `data/` and `results/` folders. Share approved bounded capture exports and run logs through the agreed evidence handoff, never as committed files. Trusted model packages stay off GitHub and use the restricted OneDrive/email handoff described in issue #43.

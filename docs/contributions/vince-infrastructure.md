@@ -1,6 +1,6 @@
 # Lab infrastructure and packet processing
 
-Author: Vince. Draft of November 24, 2026, for report sections 3 (architecture, capture side), 4 (lab and reproducibility) and 5 (dataset and features, capture side). It describes implemented components and the lab observations reported so far. Results that still need new recordings are marked as pending, and nothing here is an evaluation result.
+Author: Vince. Draft reviewed November 26, 2026, for report sections 3 (architecture, capture side), 4 (lab and reproducibility) and 5 (dataset and features, capture side). It describes implemented components and the lab observations reported so far. Results that still need new recordings are marked as pending, and nothing here is an evaluation result.
 
 ## Isolated lab
 
@@ -14,7 +14,7 @@ The lab is three Ubuntu Server VMs on one Windows host running VirtualBox. Each 
 
 `enp0s8` is attached to the VirtualBox internal network `ddoslab`, which has no adapter on the host, so lab traffic can't reach the host or the internet. `enp0s3` is a NAT adapter used only for SSH from the host (forwarded ports 2222–2224) and for package installation. It is switched off before any flood. The NAT adapter is configured with a static address because the DHCP lease installed extra host routes that sent lab traffic out through NAT. The symptom was `ttl=61` replies and HTTP timeouts. Step-by-step build commands, clone fixes (machine ID, SSH host keys, netplan MAC pin) and the capture check are in [lab-setup.md](../lab-setup.md). The build was tested with VirtualBox 7.2.22 and Ubuntu Server 26.04.1.
 
-The capture check sends 10 SYN packets from the attacker. tcpdump on the server's `enp0s8` must show the SYN, the server's SYN-ACK and the attacker's RST: 12 packets, 0 dropped.
+The capture check sends 10 SYN packets from the attacker. The reported check on the server's `enp0s8` saw 30 frames: 10 SYNs, 10 SYN-ACKs and 10 RSTs, with 0 kernel drops. Actual totals depend on replies and retransmissions; this checks the capture point, not end-to-end loss.
 
 **Environment record (rebuilt lab, November 25–26, 2026).** The original VMs and the raw captures stored with them were lost when the host PC was reset on November 21, 2026 (see issue #49). The lab was rebuilt from lab-setup.md on the same host. This doubles as a fresh-deployment reproducibility check. Earlier lab observations remain tied to the original VMs and their recorded revisions.
 
@@ -30,6 +30,8 @@ The capture check sends 10 SYN packets from the attacker. tcpdump on the server'
 | Test suite on server | `pytest -q`: 587 passed, 7 skipped (as non-root; root-only capture tests skip) |
 | Checks | client → server ping `ttl=64`, HTTP 200; 10-SYN capture test on `enp0s8`: 30 packets (SYN, SYN-ACK, RST for each), 0 dropped by kernel |
 
+**Trusted model runtime.** The initial environment above used NumPy 2.5.5 and cannot load the existing trusted model under its compatibility guard. Restore and hash-check the restricted model handoff, then install its `model-requirements.txt` alongside the project requirements: NumPy 2.5.4, SciPy 1.18.1, scikit-learn 1.9.1 and joblib 1.6.0 on Python 3.12. The original model package survives; the lost raw captures do not. Later timing rehearsals in draft PR #54 used different host settings and must retain their own environment record. They are not general instructions to change teammates' host security settings.
+
 One rebuild problem worth recording: after its post-clone reboot, the client once stopped answering on both adapters while its console stayed responsive. A VM reset fixed it, and the previous boot's log shows no errors. This may be a VirtualBox-on-Hyper-V stall and should be watched during long runs.
 
 ## Packet-processing pipeline
@@ -38,7 +40,7 @@ Offline pcaps and live capture share one code path, so a model trained on saved 
 
 1. **Frame source.** `pcap.py` reads classic Ethernet pcaps. `capture.py` reads frames from a Linux AF_PACKET socket (standard library only; requires root or CAP_NET_RAW) on the interface named with `--interface`.
 2. **Frame parsing and selection.** `frames.py` parses Ethernet and IPv4 and keeps only inbound packets addressed to the protected server.
-3. **Normalization.** `normalize.py` turns each IPv4 packet into the shared record (timestamp, source, protocol, size, TCP flags). Non-IP, IPv6, unsupported protocols and invalid or incomplete IPv4 headers are skipped and counted by reason. Packet size is the IPv4 Total Length, not the captured byte count, so truncated captures still give correct sizes. Non-first fragments count toward packet, byte, protocol and source totals, but their TCP flags are recorded as unknown rather than guessed.
+3. **Normalization.** `normalize.py` turns each IPv4 packet into the shared record (timestamp, source, protocol, size, TCP flags). Non-IP, IPv6, unsupported protocols and invalid or incomplete IPv4 headers are skipped and counted by reason. Packet size is the IPv4 Total Length, not the captured byte count, so payload truncation can preserve the size if the complete IPv4 header remains valid; invalid or incomplete headers are rejected. Non-first fragments count toward packet, byte, protocol and source totals, but their TCP flags are recorded as unknown rather than guessed.
 4. **Windowing.** `aggregate.py` assigns packets to one-second windows aligned to Unix epoch seconds (start inclusive, end exclusive). A window closes when a packet or the clock passes its end plus a one-second grace period, so a quiet link still closes windows. State is bounded: at most 10,000 distinct sources are tracked per window. Beyond that the window is marked `capped`, and source-diversity features no longer describe all traffic. Capped windows are excluded from training and scoring. Size statistics come from a per-size histogram, so closing a window doesn't scale with its packet count.
 5. **Features.** `features.py` computes the twelve version-one features in the fixed order of [feature-contract.md](../feature-contract.md).
 
@@ -48,7 +50,7 @@ Offline pcaps and live capture share one code path, so a model trained on saved 
 
 ## Monitor-only runtime and operation
 
-`monitor.py` scores each finished window with a saved model package. It appends one JSON line per window to a new audit file (an existing file is refused) and never contacts a firewall. Each live window records `processing_delay_s`, the time from the window's end to its record being written. It is about 1.0 s with the grace period. The terminal status record reports skips, late-dropped packets, capture gaps and the maximum processing delay. The dashboard API can run the monitor in the same process and serve its state live (see [monitor.md](../monitor.md)).
+`monitor.py` scores each finished window with a saved model package. It appends one JSON line per window to a new audit file (an existing file is refused) and never contacts a firewall. Each live window records `processing_delay_s`, the time from the window's end to the start of model scoring. Model scoring time is recorded separately as `scoring_s`; this is not full alert delivery latency. It is about 1.0 s with the grace period. The terminal status record reports skips, late-dropped packets, capture gaps and the maximum processing delay. The dashboard API can run the monitor in the same process and serve its state live (see [monitor.md](../monitor.md)).
 
 Draft PR #41 adds start and stop scripts for the lab server:
 - Start reports success only after the monitor writes its first status record.
